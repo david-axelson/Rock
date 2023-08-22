@@ -48,8 +48,8 @@ namespace Rock.Blocks.Core
 
     #endregion
 
-    [Rock.SystemGuid.EntityTypeGuid( "A61EAF51-5DB4-451E-9F88-9D4C6ACCE73B")]
-    [Rock.SystemGuid.BlockTypeGuid( "507F5108-FB55-48F0-A66E-CC3D5185D35D")]
+    [Rock.SystemGuid.EntityTypeGuid( "A61EAF51-5DB4-451E-9F88-9D4C6ACCE73B" )]
+    [Rock.SystemGuid.BlockTypeGuid( "507F5108-FB55-48F0-A66E-CC3D5185D35D" )]
     public class CampusDetail : RockDetailBlockType
     {
         #region Keys
@@ -186,6 +186,30 @@ namespace Rock.Blocks.Core
         }
 
         /// <summary>
+        /// Converts the campus topics to bags to represent the custom
+        /// data that needs to be included.
+        /// </summary>
+        /// <param name="campusTopics">The campus schedules.</param>
+        /// <returns>A collection of <see cref="CampusTopicBag"/> objects that represent the campus topics.</returns>
+        private static List<CampusTopicBag> ConvertCampusTopicsToBags( IEnumerable<CampusTopic> campusTopics )
+        {
+            if ( campusTopics == null )
+            {
+                return new List<CampusTopicBag>();
+            }
+
+            return campusTopics
+                .Select( ct => new CampusTopicBag
+                {
+                    Guid = ct.Guid,
+                    Type = ct.TopicTypeValue.ToListItemBag(),
+                    Email = ct.Email,
+                    IsPublic = ct.IsPublic
+                } )
+                .ToList();
+        }
+
+        /// <summary>
         /// Updates the campus schedules from the data contained in the bags.
         /// </summary>
         /// <param name="campus">The campus instance to be updated.</param>
@@ -237,9 +261,69 @@ namespace Rock.Blocks.Core
                     campus.CampusSchedules.Add( campusSchedule );
                 }
 
-                campusSchedule.ScheduleId = scheduleId.Value;
-                campusSchedule.ScheduleTypeValueId = campusScheduleViewModel.ScheduleTypeValue.GetEntityId<DefinedValue>( rockContext );
+                // do not load just the id, for instance ScheduleId, load the entire entity
+                // otherwise the remote device would need to reload the page when a new schedule is added.
+                campusSchedule.Schedule = new ScheduleService( rockContext ).Get( campusScheduleViewModel.Schedule.Value.AsGuid() );
+                campusSchedule.ScheduleTypeValue = new DefinedValueService( rockContext ).Get( campusScheduleViewModel.ScheduleTypeValue.Value.AsGuid() );
                 campusSchedule.Order = order++;
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Updates the campus topics from the data contained in the bags.
+        /// </summary>
+        /// <param name="campus">The campus instance to be updated.</param>
+        /// <param name="bags">The bags that represent the schedules.</param>
+        /// <param name="rockContext">The rock context.</param>
+        /// <returns><c>true</c> if the schedules were valid and updated; otherwise <c>false</c>.</returns>
+        private bool UpdateCampusTopicsFromBags( Campus campus, IEnumerable<CampusTopicBag> bags, RockContext rockContext )
+        {
+            if ( bags == null )
+            {
+                return false;
+            }
+
+            // Remove any CampusTopics that were removed in the UI.
+            var selectedTopics = bags.Select( s => s.Guid );
+            var topicsToRemove = campus.CampusTopics.Where( s => !selectedTopics.Contains( s.Guid ) ).ToList();
+
+            if ( topicsToRemove.Any() )
+            {
+                var campusTopicsService = new CampusTopicService( rockContext );
+                campus.CampusTopics.RemoveAll( topicsToRemove );
+                campusTopicsService.DeleteRange( topicsToRemove );
+            }
+
+            // Add or update any schedules that are still selected in the UI.
+            foreach ( var campusTopicsViewModel in bags )
+            {
+                var topicId = campusTopicsViewModel.Type.GetEntityId<DefinedValue>( rockContext );
+
+                if ( !topicId.HasValue )
+                {
+                    return false;
+                }
+
+                var campusTopics = campus.CampusTopics
+                    .Where( s => s.Guid == campusTopicsViewModel.Guid )
+                    .FirstOrDefault();
+
+                if ( campusTopics == null )
+                {
+                    campusTopics = new CampusTopic()
+                    {
+                        CampusId = campus.Id,
+                        Guid = Guid.NewGuid()
+                    };
+                    campus.CampusTopics.Add( campusTopics );
+                }
+
+                campusTopics.Email = campusTopicsViewModel.Email;
+                campusTopics.IsPublic = campusTopicsViewModel.IsPublic;
+                campusTopics.TopicTypeValue = new DefinedValueService( rockContext )
+                	.Get( campusTopicsViewModel.Type.Value.AsGuid() );
             }
 
             return true;
@@ -428,8 +512,8 @@ namespace Rock.Blocks.Core
             {
                 IdKey = entity.IdKey,
                 CampusSchedules = ConvertCampusSchedulesToBags( entity.CampusSchedules ),
+                CampusTopics = ConvertCampusTopicsToBags( entity.CampusTopics ),
                 CampusStatusValue = entity.CampusStatusValue.ToListItemBag(),
-                //CampusTopics = entity.CampusTopics.ToListItemBagList(),
                 CampusTypeValue = entity.CampusTypeValue.ToListItemBag(),
                 Description = entity.Description,
                 IsActive = !entity.IsActive.HasValue || entity.IsActive.Value,
@@ -514,11 +598,17 @@ namespace Rock.Blocks.Core
                 return false;
             }
 
+            var isTopicsValid = box.IfValidProperty( nameof( box.Entity.CampusTopics ),
+                () => UpdateCampusTopicsFromBags( entity, box.Entity.CampusTopics, rockContext ),
+                true );
+
+            if ( !isTopicsValid )
+            {
+                return false;
+            }
+
             box.IfValidProperty( nameof( box.Entity.CampusStatusValue ),
                 () => entity.CampusStatusValueId = box.Entity.CampusStatusValue.GetEntityId<DefinedValue>( rockContext ) );
-
-            //box.IfValidProperty( nameof( box.Entity.CampusTopics ),
-            //    () => entity.CampusTopics = box.Entity./* TODO: Unknown property type 'ICollection<CampusTopic>' for conversion to bag. */ );
 
             box.IfValidProperty( nameof( box.Entity.CampusTypeValue ),
                 () => entity.CampusTypeValueId = box.Entity.CampusTypeValue.GetEntityId<DefinedValue>( rockContext ) );
@@ -560,7 +650,6 @@ namespace Rock.Blocks.Core
                 () =>
                 {
                     entity.LoadAttributes( rockContext );
-
                     entity.SetPublicAttributeValues( box.Entity.AttributeValues, RequestContext.CurrentPerson );
                 } );
 

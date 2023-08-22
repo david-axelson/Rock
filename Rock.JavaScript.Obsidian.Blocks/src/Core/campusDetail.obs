@@ -67,7 +67,7 @@
         "attributeValues",
         "campusSchedules",
         "campusStatusValue",
-        //"campusTopics",
+        "campusTopics",
         "campusTypeValue",
         "description",
         "isActive",

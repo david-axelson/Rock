@@ -60,29 +60,99 @@
             </div>
         </div>
 
+        <div class="row">
+            <div class="col-md-6">
+                <Grid :data="scheduleGridData"
+                      light
+                      liveUpdates
+                      keyField="guid"
+                      :onAddItem="onAddScheduleClick">
+                    <TextColumn name="Schedule" title="Schedule" field="schedule" />
+                    <TextColumn name="Type" title="Type" field="type" />
+                    <EditColumn :onClick="onEditScheduleClick" />
+                    <DeleteColumn :onClick="onDeleteScheduleClick"  />
+                </Grid>
+            </div>
+
+            <div class="col-md-6">
+                <Grid :data="topicGridData"
+                      light
+                      liveUpdates
+                      keyField="guid"
+                      :onAddItem="onAddTopicClick">
+                    <TextColumn name="Type" title="Type" field="type" />
+                    <TextColumn name="Email" title="Email" field="email" />
+                    <BooleanColumn name="Public" title="Public" field="public" />
+                    <EditColumn :onClick="onEditTopicClick" />
+                    <DeleteColumn :onClick="onDeleteTopicClick"  />
+                </Grid>
+            </div>
+        </div>
+
         <AttributeValuesContainer v-model="attributeValues" :attributes="attributes" isEditMode :numberOfColumns="2" />
     </fieldset>
+
+    <!-- Campus Schedule -->
+    <Modal v-model="isScheduleModalVisible"
+           title="Campus Schedule"
+           saveText="OK"
+           @save="onSaveSchedule">
+        <SchedulePicker label="Schedule" v-model="schedule" :multiple="false" rules="required" />
+
+        <DefinedValuePicker v-model="campusScheduleType"
+                        label="Schedule Type"
+                        :definedTypeGuid="DefinedType.ScheduleType"
+                        rules="required" />
+    </Modal>
+
+    <!-- Campus Topics -->
+    <Modal v-model="isTopicsModalVisible"
+           title="Campus Topics"
+           saveText="OK"
+           @save="onSaveTopic">
+        <DefinedValuePicker v-model="campusTopicType"
+                        label="Topic Type"
+                        :definedTypeGuid="DefinedType.TopicType"
+                        help="A campus can only have one instance of a topic entry."
+                        rules="required" />
+
+        <EmailBox v-model="campusTopicEmail"
+                        label="Email"
+                        rules="required" />
+
+        <CheckBox v-model="isCampusTopicPublic"
+                        label="Public" />
+    </Modal>
 </template>
 
 <script setup lang="ts">
-    import { computed, PropType, ref, watch } from "vue";
+    import { computed, PropType, ref, shallowRef, watch } from "vue";
     import AttributeValuesContainer from "@Obsidian/Controls/attributeValuesContainer.obs";
     import DefinedValuePicker from "@Obsidian/Controls/definedValuePicker.obs";
     import DropDownList from "@Obsidian/Controls/dropDownList.obs";
     import KeyValueList from "@Obsidian/Controls/keyValueList.obs";
-    import  { KeyValueItem } from "@Obsidian/Types/Controls/keyValueItem";
+    import { KeyValueItem } from "@Obsidian/Types/Controls/keyValueItem";
     import LocationPicker from "@Obsidian/Controls/locationItemPicker.obs";
     import PersonPicker from "@Obsidian/Controls/personPicker.obs";
     import CheckBox from "@Obsidian/Controls/checkBox.obs";
     import PhoneNumberBox from "@Obsidian/Controls/phoneNumberBox.obs";
     import TextBox from "@Obsidian/Controls/textBox.obs";
+    import Modal from "@Obsidian/Controls/modal.obs";
     import UrlLinkBox from "@Obsidian/Controls/urlLinkBox.obs";
+    import Grid from "@Obsidian/Controls/grid";
     import { watchPropertyChanges } from "@Obsidian/Utility/block";
     import { propertyRef, updateRefValue } from "@Obsidian/Utility/component";
     import { CampusBag } from "@Obsidian/ViewModels/Blocks/Core/CampusDetail/campusBag";
     import { CampusDetailOptionsBag } from "@Obsidian/ViewModels/Blocks/Core/CampusDetail/campusDetailOptionsBag";
+    import { CampusScheduleBag } from "@Obsidian/ViewModels/Blocks/Core/CampusDetail/campusScheduleBag";
     import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
     import { DefinedType } from "@Obsidian/SystemGuids/definedType";
+    import SchedulePicker from "@Obsidian/Controls/schedulePicker.obs";
+    import { areEqual, newGuid } from "@Obsidian/Utility/guid";
+    import { DefinedValue } from "@Obsidian/SystemGuids/definedValue";
+    import EmailBox from "@Obsidian/Controls/emailBox.obs";
+    import { GridDataBag } from "@Obsidian/ViewModels/Core/Grid/gridDataBag";
+    import { DeleteColumn, EditColumn, TextColumn, BooleanColumn } from "@Obsidian/Controls/grid";
 
     const props = defineProps({
         modelValue: {
@@ -117,6 +187,27 @@
     const shortCode = propertyRef(props.modelValue.shortCode ?? "", "ShortCode");
     const timeZoneId = propertyRef(props.modelValue.timeZoneId ?? "", "TimeZoneId");
     const url = propertyRef(props.modelValue.url ?? "", "Url");
+    const campusSchedules = ref(props.modelValue.campusSchedules ?? []);
+    const campusTopics = ref(props.modelValue.campusTopics ?? []);
+
+    // The `editingSchedule` is a global placeholder for the schedule that is being edited in the Modal in the remote device.
+    // Incase a new schedule is being added, the `editingSchedule` needs to be set to null.
+    let editingSchedule: CampusScheduleBag | null = null;
+    const defaultScheduleType: ListItemBag = {
+        text: "Weekend Service",
+        value: DefinedValue.ScheduleTypeWeekendService
+    };
+
+    // variables for the Campus Schedule Modal
+    const isScheduleModalVisible = ref(false);
+    const schedule = shallowRef<ListItemBag | null>(null);
+    const campusScheduleType = shallowRef<ListItemBag | null>(null);
+
+    // variables for the Campus Topic Modal
+    const isTopicsModalVisible = ref(false);
+    const campusTopicType = shallowRef<ListItemBag | null>(null);
+    const campusTopicEmail = ref<string>("");
+    const isCampusTopicPublic = ref<boolean>(false);
 
     // The properties that are being edited. This should only contain
     // objects returned by propertyRef().
@@ -145,6 +236,18 @@
         return props.options.timeZoneOptions ?? [];
     });
 
+    const scheduleGridData = computed((): GridDataBag => {
+        return {
+            rows: campusSchedules.value?.map(c => ({ "schedule": c.schedule?.text, "type": c.scheduleTypeValue?.text, "guid" : c.guid }) ) ?? []
+        };
+    });
+
+    const topicGridData = computed((): GridDataBag => {
+        return {
+            rows: campusTopics.value?.map(c => ({ "type": c.type?.text, "email": c.email, "public": c.isPublic, "guid" : c.guid }) ) ?? []
+        };
+    });
+
 
     // #endregion
 
@@ -153,6 +256,130 @@
     // #endregion
 
     // #region Event Handlers
+
+    /**
+     * Called when the "+" add button on the Campus Schedules grid is clicked.
+     */
+     const onAddScheduleClick = (): void => {
+        editingSchedule = null;
+        // Default the Schedule Type to the Weekend Service : Copying over the logic from the old Webform Block.
+        campusScheduleType.value = defaultScheduleType;
+        isScheduleModalVisible.value = true;
+    }
+
+    /**
+     * Called when the "+" add button on the Campus Topics grid is clicked.
+     */
+     function onAddTopicClick(): void {
+        isTopicsModalVisible.value = true;
+    }
+
+    /**
+     * Called when the "x" add button on the Campus Schedules grid is clicked.
+     *
+     * @param campusSchedule The schedule to be deleted.
+     */
+     const onDeleteScheduleClick = (key: string): void => {
+        if(campusSchedules.value == null) {
+            return;
+        }
+        // Close modal and remove deleted attribute from the current collection of attributes.
+        isScheduleModalVisible.value = false;
+        campusSchedules.value = campusSchedules?.value.filter(s => s.guid !== key) ?? [];
+    }
+
+    /**
+     * Called when the "x" add button on the Campus Topics grid is clicked.
+     *
+     * @param campusTopic The topic to be deleted.
+     */
+     const onDeleteTopicClick = (key: string): void => {
+        if(campusTopics.value == null) {
+            return;
+        }
+
+        const index = campusTopics.value.findIndex(s => areEqual(s.guid, key));
+        if (index >= 0) {
+            campusTopics.value.splice(index, 1);
+        }
+    }
+
+    /**
+     * Called when the pencil/edit button on the Campus Schedules grid is clicked.
+     *
+     * @param campusSchedule The schedule to be edited.
+     */
+    const onEditScheduleClick = (key: string): void => {
+        editingSchedule = campusSchedules.value.find(s => areEqual(s.guid, key)) ?? null;
+        schedule.value = editingSchedule?.schedule ?? null;
+        campusScheduleType.value = editingSchedule?.scheduleTypeValue ?? defaultScheduleType;
+        isScheduleModalVisible.value = true;
+    }
+
+    /**
+     * Called when the pencil/edit button on the Campus Topic grid is clicked.
+     *
+     * @param campusTopic The topic to be edited.
+     */
+    const onEditTopicClick = (key: string): void => {
+        const campusTopic = campusTopics.value.find(s => areEqual(s.guid, key)) ?? null;
+        campusTopicType.value = campusTopic?.type ?? null;
+        campusTopicEmail.value = campusTopic?.email ?? "";
+        isCampusTopicPublic.value = campusTopic.isPublic ?? false;
+        isTopicsModalVisible.value = true;
+    }
+
+     /**
+     * Called when a schedule is ready to be saved.
+     */
+     function onSaveSchedule(): void {
+        if(campusSchedules.value == null) {
+            return;
+        }
+        // The `editingSchedule` variable happens to be null if a new schedule is being added.
+        // The "if block" contains the logic to add the new schedule if needed.
+        if (editingSchedule == null) {
+            editingSchedule = {
+                guid: newGuid()
+            };
+            campusSchedules.value.push(editingSchedule);
+        }
+        editingSchedule.schedule = {
+            value: schedule?.value?.value,
+            text: schedule?.value?.text
+        };
+        editingSchedule.scheduleTypeValue = campusScheduleType.value;
+
+        // Close the model on save.
+        isScheduleModalVisible.value = false;
+    }
+
+
+     /**
+     * Called when a topic is ready to be saved.
+     */
+     function onSaveTopic(): void {
+        if(campusTopics.value == null) {
+            return;
+        }
+        // The `editingTopic` variable happens to be null if a new topic is being added.
+        // The "if block" contains the logic to add the new topic if needed.
+
+        let editingTopic = campusTopics.value.find(c => c.type.value == campusTopicType.value?.value ?? false);
+
+        if (editingTopic == null) {
+            editingTopic = {
+                guid: newGuid()
+            };
+            campusTopics.value.push(editingTopic);
+            editingTopic.type = { ...campusTopicType.value };
+        }
+        editingTopic.email = campusTopicEmail.value;
+        editingTopic.isPublic = isCampusTopicPublic.value;
+
+        // Close the model on save.
+        isTopicsModalVisible.value = false;
+    }
 
     // #endregion
 
@@ -176,7 +403,7 @@
 
     // Determines which values we want to track changes on (defined in the
     // array) and then emit a new object defined as newValue.
-    watch([attributeValues, ...propRefs], () => {
+    watch([attributeValues, campusSchedules, campusTopics, ...propRefs], () => {
         const newValue: CampusBag = {
             ...props.modelValue,
             attributeValues: attributeValues.value,
@@ -191,7 +418,9 @@
             serviceTimes: serviceTimes.value.map((s): ListItemBag => ({ value: s.key ?? "", text: s.value ?? "" })),
             shortCode: shortCode.value,
             timeZoneId: timeZoneId.value,
-            url: url.value
+            url: url.value,
+            campusSchedules: campusSchedules.value,
+            campusTopics: campusTopics.value
         };
 
         emit("update:modelValue", newValue);

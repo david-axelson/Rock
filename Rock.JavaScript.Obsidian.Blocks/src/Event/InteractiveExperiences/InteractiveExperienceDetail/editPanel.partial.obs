@@ -586,7 +586,7 @@
     /**
      * Called when the delete button on the schedule grid is clicked.
      *
-     * @param schedule The schedule to be edited.
+     * @param schedule The schedule to be deleted.
      */
     async function onDeleteScheduleClick(schedule: InteractiveExperienceScheduleBag): Promise<void> {
         if (!(await confirmDelete("Schedule"))) {
