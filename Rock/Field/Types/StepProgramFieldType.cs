@@ -71,6 +71,9 @@ namespace Rock.Field.Types
         /// <inheritdoc/>
         public override string GetPublicValue( string privateValue, Dictionary<string, string> privateConfigurationValues )
         {
+            // The Guids in the ListItemBag list in the publicConfigurationValues happen to be in the lowercase
+            // Sending the publicValue too in the lower case ensure that it's casing is consistent with the publicConfigurationValues.
+            // This will enable the remote devices to not worry about the casing while comparing the strings across the publicValue and the publicConfigurationValues.
             return privateValue.ToLower();
         }
 
