@@ -14,13 +14,14 @@
 // limitations under the License.
 // </copyright>
 //
+using System;
 using System.Collections.Generic;
 using System.Data.Entity;
 using System.Linq;
+
+using Rock.Attribute;
 using Rock.Data;
 using Rock.Model;
-using System;
-using Rock.Attribute;
 using Rock.Web.Cache;
 
 namespace Rock.Field.Types
@@ -28,10 +29,12 @@ namespace Rock.Field.Types
     /// <summary>
     /// Field Type used to display a dropdown list of step programs and allow a single selection.
     /// </summary>
-    [RockPlatformSupport( Utility.RockPlatform.WebForms )]
+    [RockPlatformSupport( Utility.RockPlatform.WebForms, Utility.RockPlatform.Obsidian )]
     [Rock.SystemGuid.FieldTypeGuid( "33875369-7D2B-4CD7-BB89-ABC29906CCAE" )]
     public class StepProgramFieldType : EntitySingleSelectionListFieldTypeBase<Rock.Model.StepProgram>, IEntityReferenceFieldType
     {
+        private const string VALUES_PUBLIC_KEY = "values";
+
         /// <summary>
         /// Returns a user-friendly description of the entity.
         /// </summary>
@@ -64,6 +67,22 @@ namespace Rock.Field.Types
                 .ToDictionary( o => o.Guid, o => o.Name );
 
             return items;
+        }
+        /// <inheritdoc/>
+        public override string GetPublicValue( string privateValue, Dictionary<string, string> privateConfigurationValues )
+        {
+            return privateValue.ToLower();
+        }
+
+        /// <inheritdoc/>
+        public override Dictionary<string, string> GetPublicConfigurationValues( Dictionary<string, string> privateConfigurationValues, ConfigurationValueUsage usage, string privateValue )
+        {
+            var publicConfigurationValues = base.GetPublicConfigurationValues( privateConfigurationValues, usage, privateValue );
+            publicConfigurationValues[VALUES_PUBLIC_KEY] = StepProgramCache.All()
+                .OrderBy( o => o.Name )
+                .ToListItemBagList()
+                .ToCamelCaseJson( false, true );
+            return publicConfigurationValues;
         }
 
         #region IEntityReferenceFieldType
