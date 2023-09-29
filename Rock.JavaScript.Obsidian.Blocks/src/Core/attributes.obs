@@ -6,7 +6,7 @@
 
     <Block title="Attribute List">
         <template #headerActions>
-            <div v-if="showEntityTypePicker" class="form-inline panel-labels">
+            <div v-if="showEntityTypePicker">
                 <DropDownList v-model="entityTypeGuid"
                               label="Entity Type"
                               grouped
