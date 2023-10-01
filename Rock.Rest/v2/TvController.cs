@@ -38,6 +38,8 @@ using Rock.Tv.Classes;
 using Rock.Logging;
 using Rock.Workflow.Action;
 using Rock.Utility;
+using System.IO;
+using System.IO.Compression;
 
 namespace Rock.Rest.v2.Controllers
 {
@@ -46,8 +48,8 @@ namespace Rock.Rest.v2.Controllers
     /// Provides API interfaces for TV applications to use when communicating with Rock.
     /// </summary>
     /// <seealso cref="Rock.Rest.ApiControllerBase" />
-    [Rock.SystemGuid.RestControllerGuid( "38541064-21B0-4614-A97C-5C9231EBCB4E")]
-    public class TvController : ApiControllerBase 
+    [Rock.SystemGuid.RestControllerGuid( "38541064-21B0-4614-A97C-5C9231EBCB4E" )]
+    public class TvController : ApiControllerBase
     {
         // Used for creating random strings
         private static Random random = new Random();
@@ -651,6 +653,67 @@ namespace Rock.Rest.v2.Controllers
             return response;
         }
 
+        [HttpGet]
+        [System.Web.Http.Route( "api/v2/tv/GetExampleSceneGraph/{definedValueId}" )]
+        [Rock.SystemGuid.RestActionGuid( "103ba971-e7bb-41de-a12a-1c8b8bf85ad7" )]
+        public HttpResponseMessage GetExampleScenegraph( int definedValueId )
+        {
+            var type = DefinedTypeCache.Get( "d7995a51-e714-4ba9-93e3-613cee51743f" );
+            if ( type == null )
+            {
+                return new HttpResponseMessage( HttpStatusCode.NotFound );
+            }
+
+            var definedValue = DefinedValueCache.Get( definedValueId );
+            var sceneGraph = definedValue.GetAttributeValue( "Scenegraph" );
+            var mergeFields = RockRequestContext.GetCommonMergeFields();
+
+            sceneGraph = sceneGraph.ResolveMergeFields( mergeFields );
+
+            // create a new zip file with the following structure
+            // components / Page.xml (sceneGraph)
+            // manifest (manifestText)
+            
+            var manifestText = @"title=Page
+subtitle=Rock Page
+major_version=1
+minor_version=1
+build_version=00001
+sg_component_libs_provided=Page";
+
+            using ( MemoryStream memoryStream = new MemoryStream() )
+            {
+                using ( ZipArchive zip = new ZipArchive( memoryStream, ZipArchiveMode.Create, true ) )
+                {
+                    var sceneGraphEntry = zip.CreateEntry( "components/Page.xml" );
+                    using ( var writer = new StreamWriter( sceneGraphEntry.Open() ) )
+                    {
+                        writer.Write( sceneGraph );
+                    }
+
+                    var manifestEntry = zip.CreateEntry( "manifest" );
+                    using ( var writer = new StreamWriter( manifestEntry.Open() ) )
+                    {
+                        writer.Write( manifestText );
+                    }
+                }
+                memoryStream.Seek( 0, SeekOrigin.Begin );
+
+                var response = new HttpResponseMessage( HttpStatusCode.OK )
+                {
+                    Content = new ByteArrayContent( memoryStream.ToArray() )
+                };
+
+                response.Content.Headers.ContentDisposition = new ContentDispositionHeaderValue( "attachment" )
+                {
+                    FileName = "Scenegraph.zip"
+                };
+                response.Content.Headers.ContentType = new MediaTypeHeaderValue( "application/zip" );
+
+                return response;
+            }
+        }
+
         /// <summary>
         /// Checks the authenication session.
         /// </summary>
@@ -701,7 +764,7 @@ namespace Rock.Rest.v2.Controllers
                 // Obsolete property because of incorrect spelling.
 #pragma warning disable
                 authCheckResponse.IsAuthenciated = true;
-                #pragma warning restore
+#pragma warning restore
 
                 authCheckResponse.IsAuthenticated = true;
 
@@ -722,9 +785,9 @@ namespace Rock.Rest.v2.Controllers
                 authCheckResponse.IsAuthenticated = false;
 
                 // Obsolete property because of incorrect spelling.
-                #pragma warning disable
+#pragma warning disable
                 authCheckResponse.IsAuthenciated = false;
-                #pragma warning restore
+#pragma warning restore
             }
 
 
@@ -760,7 +823,7 @@ namespace Rock.Rest.v2.Controllers
         /// <param name="request">The request.</param>
         /// <remarks>We now utilize the global method on the <see cref="WebRequestHelper" /> class.</remarks>
         /// <returns></returns>
-        [RockObsolete("1.15")]
+        [RockObsolete( "1.15" )]
         private string GetClientIp( HttpRequestMessage request )
         {
             // http://stackoverflow.com/questions/735350/how-to-get-a-users-client-ip-address-in-asp-net
