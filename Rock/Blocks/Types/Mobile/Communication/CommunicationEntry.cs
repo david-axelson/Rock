@@ -450,19 +450,19 @@ namespace Rock.Blocks.Types.Mobile.Communication
                 var recipientPeopleAliasIds = GetPeopleFromEntitySet( bag.EntitySetGuid, entitySetService, entitySetItemService, personService, personAliasService );
                 AddRecipientsToCommunication( communication, recipientPeopleAliasIds );
 
+                if ( bag.SendToParents )
+                {
+                    AddParentsToCommunication( communication, recipientPeopleAliasIds.Where( id => id.HasValue ).Select( id => id.Value ), personAliasService, groupMemberService );
+                }
+
                 // Structure the communication based on the communication type.
                 if ( communicationType == CommunicationType.Email )
                 {
-                    StructureEmailCommunication( communication, bag.Subject, bag.Message, bag.FromEmail, bag.FromName, bag.ReplyTo, bag.FileAttachmentGuid, binaryFileService );
+                    StructureEmailCommunication( communication, bag.Subject, bag.Message, bag.FromEmail, bag.FromName, bag.ReplyTo, true, bag.FileAttachmentGuid, binaryFileService );
                 }
                 else if ( communicationType == CommunicationType.SMS )
                 {
                     StructureSmsCommunication( communication, bag.FromNumberGuid, bag.Message, bag.ImageAttachmentGuid, binaryFileService );
-                }
-
-                if ( bag.SendToParents )
-                {
-                    AddParentsToCommunication( communication, recipientPeopleAliasIds.Where( id => id.HasValue ).Select( id => id.Value ), personAliasService, groupMemberService );
                 }
 
                 // Save the communication prior to checking recipients.
@@ -500,11 +500,14 @@ namespace Rock.Blocks.Types.Mobile.Communication
         /// <param name="groupMemberService"></param>
         private void AddParentsToCommunication( Rock.Model.Communication communication, IEnumerable<int> recipientPersonAliasIds, PersonAliasService personAliasService, GroupMemberService groupMemberService )
         {
+            // This is knowingly obscure. We are actually just going to include all adult family members in the family, since there
+            // is no great way to distinguish a child's father/mother in Rock today. In other words, Uncle Joe will also
+            // receive the communication.
             var parentAliasIds = GetParentsForChildren( recipientPersonAliasIds, personAliasService, groupMemberService );
 
             foreach ( var parentAliasId in parentAliasIds )
             {
-                if( !parentAliasId.HasValue )
+                if ( !parentAliasId.HasValue )
                 {
                     continue;
                 }
@@ -533,6 +536,9 @@ namespace Rock.Blocks.Types.Mobile.Communication
         /// <returns>IQueryable&lt;Person&gt;.</returns>
         private IEnumerable<int?> GetParentsForChildren( IEnumerable<int> personAliasIds, PersonAliasService personAliasService, GroupMemberService groupMemberService, Gender? filterByGender = null )
         {
+            // This is knowingly obscure. We are actually just going to include all adult family members in the family, since there
+            // is no great way to distinguish a child's father/mother in Rock today. In other words, Uncle Joe could also
+            // receive the communication.
             var personFamilyIds = personAliasService
                 .Queryable()
                 .Where( pa => personAliasIds.Contains( pa.Id ) && pa.Person.AgeClassification == AgeClassification.Child )
@@ -662,13 +668,14 @@ namespace Rock.Blocks.Types.Mobile.Communication
         /// </summary>
         /// <param name="communication"></param>
         /// <param name="subject"></param>
-        /// <param name="message"></param>
+        /// <param name="body"></param>
         /// <param name="fromEmail"></param>
         /// <param name="fromName"></param>
         /// <param name="replyTo"></param>
+        /// <param name="sanitize"></param>
         /// <param name="fileAttachmentGuid"></param>
         /// <param name="binaryFileService"></param>
-        private void StructureEmailCommunication( Rock.Model.Communication communication, string subject, string message, string fromEmail, string fromName, string replyTo, Guid? fileAttachmentGuid, BinaryFileService binaryFileService )
+        private void StructureEmailCommunication( Rock.Model.Communication communication, string subject, string body, string fromEmail, string fromName, string replyTo, bool sanitize, Guid? fileAttachmentGuid, BinaryFileService binaryFileService )
         {
             var emailMediumEntityTypeId = EntityTypeCache.Get<Rock.Communication.Medium.Email>().Id;
             foreach ( var recipient in communication.Recipients )
@@ -678,6 +685,15 @@ namespace Rock.Blocks.Types.Mobile.Communication
 
             // Structuring the communication.
             communication.Subject = subject;
+
+            // Sanitize the message by encoding HTML &
+            // converting newlines properly.
+            var message = body;
+            if( sanitize )
+            {
+                message = message.EncodeHtml().ConvertCrLfToHtmlBr();
+            }
+
             communication.Message = message;
             communication.FromEmail = fromEmail;
             communication.FromName = fromName;
