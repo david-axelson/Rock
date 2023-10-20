@@ -4995,8 +4995,9 @@ AND GroupTypeId = ${familyGroupType.Id}
         /// <param name="filterByGender">The filter by gender.</param>
         /// <returns>IQueryable&lt;Person&gt;.</returns>
         [RockInternal( "1.15" )]
-        internal IQueryable<Person> GetParentsForChildren( List<Person> people, Gender? filterByGender = null )
+        internal IQueryable<Person> GetParentsForChildren( List<int> personIds, Gender? filterByGender = null )
         {
+            var people = Queryable().Where( p => personIds.Any( p.Id ) );
             var personFamilyIds = people.Where( p => p.AgeClassification == AgeClassification.Child )
                 .Select( p => p.PrimaryFamilyId );
 
