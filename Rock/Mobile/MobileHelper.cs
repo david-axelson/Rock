@@ -528,7 +528,7 @@ namespace Rock.Mobile
                 {
                     Guid = campus.Guid,
                     Name = campus.Name,
-                    IdKey = campus.IdKey
+                    Id = campus.IdKey
                 };
 
                 if ( campus.Location != null )

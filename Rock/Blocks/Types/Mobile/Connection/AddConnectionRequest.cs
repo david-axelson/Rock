@@ -1,5 +1,4 @@
 ﻿using Rock.Attribute;
-using Rock.ClientService.Connection.ConnectionType;
 using Rock.Data;
 using Rock.Mobile;
 using Rock.Model.Connection.ConnectionType.Options;
@@ -12,11 +11,9 @@ using Rock.Common.Mobile.ViewModel;
 using System.Linq;
 using Rock.ClientService.Connection.ConnectionOpportunity;
 using Rock.Model.Connection.ConnectionOpportunity.Options;
-using Rock.Utility;
 using Rock.Security;
 using Rock.Common.Mobile.Blocks.Connection.AddConnectionRequest;
 using Rock.Web.Cache;
-using Rock.ViewModels.Utility;
 using Rock.Common.Mobile.Blocks.Connection.ConnectionRequestDetail;
 using GroupMemberStatus = Rock.Model.GroupMemberStatus;
 
@@ -26,7 +23,7 @@ namespace Rock.Blocks.Types.Mobile.Connection
     /// A block used to create a new Connection Request.
     /// </summary>
     /// <seealso cref="Rock.Blocks.RockBlockType" />
-    /// 
+    
     [DisplayName( "Add Connection Request" )]
     [Category( "Mobile > Connection" )]
     [Description( "Allows an individual to create and add a new Connection Request." )]
@@ -38,6 +35,7 @@ namespace Rock.Blocks.Types.Mobile.Connection
     [ConnectionTypesField( "Connection Types",
         Description = "The connection types to limit this block to. Will only display if the person has access to see them. None selected means all will be available.",
         Key = AttributeKey.ConnectionTypes,
+        IsRequired = false,
         Order = 0 )]
 
     [MobileNavigationActionField( "Post Save Action",
@@ -106,16 +104,26 @@ namespace Rock.Blocks.Types.Mobile.Connection
         /// <summary>
         /// The post save navigation action.
         /// </summary>
-        internal MobileNavigationAction DetailNavigationAction => GetAttributeValue( AttributeKey.PostSaveAction ).FromJsonOrNull<MobileNavigationAction>() ?? new MobileNavigationAction();
+        internal MobileNavigationAction PostSaveAction => GetAttributeValue( AttributeKey.PostSaveAction ).FromJsonOrNull<MobileNavigationAction>() ?? new MobileNavigationAction();
 
         /// <summary>
         /// The post cancel navigation action.
         /// </summary>
-        internal MobileNavigationAction CancelNavigationAction => GetAttributeValue( AttributeKey.PostSaveAction ).FromJsonOrNull<MobileNavigationAction>() ?? new MobileNavigationAction();
+        internal MobileNavigationAction PostCancelAction => GetAttributeValue( AttributeKey.PostSaveAction ).FromJsonOrNull<MobileNavigationAction>() ?? new MobileNavigationAction();
 
         #endregion
 
         #region IRockMobileBlockType Implementation
+
+        /// <inheritdoc/>
+        public override object GetMobileConfigurationValues()
+        {
+            return new
+            {
+                PostSaveAction = PostSaveAction,
+                PostCancelAction = PostCancelAction
+            };
+        }
 
         #endregion
 
@@ -137,6 +145,13 @@ namespace Rock.Blocks.Types.Mobile.Connection
             // Get the connection types.
             var qry = connectionTypeService.GetConnectionTypesQuery( filterOptions );
             var types = connectionTypeService.GetViewAuthorizedConnectionTypes( qry, RequestContext.CurrentPerson );
+
+            // Check the Connection Types block setting to see if we should filter
+            // down even more.
+            if( ConnectionTypes.Any() )
+            {
+                types = types.Where( ct => ConnectionTypes.Contains( ct.Guid ) ).ToList();
+            }
 
             return types.Select( ct => new ListItemViewModel
             {
@@ -190,7 +205,7 @@ namespace Rock.Blocks.Types.Mobile.Connection
                 .ThenBy( s => s.Name )
                 .Select( s => new ListItemViewModel
                 {
-                    Value = s.Guid.ToString(),
+                    Value = s.IdKey,
                     Text = s.Name
                 } )
                 .ToList();
@@ -217,7 +232,7 @@ namespace Rock.Blocks.Types.Mobile.Connection
                 .Select( connector => new ListItemViewModel
                 {
                     Text = connector.FullName,
-                    Value = connector.Guid.ToString()
+                    Value = connector.Id
                 } ).ToList();
         }
 
@@ -242,9 +257,14 @@ namespace Rock.Blocks.Types.Mobile.Connection
                     && ( !campusGuid.HasValue || a.ConnectorGroup.Campus.Guid == campusGuid ) )
                 .SelectMany( g => g.ConnectorGroup.Members )
                 .Where( m => m.GroupMemberStatus == GroupMemberStatus.Active )
+                .AsEnumerable()
                 .Select( m => new ConnectorItemViewModel
                 {
                     Guid = m.Person.Guid,
+                    FullName = m.Person.FullName,
+                    FirstName = m.Person.NickName,
+                    LastName = m.Person.LastName,
+                    Id = m.Person.IdKey
                 } )
                 .ToList();
 
@@ -254,12 +274,15 @@ namespace Rock.Blocks.Types.Mobile.Connection
             {
                 var additionalPeople = personAliasService.Queryable()
                     .Where( pa => additionalPersonAliasIds.Contains( pa.Id ) )
+                    .AsEnumerable()
                     .Select( pa => new ConnectorItemViewModel
                     {
-                        Guid = pa.Person.Guid,
+                        Guid = pa.Guid,
                         FirstName = pa.Person.NickName,
+                        FullName = pa.Person.FullName,
                         LastName = pa.Person.LastName,
-                        CampusGuid = null
+                        CampusGuid = null,
+                        Id = pa.Person.IdKey
                     } )
                     .ToList();
 
@@ -282,13 +305,13 @@ namespace Rock.Blocks.Types.Mobile.Connection
         /// </summary>
         /// <param name="request">The connection request.</param>
         /// <returns>A list of editable attribute values.</returns>
-        private List<ConnectionRequestDetail.PublicEditableAttributeValueViewModel> GetPublicEditableAttributeValues( IHasAttributes request )
+        private List<ClientEditableAttributeValueViewModel> GetPublicEditableAttributeValues( IHasAttributes request )
         {
             var attributes = request.GetPublicAttributesForEdit( RequestContext.CurrentPerson )
-                .ToDictionary( kvp => kvp.Key, kvp => new ConnectionRequestDetail.PublicEditableAttributeValueViewModel
+                .ToDictionary( kvp => kvp.Key, kvp => new ClientEditableAttributeValueViewModel
                 {
                     AttributeGuid = kvp.Value.AttributeGuid,
-                    Categories = kvp.Value.Categories,
+                   // Categories = kvp.Value.Categories,
                     ConfigurationValues = kvp.Value.ConfigurationValues,
                     Description = kvp.Value.Description,
                     FieldTypeGuid = kvp.Value.FieldTypeGuid,
@@ -312,6 +335,145 @@ namespace Rock.Blocks.Types.Mobile.Connection
             return attributes.Select( kvp => kvp.Value ).OrderBy( a => a.Order ).ToList();
         }
 
+        /// <summary>
+        /// Create the connection request from the specified parameters.
+        /// </summary>
+        /// <param name="requesterPersonAliasId">The requester person alias id.</param>
+        /// <param name="typeId">The connection type id.</param>
+        /// <param name="opportunityId">The connection opportunity id.</param>
+        /// <param name="campusId">The campus id.</param>
+        /// <param name="comments">The comments.</param>
+        /// <param name="statusId">The status id.</param>
+        /// <param name="connectorPersonAliasId">The connector person alias id.</param>
+        /// <param name="state">The state.</param>
+        /// <returns></returns>
+        private ConnectionRequest CreateConnectionRequest( int requesterPersonAliasId, int typeId, int opportunityId, int campusId, string comments, int statusId, int? connectorPersonAliasId, ConnectionState state )
+        {
+            var connectionRequest = new ConnectionRequest
+            {
+                ConnectionTypeId = typeId,
+                ConnectionOpportunityId = opportunityId,
+                CampusId = campusId,
+                Comments = comments,
+                ConnectionState = state,
+                ConnectionStatusId = statusId,
+                ConnectorPersonAliasId = connectorPersonAliasId,
+                PersonAliasId = requesterPersonAliasId,
+            };
+
+            return connectionRequest;
+        }
+
+        /// <summary>
+        /// Saves a new connection request.
+        /// </summary>
+        /// <param name="bag"></param>
+        /// <param name="rockContext"></param>
+        /// <returns></returns>
+        private (bool IsSuccess, string Message) SaveConnectionRequest( SaveConnectionRequestRequestBag bag, RockContext rockContext )
+        {
+            var connectionRequestService = new ConnectionRequestService( rockContext );
+            var personService = new PersonService( rockContext );
+            var connectionOpportunityService = new ConnectionOpportunityService( rockContext );
+            var connectionTypeService = new ConnectionTypeService( rockContext );
+
+            // Structure the data for the connection request.
+            var requesterId = personService.Get( bag.RequesterId )?.PrimaryAliasId;
+
+            if ( !requesterId.HasValue )
+            {
+                return (false, "The requester was not found.");
+            }
+
+            var typeId = connectionTypeService.Get( bag.ConnectionTypeId ).Id;
+            var opportunityId = connectionOpportunityService.Get( bag.ConnectionOpportunityId ).Id;
+            var campusId = CampusCache.Get( bag.CampusId, false ).Id;
+            var statusId = DefinedValueCache.Get( bag.StatusId, false ).Id;
+
+            int? connectorId = null;
+            if ( bag.ConnectorId.IsNotNullOrWhiteSpace() )
+            {
+                connectorId = personService.Get( bag.ConnectorId )?.PrimaryAliasId;
+            }
+
+            var connectionState = bag.State.ToNative();
+            var comments = bag.Comments;
+
+            var connectionRequest = CreateConnectionRequest( requesterId.Value, typeId, opportunityId, campusId, comments, statusId, connectorId, connectionState );
+
+            if ( connectionState == ConnectionState.FutureFollowUp && bag.FutureFollowUpDate.HasValue )
+            {
+                connectionRequest.FollowupDate = bag.FutureFollowUpDate.Value.DateTime;
+            }
+
+            connectionRequestService.Add( connectionRequest );
+            rockContext.SaveChanges();
+
+            // Set any custom request attribute values.
+            if ( bag.AttributeValues != null )
+            {
+                connectionRequest.LoadAttributes();
+                connectionRequest.SetPublicAttributeValues( bag.AttributeValues, RequestContext.CurrentPerson );
+            }
+
+            // Add an activity that the connector was assigned or changed.
+            if ( connectionRequest.ConnectorPersonAliasId.HasValue )
+            {
+                var connectionRequestActivityService = new ConnectionRequestActivityService( rockContext );
+                var activity = CreateAssignedActivity( connectionRequest, rockContext );
+
+                if ( activity != null )
+                {
+                    connectionRequestActivityService.Add( activity );
+                }
+            }
+
+            rockContext.WrapTransaction( () =>
+            {
+                rockContext.SaveChanges();
+                connectionRequest.SaveAttributeValues( rockContext );
+            } );
+
+            return (true, connectionRequest.IdKey);
+        }
+
+        /// <summary>
+        /// Creates a new <see cref="ConnectionRequestActivity"/> for when
+        /// a request is assigned to a connector.
+        /// </summary>
+        /// <remarks>
+        /// This does not attach the new entity or save the changes.
+        /// </remarks>
+        /// <param name="connectionRequest">The connection request that was assigned a connector.</param>
+        /// <param name="rockContext">The Rock database context to use for data lookups.</param>
+        /// <returns>A new <see cref="ConnectionRequestActivity"/> or <c>null</c> if one is not needed.</returns>
+        private static ConnectionRequestActivity CreateAssignedActivity( ConnectionRequest connectionRequest, RockContext rockContext )
+        {
+            if ( !connectionRequest.ConnectorPersonAliasId.HasValue )
+            {
+                return null;
+            }
+
+            var guid = Rock.SystemGuid.ConnectionActivityType.ASSIGNED.AsGuid();
+            var assignedActivityId = new ConnectionActivityTypeService( rockContext ).Queryable()
+                .Where( t => t.Guid == guid )
+                .Select( t => t.Id )
+                .FirstOrDefault();
+
+            if ( assignedActivityId == 0 )
+            {
+                return null;
+            }
+
+            return new ConnectionRequestActivity
+            {
+                ConnectionRequestId = connectionRequest.Id,
+                ConnectionOpportunityId = connectionRequest.ConnectionOpportunityId,
+                ConnectionActivityTypeId = assignedActivityId,
+                ConnectorPersonAliasId = connectionRequest.ConnectorPersonAliasId
+            };
+        }
+
         #endregion
 
         #region Block Actions
@@ -331,7 +493,7 @@ namespace Rock.Blocks.Types.Mobile.Connection
                 var connectionTypes = GetConnectionTypes( rockContext );
 
                 // Get the requester.
-                var requester = new PersonService( rockContext ).Get( requestBag.RequesterIdKey );
+                var requester = new PersonService( rockContext ).Get( requestBag.RequesterId );
 
                 if ( requester == null )
                 {
@@ -360,14 +522,14 @@ namespace Rock.Blocks.Types.Mobile.Connection
         [BlockAction]
         public BlockActionResult GetConnectionOpportunities( GetConnectionOpportunitiesRequestBag requestBag )
         {
-            if ( requestBag.ConnectionTypeIdKey.IsNullOrWhiteSpace() )
+            if ( requestBag.ConnectionTypeId.IsNullOrWhiteSpace() )
             {
                 return ActionBadRequest( "The connection type identifier key is required." );
             }
 
             return ActionOk( new GetConnectionOpportunitiesResponseBag
             {
-                ConnectionOpportunities = GetConnectionOpportunities( requestBag.ConnectionTypeIdKey )
+                ConnectionOpportunities = GetConnectionOpportunities( requestBag.ConnectionTypeId )
             } );
         }
 
@@ -379,14 +541,15 @@ namespace Rock.Blocks.Types.Mobile.Connection
         [BlockAction]
         public BlockActionResult GetConnectionRequestData( GetConnectionRequestDataRequestBag requestBag )
         {
-            if ( requestBag.ConnectionOpportunityIdKey.IsNullOrWhiteSpace() )
+            if ( requestBag.ConnectionOpportunityId.IsNullOrWhiteSpace() )
             {
                 return ActionBadRequest( "The connection opportunity identifier key is required." );
             }
 
             using ( var rockContext = new RockContext() )
             {
-                var opportunity = new ConnectionOpportunityService( new RockContext() ).Get( requestBag.ConnectionOpportunityIdKey );
+                var opportunity = new ConnectionOpportunityService( rockContext )
+                    .Get( requestBag.ConnectionOpportunityId );
 
                 if ( opportunity == null )
                 {
@@ -397,7 +560,13 @@ namespace Rock.Blocks.Types.Mobile.Connection
                 var connectors = GetAvailableConnectors( opportunity.Id, rockContext );
 
                 // Create a new in-memory connection request to load the editable attributes.
-                var connectionRequest = new Rock.Model.ConnectionRequest();
+                var connectionRequest = new Rock.Model.ConnectionRequest
+                {
+                    ConnectionOpportunityId = opportunity.Id,
+                    ConnectionTypeId = opportunity.ConnectionTypeId,
+                };
+                connectionRequest.LoadAttributes();
+
                 var attributes = GetPublicEditableAttributeValues( connectionRequest );
 
                 return ActionOk( new GetConnectionRequestDataResponseBag
@@ -409,27 +578,30 @@ namespace Rock.Blocks.Types.Mobile.Connection
             }
         }
 
+        /// <summary>
+        /// Saves a new connection request.
+        /// </summary>
+        /// <param name="requestBag"></param>
+        /// <returns></returns>
+        [BlockAction]
+        public BlockActionResult SaveConnectionRequest( SaveConnectionRequestRequestBag requestBag )
+        {
+            using ( var rockContext = new RockContext() )
+            {
+                var saveResult = SaveConnectionRequest( requestBag, rockContext );
+
+                if ( !saveResult.IsSuccess )
+                {
+                    return ActionBadRequest( saveResult.Message );
+                }
+
+                return ActionOk( new SaveConnectionRequestResponseBag
+                {
+                    Id = saveResult.Message
+                } );
+            }
+        }
+
         #endregion
-
-        public class GetConnectionRequestDataRequestBag
-        {
-            public string ConnectionOpportunityIdKey { get; set; }
-        }
-
-        public class GetConnectionRequestDataResponseBag
-        {
-            public List<ListItemViewModel> Statuses { get; set; }
-
-            public List<ListItemViewModel> Connectors { get; set; }
-
-            /// <summary>
-            /// Gets or sets the attributes.
-            /// </summary>
-            /// <value>
-            /// The attributes.
-            /// </value>
-            public List<ConnectionRequestDetail.PublicEditableAttributeValueViewModel> Attributes { get; set; }
-        }
-
     }
 }
