@@ -220,7 +220,7 @@ namespace Rock.Mobile
     }
 
     /// <summary>
-    /// Extension methods for the <see cref="Rock.Common.Mobile.Blocks.Connection.ConnectionRequestDetail.ConnectionState".
+    /// Extension methods for the <see cref="Rock.Common.Mobile.Enums.ConnectionState" />.
     /// </summary>
     public static class MobileExtensionsConnectionState
     {

@@ -1,4 +1,20 @@
-﻿using Rock.Attribute;
+﻿// <copyright>
+// Copyright by the Spark Development Network
+//
+// Licensed under the Rock Community License (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.rockrms.com/license
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+// </copyright>
+
+using Rock.Attribute;
 using Rock.Data;
 using Rock.Mobile;
 using Rock.Model.Connection.ConnectionType.Options;
@@ -16,6 +32,7 @@ using Rock.Common.Mobile.Blocks.Connection.AddConnectionRequest;
 using Rock.Web.Cache;
 using Rock.Common.Mobile.Blocks.Connection.ConnectionRequestDetail;
 using GroupMemberStatus = Rock.Model.GroupMemberStatus;
+using System.Data.Entity;
 
 namespace Rock.Blocks.Types.Mobile.Connection
 {
@@ -23,7 +40,7 @@ namespace Rock.Blocks.Types.Mobile.Connection
     /// A block used to create a new Connection Request.
     /// </summary>
     /// <seealso cref="Rock.Blocks.RockBlockType" />
-    
+
     [DisplayName( "Add Connection Request" )]
     [Category( "Mobile > Connection" )]
     [Description( "Allows an individual to create and add a new Connection Request." )]
@@ -109,7 +126,7 @@ namespace Rock.Blocks.Types.Mobile.Connection
         /// <summary>
         /// The post cancel navigation action.
         /// </summary>
-        internal MobileNavigationAction PostCancelAction => GetAttributeValue( AttributeKey.PostSaveAction ).FromJsonOrNull<MobileNavigationAction>() ?? new MobileNavigationAction();
+        internal MobileNavigationAction PostCancelAction => GetAttributeValue( AttributeKey.PostCancelAction ).FromJsonOrNull<MobileNavigationAction>() ?? new MobileNavigationAction();
 
         #endregion
 
@@ -130,11 +147,28 @@ namespace Rock.Blocks.Types.Mobile.Connection
         #region Methods
 
         /// <summary>
+        /// Gets a requester from the IdKey.
+        /// </summary>
+        /// <param name="idKey"></param>
+        /// <param name="rockContext"></param>
+        /// <returns></returns>
+        private ListItemViewModel GetRequester( string idKey, RockContext rockContext )
+        {
+            var person = new PersonService( rockContext ).Get( idKey );
+
+            return new ListItemViewModel
+            {
+                Text = person.FullName,
+                Value = person.IdKey
+            };
+        }
+
+        /// <summary>
         /// Gets the connection types for the current person.
         /// </summary>
         /// <param name="rockContext"></param>
         /// <returns></returns>
-        private List<ListItemViewModel> GetConnectionTypes( RockContext rockContext )
+        private List<ConnectionTypeListItemBag> GetConnectionTypes( RockContext rockContext )
         {
             var connectionTypeService = new ConnectionTypeService( rockContext );
             var filterOptions = new ConnectionTypeQueryOptions
@@ -148,48 +182,46 @@ namespace Rock.Blocks.Types.Mobile.Connection
 
             // Check the Connection Types block setting to see if we should filter
             // down even more.
-            if( ConnectionTypes.Any() )
+            if ( ConnectionTypes.Any() )
             {
                 types = types.Where( ct => ConnectionTypes.Contains( ct.Guid ) ).ToList();
             }
 
-            return types.Select( ct => new ListItemViewModel
+            return types.Select( ct => new ConnectionTypeListItemBag
             {
                 Text = ct.Name,
-                Value = ct.IdKey
+                Value = ct.IdKey,
+                EnableFutureFollowup = ct.EnableFutureFollowup,
             } ).ToList();
         }
 
         /// <summary>
         /// Gets the connection opportunities for the specified connection type.
         /// </summary>
-        /// <param name="connectionTypeIdKey"></param>
+        /// <param name="connectionType"></param>
+        /// <param name="rockContext"></param>
         /// <returns></returns>
-        private List<ListItemViewModel> GetConnectionOpportunities( string connectionTypeIdKey )
+        private List<ListItemViewModel> GetConnectionOpportunities( ConnectionType connectionType, RockContext rockContext )
         {
-            using ( var rockContext = new RockContext() )
+            var opportunityService = new ConnectionOpportunityService( rockContext );
+            var opportunityClientService = new ConnectionOpportunityClientService( rockContext, RequestContext.CurrentPerson );
+
+            var filterOptions = new ConnectionOpportunityQueryOptions
             {
-                var opportunityService = new ConnectionOpportunityService( rockContext );
-                var opportunityClientService = new ConnectionOpportunityClientService( rockContext, RequestContext.CurrentPerson );
-                var connectionType = new ConnectionTypeService( rockContext ).GetNoTracking( connectionTypeIdKey );
+                IncludeInactive = false,
+                ConnectionTypeGuids = new List<Guid> { connectionType.Guid }
+            };
 
-                var filterOptions = new ConnectionOpportunityQueryOptions
-                {
-                    IncludeInactive = false,
-                    ConnectionTypeGuids = new List<Guid> { connectionType.Guid }
-                };
+            // Put all the opportunities in memory so we can check security.
+            var qry = opportunityService.GetConnectionOpportunitiesQuery( filterOptions );
+            var opportunities = qry.ToList()
+                .Where( o => o.IsAuthorized( Authorization.VIEW, RequestContext.CurrentPerson ) );
 
-                // Put all the opportunities in memory so we can check security.
-                var qry = opportunityService.GetConnectionOpportunitiesQuery( filterOptions );
-                var opportunities = qry.ToList()
-                    .Where( o => o.IsAuthorized( Authorization.VIEW, RequestContext.CurrentPerson ) );
-
-                return opportunities.ToList().Select( o => new ListItemViewModel
-                {
-                    Text = o.Name,
-                    Value = o.IdKey
-                } ).ToList();
-            }
+            return opportunities.ToList().Select( o => new ListItemViewModel
+            {
+                Text = o.Name,
+                Value = o.IdKey
+            } ).ToList();
         }
 
         /// <summary>
@@ -311,7 +343,7 @@ namespace Rock.Blocks.Types.Mobile.Connection
                 .ToDictionary( kvp => kvp.Key, kvp => new ClientEditableAttributeValueViewModel
                 {
                     AttributeGuid = kvp.Value.AttributeGuid,
-                   // Categories = kvp.Value.Categories,
+                    // Categories = kvp.Value.Categories,
                     ConfigurationValues = kvp.Value.ConfigurationValues,
                     Description = kvp.Value.Description,
                     FieldTypeGuid = kvp.Value.FieldTypeGuid,
@@ -336,32 +368,98 @@ namespace Rock.Blocks.Types.Mobile.Connection
         }
 
         /// <summary>
-        /// Create the connection request from the specified parameters.
+        /// Gets the placement groups for the specified connection request.
         /// </summary>
-        /// <param name="requesterPersonAliasId">The requester person alias id.</param>
-        /// <param name="typeId">The connection type id.</param>
-        /// <param name="opportunityId">The connection opportunity id.</param>
-        /// <param name="campusId">The campus id.</param>
-        /// <param name="comments">The comments.</param>
-        /// <param name="statusId">The status id.</param>
-        /// <param name="connectorPersonAliasId">The connector person alias id.</param>
-        /// <param name="state">The state.</param>
+        /// <param name="connectionRequest"></param>
+        /// <param name="rockContext"></param>
         /// <returns></returns>
-        private ConnectionRequest CreateConnectionRequest( int requesterPersonAliasId, int typeId, int opportunityId, int campusId, string comments, int statusId, int? connectorPersonAliasId, ConnectionState state )
+        private List<PlacementGroupListItemBag> GetPlacementGroups( ConnectionRequest connectionRequest, RockContext rockContext )
         {
-            var connectionRequest = new ConnectionRequest
-            {
-                ConnectionTypeId = typeId,
-                ConnectionOpportunityId = opportunityId,
-                CampusId = campusId,
-                Comments = comments,
-                ConnectionState = state,
-                ConnectionStatusId = statusId,
-                ConnectorPersonAliasId = connectorPersonAliasId,
-                PersonAliasId = requesterPersonAliasId,
-            };
+            var placementGroups = new List<PlacementGroupListItemBag>();
 
-            return connectionRequest;
+            // Build list of groups
+            var groups = new List<Group>();
+
+            // First add any groups specifically configured for the opportunity
+            var opportunityGroupIds = connectionRequest.ConnectionOpportunity.ConnectionOpportunityGroups.Select( o => o.Id ).ToList();
+            if ( opportunityGroupIds.Any() )
+            {
+                groups = connectionRequest.ConnectionOpportunity.ConnectionOpportunityGroups
+                    .Where( g =>
+                        g.Group != null &&
+                        g.Group.IsActive &&
+                        !g.Group.IsArchived )
+                .Select( g => g.Group )
+                .ToList();
+            }
+
+            // Then get any groups that are configured with 'all groups of type'
+            foreach ( var groupConfig in connectionRequest.ConnectionOpportunity.ConnectionOpportunityGroupConfigs )
+            {
+                if ( groupConfig.UseAllGroupsOfType )
+                {
+                    var existingGroupIds = groups.Select( g => g.Id ).ToList();
+
+                    groups.AddRange( new GroupService( rockContext )
+                        .Queryable().AsNoTracking()
+                        .Where( g =>
+                            !existingGroupIds.Contains( g.Id ) &&
+                            g.IsActive && !g.IsArchived &&
+                            g.GroupTypeId == groupConfig.GroupTypeId )
+                        .ToList() );
+                }
+            }
+
+            foreach ( var group in groups )
+            {
+                var groupConfigs = connectionRequest.ConnectionOpportunity.ConnectionOpportunityGroupConfigs.Where( g => g.GroupTypeId == group.GroupTypeId );
+
+                List<RoleItemBag> roles = new List<RoleItemBag>();
+                foreach ( var groupConfig in groupConfigs )
+                {
+                    if ( groupConfig.GroupMemberRole != null )
+                    {
+                        roles.Add( new RoleItemBag
+                        {
+                            Text = groupConfig.GroupMemberRole.Name,
+                            Value = groupConfig.GroupMemberRole.IdKey,
+                            GroupTypeId = GroupTypeCache.Get( groupConfig.GroupTypeId ).IdKey
+                        } );
+                    }
+                }
+
+                foreach ( var role in roles )
+                {
+                    foreach ( var groupConfig in groupConfigs.Where( c => c.GroupMemberRole.IdKey == role.Value ) )
+                    {
+                        role.Statuses = role.Statuses ?? new List<ListItemViewModel>();
+
+                        if ( !role.Statuses.Any( s => s.Value == groupConfig.GroupMemberStatus.ConvertToInt().ToString() ) )
+                        {
+                            role.Statuses.Add( new ListItemViewModel
+                            {
+                                Text = groupConfig.GroupMemberStatus.ToStringSafe(),
+                                Value = groupConfig.GroupMemberStatus.ConvertToInt().ToString()
+                            } );
+                        }
+                    }
+                }
+
+                placementGroups.Add( new PlacementGroupListItemBag
+                {
+                    Text = string.Format( "{0} ({1})", group.Name, group.Campus != null ? group.Campus.Name : "No Campus" ),
+                    Value = group.IdKey,
+                    Roles = roles,
+                    GroupTypeId = group.GroupType.IdKey,
+                    Campus = group.Campus != null ? new ListItemViewModel
+                    {
+                        Text = group.Campus.Name,
+                        Value = group.Campus.IdKey
+                    } : null
+                } );
+            }
+
+            return placementGroups;
         }
 
         /// <summary>
@@ -387,7 +485,7 @@ namespace Rock.Blocks.Types.Mobile.Connection
 
             var typeId = connectionTypeService.Get( bag.ConnectionTypeId ).Id;
             var opportunityId = connectionOpportunityService.Get( bag.ConnectionOpportunityId ).Id;
-            var campusId = CampusCache.Get( bag.CampusId, false ).Id;
+            var campusId = CampusCache.Get( bag.CampusId, false )?.Id;
             var statusId = DefinedValueCache.Get( bag.StatusId, false ).Id;
 
             int? connectorId = null;
@@ -396,14 +494,47 @@ namespace Rock.Blocks.Types.Mobile.Connection
                 connectorId = personService.Get( bag.ConnectorId )?.PrimaryAliasId;
             }
 
+            int? placementGroupId = null;
+            int? placementGroupMemberRoleId = null;
+            GroupMemberStatus? placementGroupMemberStatus = null;
+
+            if ( bag.PlacementGroupId.IsNotNullOrWhiteSpace() )
+            {
+                placementGroupId = new GroupService( rockContext ).Get( bag.PlacementGroupId )?.Id;
+
+                if ( placementGroupId.HasValue && bag.PlacementGroupMemberRoleId.IsNotNullOrWhiteSpace() )
+                {
+                    placementGroupMemberRoleId = new GroupTypeRoleService( rockContext ).Get( bag.PlacementGroupMemberRoleId )?.Id;
+                }
+
+                placementGroupMemberStatus = ( Rock.Model.GroupMemberStatus ) bag.PlacementGroupMemberStatusValue;
+            }
+
             var connectionState = bag.State.ToNative();
             var comments = bag.Comments;
 
-            var connectionRequest = CreateConnectionRequest( requesterId.Value, typeId, opportunityId, campusId, comments, statusId, connectorId, connectionState );
-
-            if ( connectionState == ConnectionState.FutureFollowUp && bag.FutureFollowUpDate.HasValue )
+            var connectionRequest = new ConnectionRequest
             {
-                connectionRequest.FollowupDate = bag.FutureFollowUpDate.Value.DateTime;
+                ConnectionTypeId = typeId,
+                ConnectionOpportunityId = opportunityId,
+                CampusId = campusId,
+                Comments = comments,
+                ConnectionState = connectionState,
+                ConnectionStatusId = statusId,
+                ConnectorPersonAliasId = connectorId,
+                PersonAliasId = requesterId.Value,
+            };
+
+            if ( placementGroupId.HasValue )
+            {
+                connectionRequest.AssignedGroupId = placementGroupId.Value;
+                connectionRequest.AssignedGroupMemberRoleId = placementGroupMemberRoleId;
+                connectionRequest.AssignedGroupMemberStatus = placementGroupMemberStatus.HasValue ? placementGroupMemberStatus.Value : GroupMemberStatus.Active;
+            }
+
+            if ( connectionState == ConnectionState.FutureFollowUp && bag.FutureFollowupDate.HasValue )
+            {
+                connectionRequest.FollowupDate = bag.FutureFollowupDate.Value.DateTime;
             }
 
             connectionRequestService.Add( connectionRequest );
@@ -492,24 +623,10 @@ namespace Rock.Blocks.Types.Mobile.Connection
                 // Get the connection types and grab the name and guid.
                 var connectionTypes = GetConnectionTypes( rockContext );
 
-                // Get the requester.
-                var requester = new PersonService( rockContext ).Get( requestBag.RequesterId );
-
-                if ( requester == null )
-                {
-                    return ActionNotFound( "The requester was not found." );
-                }
-
-                var requesterViewModel = new ListItemViewModel
-                {
-                    Text = requester.FullName,
-                    Value = requester.IdKey
-                };
-
                 return ActionOk( new GetConnectionTypesResponseBag
                 {
                     ConnectionTypes = connectionTypes.ToList(),
-                    Requester = requesterViewModel,
+                    Requester = GetRequester( requestBag.RequesterId, rockContext ),
                 } );
             }
         }
@@ -527,10 +644,27 @@ namespace Rock.Blocks.Types.Mobile.Connection
                 return ActionBadRequest( "The connection type identifier key is required." );
             }
 
-            return ActionOk( new GetConnectionOpportunitiesResponseBag
+            using ( var rockContext = new RockContext() )
             {
-                ConnectionOpportunities = GetConnectionOpportunities( requestBag.ConnectionTypeId )
-            } );
+                var connectionType = new ConnectionTypeService( rockContext ).GetNoTracking( requestBag.ConnectionTypeId );
+
+                if ( connectionType == null )
+                {
+                    return ActionNotFound( "The connection type for that Id Key was not found." );
+                }
+
+                return ActionOk( new GetConnectionOpportunitiesResponseBag
+                {
+                    ConnectionOpportunities = GetConnectionOpportunities( connectionType, rockContext ),
+                    ConnectionType = new ConnectionTypeListItemBag
+                    {
+                        Text = connectionType.Name,
+                        Value = connectionType.IdKey,
+                        EnableFutureFollowup = connectionType.EnableFutureFollowup
+                    },
+                    Requester = GetRequester( requestBag.RequesterId, rockContext )
+                } );
+            }
         }
 
         /// <summary>
@@ -563,17 +697,33 @@ namespace Rock.Blocks.Types.Mobile.Connection
                 var connectionRequest = new Rock.Model.ConnectionRequest
                 {
                     ConnectionOpportunityId = opportunity.Id,
+                    ConnectionOpportunity = opportunity,
                     ConnectionTypeId = opportunity.ConnectionTypeId,
                 };
                 connectionRequest.LoadAttributes();
+                rockContext.SaveChanges();
 
+                var placementGroups = GetPlacementGroups( connectionRequest, rockContext );
                 var attributes = GetPublicEditableAttributeValues( connectionRequest );
 
                 return ActionOk( new GetConnectionRequestDataResponseBag
                 {
                     Statuses = statuses,
                     Connectors = connectors,
-                    Attributes = attributes
+                    Attributes = attributes,
+                    PlacementGroups = placementGroups,
+                    ConnectionOpportunity = new ListItemViewModel
+                    {
+                        Text = opportunity.Name,
+                        Value = opportunity.IdKey
+                    },
+                    ConnectionType = new ConnectionTypeListItemBag
+                    {
+                        Text = opportunity.ConnectionType.Name,
+                        Value = opportunity.ConnectionType.IdKey,
+                        EnableFutureFollowup = opportunity.ConnectionType.EnableFutureFollowup
+                    },
+                    Requester = GetRequester( requestBag.RequesterId, rockContext )
                 } );
             }
         }
