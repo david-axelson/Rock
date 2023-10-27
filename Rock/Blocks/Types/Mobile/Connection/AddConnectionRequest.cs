@@ -376,8 +376,6 @@ namespace Rock.Blocks.Types.Mobile.Connection
         private List<PlacementGroupListItemBag> GetPlacementGroups( ConnectionRequest connectionRequest, RockContext rockContext )
         {
             var placementGroups = new List<PlacementGroupListItemBag>();
-
-            // Build list of groups
             var groups = new List<Group>();
 
             // First add any groups specifically configured for the opportunity
@@ -410,11 +408,14 @@ namespace Rock.Blocks.Types.Mobile.Connection
                 }
             }
 
+            // For each group, populate the roles and statuses.
             foreach ( var group in groups )
             {
                 var groupConfigs = connectionRequest.ConnectionOpportunity.ConnectionOpportunityGroupConfigs.Where( g => g.GroupTypeId == group.GroupTypeId );
 
                 List<RoleItemBag> roles = new List<RoleItemBag>();
+
+                // Find each role that is configured for this group.
                 foreach ( var groupConfig in groupConfigs )
                 {
                     if ( groupConfig.GroupMemberRole != null )
@@ -428,6 +429,7 @@ namespace Rock.Blocks.Types.Mobile.Connection
                     }
                 }
 
+                // For each role, find the statuses that are configured for this group.
                 foreach ( var role in roles )
                 {
                     foreach ( var groupConfig in groupConfigs.Where( c => c.GroupMemberRole.IdKey == role.Value ) )
@@ -467,8 +469,8 @@ namespace Rock.Blocks.Types.Mobile.Connection
         /// </summary>
         /// <param name="bag"></param>
         /// <param name="rockContext"></param>
-        /// <returns></returns>
-        private (bool IsSuccess, string Message) SaveConnectionRequest( SaveConnectionRequestRequestBag bag, RockContext rockContext )
+        /// <returns>The IdKey of the new Connection Request.</returns>
+        private string SaveConnectionRequest( SaveConnectionRequestRequestBag bag, RockContext rockContext )
         {
             var connectionRequestService = new ConnectionRequestService( rockContext );
             var personService = new PersonService( rockContext );
@@ -480,7 +482,7 @@ namespace Rock.Blocks.Types.Mobile.Connection
 
             if ( !requesterId.HasValue )
             {
-                return (false, "The requester was not found.");
+                return string.Empty;
             }
 
             var typeId = connectionTypeService.Get( bag.ConnectionTypeId ).Id;
@@ -565,7 +567,7 @@ namespace Rock.Blocks.Types.Mobile.Connection
                 connectionRequest.SaveAttributeValues( rockContext );
             } );
 
-            return (true, connectionRequest.IdKey);
+            return connectionRequest.IdKey;
         }
 
         /// <summary>
@@ -740,14 +742,14 @@ namespace Rock.Blocks.Types.Mobile.Connection
             {
                 var saveResult = SaveConnectionRequest( requestBag, rockContext );
 
-                if ( !saveResult.IsSuccess )
+                if( saveResult.IsNullOrWhiteSpace() )
                 {
-                    return ActionBadRequest( saveResult.Message );
+                    return ActionBadRequest( "There was an error creating the connection request." );
                 }
 
                 return ActionOk( new SaveConnectionRequestResponseBag
                 {
-                    Id = saveResult.Message
+                    Id = saveResult
                 } );
             }
         }
