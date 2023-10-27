@@ -65,7 +65,7 @@ namespace Rock.Blocks.Types.Mobile.Connection
     [MobileNavigationActionField( "Post Cancel Action",
         Description = "The navigation action to perform when the cancel button is pressed.",
         IsRequired = false,
-        DefaultValue = MobileNavigationActionFieldAttribute.NoneValue,
+        DefaultValue = MobileNavigationActionFieldAttribute.PopSinglePageValue,
         Key = AttributeKey.PostCancelAction,
         Order = 2 )]
 
