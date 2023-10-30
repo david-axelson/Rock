@@ -53,11 +53,20 @@ namespace Rock.Tests.Integration.Core.Lava
         /// This test validates a Rock-specific change to the Fluid Parser.
         /// </summary>
         [TestMethod]
-        [Ignore( "This is a known issue, but it is documented here for reference and may be fixed in the future." )]
         public void CommentBlock_ContainingInvalidTag_IsIgnored()
         {
             // This Lava template would throw an error in the default Fluid parser, but should process successfully here.
-            TestHelper.AssertTemplateOutput( string.Empty, "{% comment %} This comment contains an {% unknown_tag %} {% endcomment %}" );
+            TestHelper.AssertTemplateOutput( typeof(FluidEngine), string.Empty, "{% comment %} This comment contains an {% unknown_tag %} {% endcomment %}" );
+        }
+
+        /// <summary>
+        /// Verify that a comment containing an invalid shortcode does not cause a parser error.
+        /// This test validates a Rock-specific change to the Fluid Parser.
+        /// </summary>
+        [TestMethod]
+        public void CommentBlock_ContainingInvalidShortcode_IsIgnored()
+        {
+            TestHelper.AssertTemplateOutput( typeof( FluidEngine ), string.Empty, "{% comment %} This comment contains an {[ invalid_shortcode ]} {% endcomment %}" );
         }
 
         [TestMethod]

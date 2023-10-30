@@ -14,7 +14,6 @@
 // limitations under the License.
 // </copyright>
 //
-using System.Diagnostics;
 using Fluid.Parser;
 using Parlot;
 using Parlot.Fluent;
@@ -101,27 +100,51 @@ namespace Rock.Lava.Fluid
             return new LavaTagWithAttributesParser( tagName, format );
         }
 
-        public static Parser<LavaTagResult> LavaTagStart => _lavaTagStart;
-        private static Parser<LavaTagResult> _lavaTagStart = new LavaTagStartParser( LavaTagFormatSpecifier.LiquidTag );
+        /// <summary>
+        /// A parser that detects the start of a Liquid tag: '{%'
+        /// </summary>
+        public static Parser<LavaTagResult> LiquidTagStart => _liquidTagStart;
+        private static Parser<LavaTagResult> _liquidTagStart = new LavaTagStartParser( LavaTagFormatSpecifier.LiquidTag );
 
-        public static Parser<LavaTagResult> LavaTagEnd => _lavaTagEnd;
-        private static Parser<LavaTagResult> _lavaTagEnd = new LavaTagEndParser( LavaTagFormatSpecifier.LiquidTag );
+        /// <summary>
+        /// A parser that detects the end of a Liquid tag: '%}'
+        /// </summary>
+        public static Parser<LavaTagResult> LiquidTagEnd => _liquidTagEnd;
+        private static Parser<LavaTagResult> _liquidTagEnd = new LavaTagEndParser( LavaTagFormatSpecifier.LiquidTag );
 
+        /// <summary>
+        /// A parser that detects the start of a shortcode tag: '{['
+        /// </summary>
         public static Parser<LavaTagResult> LavaShortcodeStart => _lavaShortcodeStart;
         private static Parser<LavaTagResult> _lavaShortcodeStart = new LavaTagStartParser( LavaTagFormatSpecifier.LavaShortcode );
 
+        /// <summary>
+        /// A parser that detects the end of a shortcode tag: ']}'
+        /// </summary>
         public static Parser<LavaTagResult> LavaShortcodeEnd => _lavaShortcodeEnd;
         private static Parser<LavaTagResult> _lavaShortcodeEnd = new LavaTagEndParser( LavaTagFormatSpecifier.LavaShortcode );
 
+        /// <summary>
+        /// A parser that detects the start of a Lava block comment: '/-'
+        /// </summary>
         public static Parser<LavaTagResult> LavaBlockCommentStart => _lavaBlockCommentStart;
         private static Parser<LavaTagResult> _lavaBlockCommentStart = new LavaTagStartParser( LavaTagFormatSpecifier.BlockComment );
 
+        /// <summary>
+        /// A parser that detects the end of a Lava block comment: '-/'
+        /// </summary>
         public static Parser<LavaTagResult> LavaBlockCommentEnd => _lavaBlockCommentEnd;
         private static Parser<LavaTagResult> _lavaBlockCommentEnd = new LavaTagEndParser( LavaTagFormatSpecifier.BlockComment );
 
+        /// <summary>
+        /// A parser that detects the start of a Lava inline comment: '//-'
+        /// </summary>
         public static Parser<LavaTagResult> LavaInlineCommentStart => _lavaInlineCommentStart;
         private static Parser<LavaTagResult> _lavaInlineCommentStart = new LavaTagStartParser( LavaTagFormatSpecifier.InlineComment );
 
+        /// <summary>
+        /// A parser that detects the end of a Lava inline comment: '\r\n'
+        /// </summary>
         public static Parser<LavaTagResult> LavaInlineCommentEnd => _lavaInlineCommentEnd;
         private static Parser<LavaTagResult> _lavaInlineCommentEnd = new LavaTagEndParser( LavaTagFormatSpecifier.InlineComment );
 
@@ -203,11 +226,28 @@ namespace Rock.Lava.Fluid
                     context.SkipWhiteSpace();
                 }
 
-                // This block is invoked when the scanner is positioned at the start of the block content, after the open tag.
+                // This parser is invoked when the scanner is positioned at the start of the block content, after the open tag.
                 var openTags = 1;
                 var start = context.Scanner.Cursor.Position;
 
                 // Define parsers that can identify opening and closing tags for this block type, to track nested blocks of the same type if necessary.
+
+                //
+                // Lava blocks must be processed differently from standard Liquid tags, because they may require additional pre-processing
+                // of non-standard tags before being processed by the Liquid parser.
+                // To correctly capture the content of the block, we need to skip over embedded raw and comment tags because they may include
+                // some invalid Liquid syntax.
+                // For example, the following Lava template will throw an error in the standard Fluid parser
+                // due to the unpaired shortcode open tag embedded in the raw tag:
+                //
+                // {[ panel title:'Important Stuff' icon:'fa fa-star' ]}
+                //    This is a super simple panel.
+                //    {% raw %}
+                //        This is some literal text containing an invalid shortcode: {[ panel title:'Example' ]}
+                //    {% endraw %}
+                // {[ endpanel ]}
+                //
+
                 var openTagOnlyParser = LavaTagWithAttributes( _tagName, _tagFormat );
 
                 var openTagParser = AnyCharBefore( openTagOnlyParser, canBeEmpty: true )
@@ -218,60 +258,92 @@ namespace Rock.Lava.Fluid
                 var closeTagParser = AnyCharBefore( closeTagOnlyParser, canBeEmpty: true )
                     .SkipAnd( closeTagOnlyParser );
 
-                TextPosition nextStartTagPos = TextPosition.Start;
-                TextPosition nextEndTagPos;
+                var openRawTagParser = AnyCharBefore( LavaFluidParser.CreateTag( "raw" ), canBeEmpty: true )
+                    .SkipAnd( LavaFluidParser.CreateTag( "raw" ) );
+                var closeRawTagParser = AnyCharBefore( LavaFluidParser.CreateTag( "endraw" ), canBeEmpty: true )
+                    .SkipAnd( LavaFluidParser.CreateTag( "endraw" ) );
 
-                TextPosition currentSearchStart = start;
+                var textPositionNone = new TextPosition( -1, -1, -1 );
+                var nextOpenTagPos = TextPosition.Start;
+                var nextCloseTagPos = textPositionNone;
+
+                var currentSearchStart = start;
                 var resultStartTag = new ParseResult<LavaTagResult>();
                 var resultEndTag = new ParseResult<LavaTagResult>();
-                var startTagFound = true;
-                var endTagFound = false;
+                var openTagFound = true;
+                var closeTagFound = false;
 
                 var cursor = context.Scanner.Cursor;
 
-                int startIndex = start.Offset;
-                int endTagStartIndex = -1;
-                int endTagEndIndex = -1;
+                var startIndex = start.Offset;
+                var endTagStartIndex = -1;
+                var endTagEndIndex = -1;
 
-                while ( openTags > 0 && ( startTagFound || endTagFound ) )
+                var tagParseResult = new ParseResult<string>();
+                var nextRawTagOpenPos = TextPosition.Start;
+                var nextRawTagClosePos = TextPosition.Start;
+
+                while ( openTags > 0 && ( openTagFound || closeTagFound ) )
                 {
-                    // Find the next instances of start and end tags.
-                    startTagFound = openTagParser.Parse( context, ref resultStartTag );
-                    if ( startTagFound )
+                    // Find the next open tag for this block type.
+                    cursor.ResetPosition( currentSearchStart );
+                    openTagFound = openTagParser.Parse( context, ref resultStartTag );
+                    if ( openTagFound )
                     {
-                        nextStartTagPos = startTagFound ? new TextPosition( resultStartTag.Value.Text.Offset, cursor.Position.Line, cursor.Position.Column ) : TextPosition.Start;
+                        nextOpenTagPos = openTagFound ? new TextPosition( resultStartTag.Value.Text.Offset, cursor.Position.Line, cursor.Position.Column ) : TextPosition.Start;
+                    }
+
+                    // If there is no active raw tag, find the next raw tag from the current search position.
+                    // If a previous search found none, ignore this step.
+                    if ( nextRawTagOpenPos.Offset != -1 && nextRawTagOpenPos.Offset < cursor.Offset )
+                    {
+                        cursor.ResetPosition( currentSearchStart );
+                        var rawTagFound = openRawTagParser.Parse( context, ref tagParseResult );
+                        nextRawTagOpenPos = rawTagFound ? cursor.Position : textPositionNone;
+
+                        var rawCloseTagFound = closeRawTagParser.Parse( context, ref tagParseResult );
+                        nextRawTagClosePos = rawCloseTagFound ? cursor.Position : textPositionNone;
+                    }
+
+                    // If the active raw tag contains the block open tag, skip to the end of the raw tag and continue the search.
+                    if ( nextOpenTagPos.Offset > nextRawTagOpenPos.Offset
+                        && nextOpenTagPos.Offset < nextRawTagClosePos.Offset )
+                    {
+                        currentSearchStart = nextRawTagClosePos;
+                        continue;
                     }
 
                     cursor.ResetPosition( currentSearchStart );
-                    endTagFound = closeTagParser.Parse( context, ref resultEndTag );
+                    closeTagFound = closeTagParser.Parse( context, ref resultEndTag );
 
-                    if ( endTagFound )
+                    if ( closeTagFound )
                     {
+                        // Found a block close tag, now check if it is a valid terminator for the outermost block.
                         endTagStartIndex = resultEndTag.Value.Text.Offset;
                         endTagEndIndex = resultEndTag.End;
 
-                        nextEndTagPos = endTagFound ? new TextPosition( endTagStartIndex, cursor.Position.Line, cursor.Position.Column ) : TextPosition.Start;
+                        nextCloseTagPos = closeTagFound ? new TextPosition( endTagStartIndex, cursor.Position.Line, cursor.Position.Column ) : TextPosition.Start;
 
-                        if ( startTagFound
-                             && nextStartTagPos.Offset < nextEndTagPos.Offset )
+                        if ( openTagFound
+                             && nextOpenTagPos.Offset < nextCloseTagPos.Offset )
                         {
                             // A start tag was found that precedes the next end tag.
                             // Increment the open tag counter and continue searching.
                             openTags++;
-                            context.Scanner.Cursor.ResetPosition( nextStartTagPos );
+                            context.Scanner.Cursor.ResetPosition( nextOpenTagPos );
                         }
                         else
                         {
                             openTags--;
-                            context.Scanner.Cursor.ResetPosition( nextEndTagPos );
+                            context.Scanner.Cursor.ResetPosition( nextCloseTagPos );
                         }
                     }
                     else
                     {
-                        if ( startTagFound )
+                        if ( openTagFound )
                         {
                             openTags++;
-                            context.Scanner.Cursor.ResetPosition( nextStartTagPos );
+                            context.Scanner.Cursor.ResetPosition( nextOpenTagPos );
                         }
                     }
 
@@ -339,7 +411,7 @@ namespace Rock.Lava.Fluid
                 }
                 else
                 {
-                    tagParser = LavaTagStart
+                    tagParser = LiquidTagStart
                         .And( Terms.Text( _tagName ) ).
                         And( AnyCharBefore( LavaFluidParser.LavaTokenEndParser, canBeEmpty: true ) )
                         .And( LavaFluidParser.LavaTokenEndParser );
