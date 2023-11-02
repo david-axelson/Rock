@@ -86,6 +86,7 @@ export {
     TextColumn,
     CopyColumn,
     ButtonColumn
+};
 
 // Export cell components.
 export {
