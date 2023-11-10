@@ -19,12 +19,14 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Web.UI;
+
 using Rock;
 using Rock.Attribute;
 using Rock.Data;
 using Rock.Mobile;
 using Rock.Model;
 using Rock.Security;
+using Rock.Tv.Classes;
 using Rock.Web.Cache;
 using Rock.Web.UI;
 using Rock.Web.UI.Controls;
@@ -52,6 +54,14 @@ namespace RockWeb.Blocks.Cms
         order: 1,
         key: AttributeKey.SiteType )]
 
+    [EnumsField(
+        "TV Application Type",
+        Description = "Show TV applications limited to a certain type.",
+        EnumSourceType = typeof( Rock.Tv.Classes.TvApplicationType ),
+        IsRequired = false,
+        Order = 1,
+        Key = AttributeKey.TvApplicationType )]
+
     [TextField(
         "Block Title",
         Key = AttributeKey.BlockTitle,
@@ -66,7 +76,7 @@ namespace RockWeb.Blocks.Cms
         Description = "The icon CSS class for the block.",
         IsRequired = false,
         DefaultValue = "fa fa-desktop",
-        Order = 3)]
+        Order = 3 )]
 
     [TextField(
         "Block Icon CSS Class",
@@ -90,6 +100,7 @@ namespace RockWeb.Blocks.Cms
         private static class AttributeKey
         {
             public const string SiteType = "SiteType";
+            public const string TvApplicationType = "TvApplicationType";
             public const string BlockTitle = "BlockTitle";
             public const string BlockIconCssClass = "BlockIcon";
             public const string ShowDeleteColumn = "ShowDeleteColumn";
@@ -276,6 +287,31 @@ namespace RockWeb.Blocks.Cms
         #region Internal Methods
 
         /// <summary>
+        /// Returns whether or not a site is of a certain tv application type.
+        /// </summary>
+        /// <param name="type"></param>
+        /// <param name="s"></param>
+        /// <returns></returns>
+        private bool SiteIsTvAppType( List<TvApplicationType?> types, int siteId )
+        {
+            var site = SiteCache.Get( siteId );
+
+            if ( site == null )
+            {
+                return false;
+            }
+
+            var additionalSettings = site.AdditionalSettings?.FromJsonOrNull<Rock.Tv.Classes.ApplicationSettings>();
+
+            if ( additionalSettings == null )
+            {
+                return false;
+            }
+
+            return types.Contains( additionalSettings.TvApplicationType );
+        }
+
+        /// <summary>
         /// Binds the grid.
         /// </summary>
         private void BindGrid()
@@ -299,6 +335,17 @@ namespace RockWeb.Blocks.Cms
             {
                 // Filter by block setting Site type
                 qry = qry.Where( s => siteType.Contains( s.SiteType ) );
+
+                if ( siteType.Contains( SiteType.Tv ) )
+                {
+                    List<TvApplicationType?> tvApplicationType = GetAttributeValue( AttributeKey.TvApplicationType ).SplitDelimitedValues().Select( a => a.ConvertToEnumOrNull<TvApplicationType>() ).ToList();
+
+                    if ( tvApplicationType.Any() )
+                    {
+                        var siteList = qry.Select( s => s.Id ).ToList().Where( id => SiteIsTvAppType( tvApplicationType, id ) );
+                        qry = qry.Where( s => siteList.Contains( s.Id ) );
+                    }
+                }
             }
             // Filter by selected filter
             if ( !showInactiveSites )

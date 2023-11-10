@@ -64,6 +64,7 @@ namespace Rock.Rest.v2.Controllers
         /// <seealso cref="Rock.Rest.ApiControllerBase" />
         [HttpGet]
         [System.Web.Http.Route( "api/v2/tv/apple/GetLaunchPacket" )]
+        [System.Web.Http.Route( "api/v2/tv/roku/GetLaunchPacket" )]
         [Rock.SystemGuid.RestActionGuid( "55D648CD-0533-4FE6-99B1-CE301728DB73" )]
         public IHttpActionResult GetLaunchPacket()
         {
@@ -175,8 +176,8 @@ namespace Rock.Rest.v2.Controllers
                 launchPacket.HomepageGuid = site.DefaultPage.Guid;
 
                 launchPacket.RockVersion = VersionInfo.VersionInfo.GetRockProductVersionNumber();
-
-                RockLogger.Log.Debug( RockLogDomains.AppleTv, $"Retrieved launch packet: {launchPacket?.ToJson() ?? ""}." );
+                
+                // RockLogger.Log.Debug( RockLogDomains.AppleTv, $"Retrieved launch packet: {launchPacket?.ToJson() ?? ""}." );
                 return Ok( launchPacket );
             }
             catch ( Exception )
@@ -653,63 +654,169 @@ namespace Rock.Rest.v2.Controllers
             return response;
         }
 
+        /// <summary>
+        /// Gets the Scenegraph Component Library that represents a page.
+        /// </summary>
+        /// <param name="pageGuid">The Guid of the page to load.</param>
+        /// <remarks>This is purposefully suffixed with .zip because Roku disregards it if it isn't.</remarks>
         [HttpGet]
-        [System.Web.Http.Route( "api/v2/tv/GetExampleSceneGraph/{definedValueId}" )]
-        [Rock.SystemGuid.RestActionGuid( "103ba971-e7bb-41de-a12a-1c8b8bf85ad7" )]
-        public HttpResponseMessage GetExampleScenegraph( int definedValueId )
+        [System.Web.Http.Route( "api/v2/tv/GetRokuPageComponent/{pageGuid}.zip" )]
+        [Rock.SystemGuid.RestActionGuid( "103BA971-E7BB-41DE-A12A-1C8B8BF85AD7" )]
+        public HttpResponseMessage GetRokuPageComponent( Guid pageGuid )
         {
-            var type = DefinedTypeCache.Get( "d7995a51-e714-4ba9-93e3-613cee51743f" );
-            if ( type == null )
+            var response = new HttpResponseMessage();
+
+            var currentPerson = GetPerson();
+
+            var page = PageCache.Get( pageGuid );
+
+            // If page is null return 404
+            if ( page == null )
             {
-                return new HttpResponseMessage( HttpStatusCode.NotFound );
+                response.StatusCode = HttpStatusCode.NotFound;
+                return response;
             }
 
-            var definedValue = DefinedValueCache.Get( definedValueId );
-            var sceneGraph = definedValue.GetAttributeValue( "Scenegraph" );
-            var mergeFields = RockRequestContext.GetCommonMergeFields();
-
-            sceneGraph = sceneGraph.ResolveMergeFields( mergeFields );
-
-            // create a new zip file with the following structure
-            // components / Page.xml (sceneGraph)
-            // manifest (manifestText)
-            
-            var manifestText = @"title=Page
-subtitle=Rock Page
-major_version=1
-minor_version=1
-build_version=00001
-sg_component_libs_provided=Page";
-
-            using ( MemoryStream memoryStream = new MemoryStream() )
+            // Check security
+            if ( !page.IsAuthorized( Rock.Security.Authorization.VIEW, currentPerson ) )
             {
-                using ( ZipArchive zip = new ZipArchive( memoryStream, ZipArchiveMode.Create, true ) )
-                {
-                    var sceneGraphEntry = zip.CreateEntry( "components/Page.xml" );
-                    using ( var writer = new StreamWriter( sceneGraphEntry.Open() ) )
-                    {
-                        writer.Write( sceneGraph );
-                    }
+                response.StatusCode = HttpStatusCode.Unauthorized;
+                return response;
+            }
 
-                    var manifestEntry = zip.CreateEntry( "manifest" );
-                    using ( var writer = new StreamWriter( manifestEntry.Open() ) )
+            // Get requested cache control from client (client trumps server. We'll use this to set the response header to help inform any CDNs
+            var cacheRequest = this.Request.GetHeader( "X-Rock-Tv-RequestedCacheControl" );
+
+            if ( cacheRequest.IsNotNullOrWhiteSpace() )
+            {
+                var cacheParts = cacheRequest.Split( ':' );
+
+                switch ( cacheParts[0] )
+                {
+                    case "public":
+                        {
+                            var maxAgeInSeconds = cacheParts[1] != null ? cacheParts[1].AsInteger() : 777;
+                            response.Headers.CacheControl = new CacheControlHeaderValue()
+                            {
+                                Public = true,
+                                MaxAge = new TimeSpan( 0, 0, maxAgeInSeconds )
+                            };
+                            break;
+                        }
+                    case "private":
+                        {
+                            response.Headers.CacheControl = new CacheControlHeaderValue()
+                            {
+                                Private = true
+                            };
+                            break;
+                        }
+                }
+            }
+            else
+            {
+                // Use cache from database
+                if ( page.CacheControlHeaderSettings.IsNotNullOrWhiteSpace() )
+                {
+                    switch ( page.CacheControlHeader.RockCacheablityType )
                     {
-                        writer.Write( manifestText );
+                        case Rock.Utility.RockCacheablityType.Public:
+                            {
+                                response.Headers.CacheControl = new CacheControlHeaderValue()
+                                {
+                                    Public = true,
+                                    MaxAge = new TimeSpan( 0, 0, page.CacheControlHeader.MaxAge.ToSeconds() ),
+                                    SharedMaxAge = new TimeSpan( 0, 0, page.CacheControlHeader.SharedMaxAge.ToSeconds() )
+                                };
+                                break;
+                            }
+                        case Rock.Utility.RockCacheablityType.Private:
+                            {
+                                response.Headers.CacheControl = new CacheControlHeaderValue()
+                                {
+                                    Private = true
+                                };
+                                break;
+                            }
                     }
                 }
-                memoryStream.Seek( 0, SeekOrigin.Begin );
+            }
 
-                var response = new HttpResponseMessage( HttpStatusCode.OK )
+            // Get content and return it
+            try
+            {
+                var site = SiteCache.Get( page.SiteId );
+                var applicationSettings = JsonConvert.DeserializeObject<RokuTvApplicationSettings>( site.AdditionalSettings );
+
+                var mergeFields = RockRequestContext.GetCommonMergeFields();
+
+                mergeFields.Add( "CurrentPage", page );
+                mergeFields.Add( "CurrentPersonCanEdit", page.IsAuthorized( Rock.Security.Authorization.EDIT, currentPerson ) );
+                mergeFields.Add( "CurrentPersonCanAdministrate", page.IsAuthorized( Rock.Security.Authorization.ADMINISTRATE, currentPerson ) );
+                // mergeFields.Add( "PageParameter", this.Request.GetQueryNameValuePairs() );
+                mergeFields.Add( "TvShellVersion", RockRequestContext.GetHeader( "X-Rock-TvShellVersion" ) );
+                // mergeFields.Add( "TvAppTheme", RockRequestContext.GetHeader( "X-Rock-AppTheme" ) );
+                mergeFields.Add( "IsDemoModeEnabled", RockRequestContext.GetHeader( "X-Rock-IsDemoModeEnabled" ) );
+
+                // Get device data
+                var deviceData = this.Request.GetHeader( "X-Rock-DeviceData" );
+
+                if ( deviceData.IsNotNullOrWhiteSpace() )
                 {
-                    Content = new ByteArrayContent( memoryStream.ToArray() )
-                };
+                    mergeFields.Add( "DeviceData", JsonConvert.DeserializeObject<DeviceData>( deviceData ) );
+                }
 
-                response.Content.Headers.ContentDisposition = new ContentDispositionHeaderValue( "attachment" )
+                // Get the page response content from the AdditionalSettings property
+                var sceneGraph = page.AdditionalSettings.FromJsonOrNull<ApplePageResponse>()?.Content;
+
+                if ( sceneGraph.IsNullOrWhiteSpace() )
                 {
-                    FileName = "Scenegraph.zip"
-                };
-                response.Content.Headers.ContentType = new MediaTypeHeaderValue( "application/zip" );
+                    return new HttpResponseMessage( HttpStatusCode.NoContent );
+                }
 
+                sceneGraph = sceneGraph.ResolveMergeFields( mergeFields, currentPerson, "All" );
+
+                var manifestText = $@"title={page.Guid}
+                    //subtitle=SceneGraph Component For Rock Page
+                    //major_version=1
+                    //minor_version=1
+                    //build_version=00001
+                    //sg_component_libs_provided=RockPage";
+
+                using ( MemoryStream memoryStream = new MemoryStream() )
+                {
+                    using ( ZipArchive zip = new ZipArchive( memoryStream, ZipArchiveMode.Create, true ) )
+                    {
+                        var sceneGraphEntry = zip.CreateEntry( $"components/{page.Id}.xml" );
+
+                        using ( var writer = new StreamWriter( sceneGraphEntry.Open() ) )
+                        {
+                            writer.Write( sceneGraph );
+                        }
+
+                        var manifestEntry = zip.CreateEntry( "manifest" );
+                        using ( var writer = new StreamWriter( manifestEntry.Open() ) )
+                        {
+                            writer.Write( manifestText );
+                        }
+                    }
+                    memoryStream.Seek( 0, SeekOrigin.Begin );
+
+                    response.Content = new ByteArrayContent( memoryStream.ToArray() );
+
+                    response.Content.Headers.ContentDisposition = new ContentDispositionHeaderValue( "attachment" )
+                    {
+                        FileName = $"RokuPage-{page.Id}.zip"
+                    };
+                    response.Content.Headers.ContentType = new MediaTypeHeaderValue( "application/zip" );
+                    response.StatusCode = HttpStatusCode.OK;
+
+                    return response;
+                }
+            }
+            catch
+            {
+                response.StatusCode = HttpStatusCode.InternalServerError;
                 return response;
             }
         }
@@ -789,8 +896,6 @@ sg_component_libs_provided=Page";
                 authCheckResponse.IsAuthenciated = false;
 #pragma warning restore
             }
-
-
 
             rockContext.SaveChanges();
 
