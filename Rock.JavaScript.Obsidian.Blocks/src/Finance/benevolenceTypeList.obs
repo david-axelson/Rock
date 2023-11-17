@@ -16,7 +16,7 @@
                     field="name"
                     :filter="textValueFilter"
                     visiblePriority="xs"
-                    width="40%" />
+                    width="20%" />
 
         <TextColumn name="description"
                     title="Description"
@@ -29,13 +29,13 @@
                        title="Show Financial Results"
                        field="showFinancialResults"
                        visiblePriority="xs"
-                       :width="'1%'"/>
+                       width="10%" />
 
         <BooleanColumn name="isActive"
                        title="Is Active"
                        field="isActive"
                        visiblePriority="xs"
-                       width="1%" />
+                       width="10%" />
 
         <AttributeColumns :attributes="config.gridDefinition?.attributeFields ?? []" />
 
