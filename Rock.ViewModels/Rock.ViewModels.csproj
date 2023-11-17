@@ -110,6 +110,7 @@
     <Compile Include="Blocks\Finance\FinancialPledgeList\FinancialPledgeListOptionsBag.cs" />
     <Compile Include="Blocks\Finance\FinancialStatementTemplateDetail\FinancialStatementTemplateBag.cs" />
     <Compile Include="Blocks\Finance\FinancialStatementTemplateDetail\FinancialStatementTemplateDetailOptionsBag.cs" />
+    <Compile Include="Blocks\Finance\FinancialStatementTemplateList\FinancialStatementTemplateListOptionsBag.cs" />
     <Compile Include="Blocks\Mobile\MobileLayoutDetail\MobileLayoutBag.cs" />
     <Compile Include="Blocks\Mobile\MobileLayoutDetail\MobileLayoutDetailOptionsBag.cs" />
     <Compile Include="Blocks\Group\GroupMemberScheduleTemplateDetail\GroupMemberScheduleTemplateBag.cs" />
