@@ -37,7 +37,7 @@ namespace Rock.Blocks.Engagement
     /// </summary>
 
     [DisplayName( "Step Program List" )]
-    [Category( "Engagement" )]
+    [Category( "Steps" )]
     [Description( "Displays a list of step programs." )]
     [IconCssClass( "fa fa-list" )]
     // [SupportedSiteTypes( Model.SiteType.Web )]
@@ -74,7 +74,22 @@ namespace Rock.Blocks.Engagement
             public const string DetailPage = "DetailPage";
         }
 
+        private static class PreferenceKey
+        {
+            public const string FilterActive = "filter-active";
+
+            public const string FilterCategory = "filter-category";
+        }
+
         #endregion Keys
+
+        #region Properties
+        protected string FilterActive => GetBlockPersonPreferences()
+            .GetValue(PreferenceKey.FilterActive);
+
+        protected string FilterCategory => GetBlockPersonPreferences()
+            .GetValue(PreferenceKey.FilterCategory);
+        #endregion
 
         #region Methods
 
@@ -138,20 +153,31 @@ namespace Rock.Blocks.Engagement
                 .AsNoTracking()
                 .Include( a => a.Category )
                 .Include( a => a.StepTypes )
-                .Select( sp => new StepProgramListBag
-                {
-                    Id = sp.Id,
-                    Name = sp.Name,
-                    IconCssClass = sp.IconCssClass,
-                    Category = sp.Category.Name,
-                    Order = sp.Order,
-                    StepTypeCount = sp.StepTypes.Count( m => m.IsActive ),
-                    StepCompletedCount = completedStepsQry.Count( y => y.StepType.StepProgramId == sp.Id )
-                } );
+                .OrderBy( sp => sp.Order );
 
-            // Add any additional filters if necessary
+            // Filter by Category
+            if ( !string.IsNullOrWhiteSpace( FilterCategory ) )
+            {
+                stepProgramsQry = ( IOrderedQueryable<StepProgram> )stepProgramsQry.Where( sp => sp.Category.Name == FilterCategory );
+            }
 
-            return stepProgramsQry;
+            // Filter by isActive
+            if ( !string.IsNullOrWhiteSpace( FilterActive ) )
+            {
+                bool isActive = FilterActive.Equals( "Active", StringComparison.OrdinalIgnoreCase );
+                stepProgramsQry = ( IOrderedQueryable<StepProgram> )stepProgramsQry.Where( sp => sp.IsActive == isActive );
+            }
+
+            return stepProgramsQry.Select( sp => new StepProgramListBag
+            {
+                Id = sp.Id,
+                Name = sp.Name,
+                IconCssClass = sp.IconCssClass,
+                Category = sp.Category.Name,
+                Order = sp.Order,
+                StepTypeCount = sp.StepTypes.Count( m => m.IsActive ),
+                StepCompletedCount = completedStepsQry.Count( y => y.StepType.StepProgramId == sp.Id )
+            } );
         }
 
         /// <inheritdoc/>
@@ -168,7 +194,6 @@ namespace Rock.Blocks.Engagement
                 .AddField( "stepType", a => a.StepTypeCount )
                 .AddField( "stepsTaken", a => a.StepCompletedCount );
         }
-
 
         #endregion
 

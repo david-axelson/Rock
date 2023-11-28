@@ -6,6 +6,9 @@
           itemTerm="Step Program"
           :entityTypeGuid="EntityType.StepProgram"
           stickyHeader
+          gridSettings
+          :gridSettingsActive="hasSettingsFilters"
+          @gridSettingsClick="isGridSettingsVisible = true"
           liveUpdates
           :showLaunchWorkflow="false"
           :onAddItem="config.isAddEnabled ? onAddItem : undefined"
@@ -64,28 +67,75 @@
 
         <DeleteColumn v-if="config.isDeleteEnabled" @click="onDeleteClick" />
     </Grid>
+    <GridSettingsModal v-model="gridSettings"
+                       v-model:visible="isGridSettingsVisible"
+                       :categories="categoryOptions" />
 </template>
 
 <script setup lang="ts">
-    import { useConfigurationValues, useInvokeBlockAction } from "@Obsidian/Utility/block";
+    import { useConfigurationValues, useInvokeBlockAction, usePersonPreferences } from "@Obsidian/Utility/block";
     import { EntityType } from "@Obsidian/SystemGuids/entityType";
-    import Grid, { AttributeColumns, NumberColumn, numberValueFilter, TextColumn, textValueFilter, DeleteColumn, ReorderColumn, SecurityColumn, SelectColumn, Column } from "@Obsidian/Controls/grid";
+    import Grid, { AttributeColumns, NumberColumn, numberValueFilter, TextColumn, textValueFilter, DeleteColumn, ReorderColumn, SecurityColumn, Column } from "@Obsidian/Controls/grid";
     import { alert } from "@Obsidian/Utility/dialogs";
     import { ListBlockBox } from "@Obsidian/ViewModels/Blocks/listBlockBox";
     import { StepProgramListOptionsBag } from "@Obsidian/ViewModels/Blocks/Engagement/StepProgramList/stepProgramListOptionsBag";
     import { GridDataBag } from "@Obsidian/ViewModels/Core/Grid/gridDataBag";
-    import { NavigationUrlKey } from "./StepProgramList/types.partial";
-    import { reactive, ref } from "vue";
-    import Panel from "@Obsidian/Controls/panel.obs";
+    import { NavigationUrlKey, PreferenceKey, GridSettingsOptions } from "./StepProgramList/types.partial";
+    import { computed, reactive, ref, watch } from "vue";
+    import GridSettingsModal from "./StepProgramList/gridSettingsModal.partial.obs";
+    import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
 
     const config = useConfigurationValues<ListBlockBox<StepProgramListOptionsBag>>();
     const invokeBlockAction = useInvokeBlockAction();
+    const preferences = usePersonPreferences().blockPreferences;
+    const categoryOptions = ref<ListItemBag[]>([]);
 
     // #region Values
 
     const gridDataSource = ref<Promise<GridDataBag>>();
     let gridData: GridDataBag | undefined;
-    const idKey = ref<string>();
+    const isGridSettingsVisible = ref(false);
+
+    const gridSettings = ref<GridSettingsOptions>({
+        active: preferences.getValue(PreferenceKey.FilterActive),
+        category: preferences.getValue(PreferenceKey.FilterCategory),
+    });
+
+    // #endregion
+
+    // #region Computed Values
+
+    /**
+     * Returns `true` if the grid settings filters are active; otherwise `false`.
+     */
+    /** `true` if the grid settings is performing any filtering. */
+    const hasSettingsFilters = computed((): boolean => {
+        return !!gridSettings.value.active
+            || !!gridSettings.value.category;
+    });
+
+    // #endregion
+
+    // #region Watchers
+
+    /**
+     * Watch for changes to the grid settings and update the preferences as needed.
+     */
+    watch(gridSettings, async () => {
+        // Handle the potential null or undefined values for each setting
+        const activeValue = gridSettings.value.active ?? "";
+        const categoryValue = gridSettings.value.category ?? "";
+
+        // Set the preferences with the appropriate values
+        preferences.setValue(PreferenceKey.FilterActive, activeValue);
+        preferences.setValue(PreferenceKey.FilterCategory, categoryValue);
+
+        // Save the preferences
+        await preferences.save();
+
+        // Reload the grid data
+        gridDataSource.value = loadGridData();
+    });
 
     // #endregion
 
@@ -99,6 +149,19 @@
 
         if (result.isSuccess && result.data) {
             gridData = reactive(result.data);
+
+            // Extract the categories from the grid data
+            const uniqueCategories = new Set(gridData.rows?.map(row => row.category as string));
+
+            categoryOptions.value = Array.from(uniqueCategories).map(category => {
+                return {
+                    text: category,
+                    value: category
+                };
+            });
+
+            console.log("ayyyy", categoryOptions.value);
+
             return gridData;
         }
         else {
@@ -138,8 +201,6 @@
                     gridData.rows?.splice(index, 1);
                 }
             }
-            // Reload the grid data after deleting the item
-            gridDataSource.value = loadGridData();
         }
         else {
             await alert(result.errorMessage ?? "Unknown error while trying to delete step program.");
