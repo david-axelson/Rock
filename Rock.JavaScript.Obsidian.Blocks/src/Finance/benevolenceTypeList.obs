@@ -2,7 +2,7 @@
 <template>
     <Grid :definition="config.gridDefinition ?? undefined"
           :data="gridDataSource"
-          keyField="id"
+          keyField="idKey"
           itemTerm="Benevolence Type"
           :entityTypeGuid="EntityType.BenevolenceType"
           stickyHeader
@@ -52,22 +52,9 @@
     import { alert } from "@Obsidian/Utility/dialogs";
     import { ListBlockBox } from "@Obsidian/ViewModels/Blocks/listBlockBox";
     import { BenevolenceTypeListOptionsBag } from "@Obsidian/ViewModels/Blocks/Finance/BenevolenceTypeList/benevolenceTypeListOptionsBag";
-    import { BenevolenceTypeListBag } from "@Obsidian/ViewModels/Blocks/Finance/BenevolenceTypeList/benevolenceTypeListBag";
     import { GridDataBag } from "@Obsidian/ViewModels/Core/Grid/gridDataBag";
     import { NavigationUrlKey } from "./BenevolenceTypeList/types.partial";
-    import { reactive, ref, PropType } from "vue";
-
-    const props = defineProps({
-        modelValue: {
-            type: Object as PropType<BenevolenceTypeListBag | null>,
-            required: false
-        },
-
-        options: {
-            type: Object as PropType<BenevolenceTypeListOptionsBag>,
-            required: true
-        }
-    });
+    import { reactive, ref } from "vue";
 
     const config = useConfigurationValues<ListBlockBox<BenevolenceTypeListOptionsBag>>();
     const invokeBlockAction = useInvokeBlockAction();
@@ -112,26 +99,20 @@
     }
 
     /**
-    * Called when an individual has changed the order of a row.
-    *
-    * @param item The item that was moved.
-    * @param beforeItem The item that was before the item that was moved.
-    */
-    async function onOrderChanged(item: Record<string, unknown>, beforeItem: Record<string, unknown> | null): Promise<void> {
-        const data = {
-            key: props.modelValue?.id,
-            guid: item.guid,
-            beforeGuid: beforeItem?.guid ?? null
-        };
+     * Called when a row has been dragged from one position to a new position.
+     *
+     * @param item The item that was moved to a new position.
+     * @param beforeItem The item that the first item was dropped before.
+     *
+     * @returns `true` if the operation succeeded; otherwise `false`.
+     */
+     async function onOrderChanged(item: Record<string, unknown>, beforeItem: Record<string, unknown> | null): Promise<boolean> {
+        const result = await invokeBlockAction<string>("ReorderItem", {
+            key: item["id"],
+            beforeKey: beforeItem?.["id"] ?? null
+        });
 
-        const result = await invokeBlockAction("ReorderBenevolenceType", data);
-
-        if (!result.isSuccess) {
-            alert(result.errorMessage || "Unable to reorder benevolence types. Please try again.");
-            return;
-        }
-
-        await loadGridData();
+        return result.isSuccess;
     }
 
     /**

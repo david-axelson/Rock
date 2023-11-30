@@ -175,33 +175,30 @@ namespace Rock.Blocks.Finance
             }
         }
 
-        /// <summary>
-        /// Changes the ordered position of a single benevolence type in the list.
+                /// <summary>
+        /// Changes the ordered position of a single item.
         /// </summary>
-        /// <param name="key">The key identifier of the BenevolenceType entity.</param>
-        /// <param name="guid">The GUID of the benevolence type that will be moved.</param>
-        /// <param name="beforeGuid">The GUID of the benevolence type it will be placed before, or null if placed at the end.</param>
-        /// <returns>An empty result indicating if the operation succeeded.</returns>
+        /// <param name="key">The identifier of the item that will be moved.</param>
+        /// <param name="beforeKey">The identifier of the item it will be placed before.</param>
+        /// <returns>An empty result that indicates if the operation succeeded.</returns>
         [BlockAction]
-        public BlockActionResult ReorderBenevolenceType( string key, Guid guid, Guid? beforeGuid )
+        public BlockActionResult ReorderItem( string key, string beforeKey )
         {
             using ( var rockContext = new RockContext() )
             {
-                var benevolenceTypeService = new BenevolenceTypeService( rockContext );
+                // Get the queryable and make sure it is ordered correctly.
+                var qry = GetListQueryable( rockContext );
+                qry = GetOrderedListQueryable( qry, rockContext );
 
-                // Get all benevolence types
-                var allBenevolenceTypes = benevolenceTypeService.Queryable().ToList();
+                // Get the entities from the database.
+                var items = GetListItems( qry, rockContext );
 
-                // Find the current and new index for the moved item
-                int currentIndex = allBenevolenceTypes.FindIndex( bt => bt.Guid == guid );
-                int newIndex = beforeGuid.HasValue ? allBenevolenceTypes.FindIndex( bt => bt.Guid == beforeGuid.Value ) : allBenevolenceTypes.Count - 1;
-
-                // Perform the reordering
-                if ( currentIndex != newIndex )
+                if ( !items.ReorderEntity( key, beforeKey ) )
                 {
-                    benevolenceTypeService.Reorder( allBenevolenceTypes, currentIndex, newIndex );
-                    rockContext.SaveChanges();
+                    return ActionBadRequest( "Invalid reorder attempt." );
                 }
+
+                rockContext.SaveChanges();
 
                 return ActionOk();
             }
