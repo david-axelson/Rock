@@ -80,8 +80,7 @@
         "iCalendarContent",
         "isActive",
         "isPublic",
-        "name",
-        "order"
+        "name"
     ];
 
     const refreshAttributesDebounce = debounce(() => refreshDetailAttributes(scheduleEditBag, validProperties, invokeBlockAction), undefined, true);
