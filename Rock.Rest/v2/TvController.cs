@@ -40,6 +40,7 @@ using Rock.Workflow.Action;
 using Rock.Utility;
 using System.IO;
 using System.IO.Compression;
+using System.Drawing.Text;
 
 namespace Rock.Rest.v2.Controllers
 {
@@ -176,7 +177,7 @@ namespace Rock.Rest.v2.Controllers
                 launchPacket.HomepageGuid = site.DefaultPage.Guid;
 
                 launchPacket.RockVersion = VersionInfo.VersionInfo.GetRockProductVersionNumber();
-                
+
                 // RockLogger.Log.Debug( RockLogDomains.AppleTv, $"Retrieved launch packet: {launchPacket?.ToJson() ?? ""}." );
                 return Ok( launchPacket );
             }
@@ -263,11 +264,11 @@ namespace Rock.Rest.v2.Controllers
             {
                 var cacheParts = cacheRequest.Split( ':' );
 
-                switch ( cacheParts[0] )
+                switch ( cacheParts[ 0 ] )
                 {
                     case "public":
                         {
-                            var maxAgeInSeconds = cacheParts[1] != null ? cacheParts[1].AsInteger() : 777;
+                            var maxAgeInSeconds = cacheParts[ 1 ] != null ? cacheParts[ 1 ].AsInteger() : 777;
                             response.Headers.CacheControl = new CacheControlHeaderValue()
                             {
                                 Public = true,
@@ -520,7 +521,7 @@ namespace Rock.Rest.v2.Controllers
                                 continue;
                             }
 
-                            var interactionComponentId = interactionComponentLookup[cacheKey];
+                            var interactionComponentId = interactionComponentLookup[ cacheKey ];
 
                             //
                             // Add the interaction
@@ -691,11 +692,11 @@ namespace Rock.Rest.v2.Controllers
             {
                 var cacheParts = cacheRequest.Split( ':' );
 
-                switch ( cacheParts[0] )
+                switch ( cacheParts[ 0 ] )
                 {
                     case "public":
                         {
-                            var maxAgeInSeconds = cacheParts[1] != null ? cacheParts[1].AsInteger() : 777;
+                            var maxAgeInSeconds = cacheParts[ 1 ] != null ? cacheParts[ 1 ].AsInteger() : 777;
                             response.Headers.CacheControl = new CacheControlHeaderValue()
                             {
                                 Public = true,
@@ -776,43 +777,18 @@ namespace Rock.Rest.v2.Controllers
 
                 sceneGraph = sceneGraph.ResolveMergeFields( mergeFields, currentPerson, "All" );
 
-                var manifestText = $@"title={page.Guid}
-                    //subtitle=SceneGraph Component For Rock Page
-                    //major_version=1
-                    //minor_version=1
-                    //build_version=00001
-                    //sg_component_libs_provided=RockPage";
+                var componentLibraryZipContent = TvHelper.GetPageAsRokuComponentLibrary( page.Guid, sceneGraph, applicationSettings.RockComponents );
 
-                using ( MemoryStream memoryStream = new MemoryStream() )
+                response.Content = componentLibraryZipContent;
+                response.Content.Headers.ContentDisposition = new ContentDispositionHeaderValue( "attachment" )
                 {
-                    using ( ZipArchive zip = new ZipArchive( memoryStream, ZipArchiveMode.Create, true ) )
-                    {
-                        var sceneGraphEntry = zip.CreateEntry( $"components/{page.Id}.xml" );
+                    FileName = $"RokuPage-{page.Id}.zip"
+                };
+                response.Content.Headers.ContentType = new MediaTypeHeaderValue( "application/zip" );
+                response.StatusCode = HttpStatusCode.OK;
 
-                        using ( var writer = new StreamWriter( sceneGraphEntry.Open() ) )
-                        {
-                            writer.Write( sceneGraph );
-                        }
+                return response;
 
-                        var manifestEntry = zip.CreateEntry( "manifest" );
-                        using ( var writer = new StreamWriter( manifestEntry.Open() ) )
-                        {
-                            writer.Write( manifestText );
-                        }
-                    }
-                    memoryStream.Seek( 0, SeekOrigin.Begin );
-
-                    response.Content = new ByteArrayContent( memoryStream.ToArray() );
-
-                    response.Content.Headers.ContentDisposition = new ContentDispositionHeaderValue( "attachment" )
-                    {
-                        FileName = $"RokuPage-{page.Id}.zip"
-                    };
-                    response.Content.Headers.ContentType = new MediaTypeHeaderValue( "application/zip" );
-                    response.StatusCode = HttpStatusCode.OK;
-
-                    return response;
-                }
             }
             catch
             {
@@ -821,7 +797,6 @@ namespace Rock.Rest.v2.Controllers
             }
         }
 
-        /// <summary>
         /// Checks the authenication session.
         /// </summary>
         /// <param name="siteId">The site identifier.</param>
@@ -919,7 +894,7 @@ namespace Rock.Rest.v2.Controllers
             // Removed vowels to prevent bad words and the letter nine to prevent other immature references
             const string chars = "BCDFGHJKLMNPQRSTVWXYZ012345678";
             return new string( Enumerable.Repeat( chars, length )
-                .Select( s => s[random.Next( s.Length )] ).ToArray() );
+                .Select( s => s[ random.Next( s.Length ) ] ).ToArray() );
         }
 
         /// <summary>
@@ -938,12 +913,12 @@ namespace Rock.Rest.v2.Controllers
             }
             else if ( request.Properties.ContainsKey( "MS_HttpContext" ) )
             {
-                return ( ( HttpContextWrapper ) request.Properties["MS_HttpContext"] ).Request.UserHostAddress;
+                return ( ( HttpContextWrapper ) request.Properties[ "MS_HttpContext" ] ).Request.UserHostAddress;
             }
             else if ( request.Properties.ContainsKey( RemoteEndpointMessageProperty.Name ) )
             {
                 RemoteEndpointMessageProperty prop;
-                prop = ( RemoteEndpointMessageProperty ) this.Request.Properties[RemoteEndpointMessageProperty.Name];
+                prop = ( RemoteEndpointMessageProperty ) this.Request.Properties[ RemoteEndpointMessageProperty.Name ];
                 return prop.Address;
             }
             else

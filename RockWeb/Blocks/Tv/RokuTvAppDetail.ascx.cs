@@ -189,6 +189,8 @@ namespace RockWeb.Blocks.Tv
 
                 // Create/Modify API Key
                 additionalSettings.ApiKeyId = SaveApiKey( additionalSettings.ApiKeyId, txtApiKey.Text, string.Format( "tv_application_{0}", site.Id ), rockContext );
+                additionalSettings.RockComponents = ceRockComponents.Text;
+
                 site.AdditionalSettings = additionalSettings.ToJson();
                 rockContext.SaveChanges();
             } );
@@ -428,6 +430,9 @@ namespace RockWeb.Blocks.Tv
                 }
 
                 nbPageViewRetentionPeriodDays.Visible = site.EnablePageViews;
+
+                ceRockComponents.Text = additionalSettings.RockComponents;
+                ceRockComponents.Visible = PageParameter( "ShowRokuComponents" )?.AsBooleanOrNull() ?? false;
             }
         }
 

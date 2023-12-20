@@ -12,5 +12,10 @@
         /// The API key.
         /// </value>
         public int? ApiKeyId { get; set; }
+
+        /// <summary>
+        /// Gets or sets the Rock Components used in the application.
+        /// </summary>
+        public string RockComponents { get; set; }
     }
 }
