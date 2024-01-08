@@ -19,39 +19,33 @@ using System.Collections.Generic;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 using Rock.Field.Types;
-using Rock.ViewModels.Utility;
 
 namespace Rock.Tests.Integration.Core.Field.Types
 {
     [TestClass]
-    public class EventCalendarFieldTypeTests : FieldTypeTestsBase<EventCalendarFieldType>
+    public class DefinedTypeFieldTypeTests : FieldTypeTestsBase<DefinedTypeFieldType>
     {
         protected override List<FieldTypeTestValue> OnGetExpectedFieldValues()
         {
-            var listItem1 = new ListItemBag { Value = "8A444668-19AF-4417-9C74-09F842572974", Text = "Public" };
-            var listItem2 = new ListItemBag { Value = "8C7F7F4E-1C51-41D3-9AC3-02B3F4054798", Text = "Internal" };
-
             var items = new List<FieldTypeTestValue>
             {
                 new FieldTypeTestValue
                 {
-                    PrivateValue = listItem1.Value,
-                    PublicEditValue = listItem1.ToCamelCaseJson( true, false ),
-                    PublicDisplayValue = listItem1.Text,
+                    PrivateValue = SystemGuid.DefinedType.BACKGROUND_CHECK_TYPES,
+                    PublicDisplayValue = "Background Check Types"
                 },
                 new FieldTypeTestValue
                 {
-                    PrivateValue = listItem2.Value,
-                    PublicEditValue = listItem2.ToCamelCaseJson( true, false ),
-                    PublicDisplayValue = listItem2.Text
+                    PrivateValue = SystemGuid.DefinedType.BENEVOLENCE_REQUEST_STATUS,
+                    PublicDisplayValue = "Benevolence Request Status"
                 }
             };
 
             return items;
         }
 
-        protected override bool ShouldReturnInvalidSelectionAsDescription => true;
-
         protected override bool HasDefaultPublicValueImplementation => true;
+
+        protected override bool HasDefaultPublicEditValueImplementation => true;
     }
 }

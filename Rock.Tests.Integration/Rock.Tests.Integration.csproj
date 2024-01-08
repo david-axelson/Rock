@@ -180,6 +180,11 @@
     <Compile Include="Issues\Issue1808.cs" />
     <Compile Include="Issues\Issues_v16.cs" />
     <Compile Include="Issues\Issues_v15.cs" />
+    <Compile Include="Modules\Core\Field.Types\FieldTypeTestBase.cs" />
+    <Compile Include="Modules\Core\Field.Types\DefinedTypeFieldTypeTests.cs" />
+    <Compile Include="Modules\Core\Field.Types\WorkflowTypesFieldTypeTests.cs" />
+    <Compile Include="Modules\Core\Field.Types\WorkflowTypeFieldTypeTests.cs" />
+    <Compile Include="Modules\Core\Field.Types\SystemCommunicationFieldTypeTests.cs" />
     <Compile Include="Modules\Core\Field.Types\PhoneNumberFieldTypeTests.cs" />
     <Compile Include="Modules\Core\AttributeMatrixTests.cs" />
     <Compile Include="Modules\Core\Lava\Engine\TypeConversionTests.cs" />
@@ -406,6 +411,10 @@
     <ProjectReference Include="..\Rock.Tests.Shared\Rock.Tests.Shared.csproj">
       <Project>{d8de32c9-25da-4897-a750-7dd8755b3d45}</Project>
       <Name>Rock.Tests.Shared</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Rock.ViewModels\Rock.ViewModels.csproj">
+      <Project>{05BAAF85-9C53-4CCD-A535-036427B0DF72}</Project>
+      <Name>Rock.ViewModels</Name>
     </ProjectReference>
     <ProjectReference Include="..\Rock.WebStartup\Rock.WebStartup.csproj">
       <Project>{515e22e4-4b9b-4886-8477-e5b312b75eb4}</Project>

@@ -24,34 +24,34 @@ using Rock.ViewModels.Utility;
 namespace Rock.Tests.Integration.Core.Field.Types
 {
     [TestClass]
-    public class EventCalendarFieldTypeTests : FieldTypeTestsBase<EventCalendarFieldType>
+    public class WorkflowTypesFieldTypeTests : FieldTypeTestsBase<WorkflowTypesFieldType>
     {
         protected override List<FieldTypeTestValue> OnGetExpectedFieldValues()
         {
-            var listItem1 = new ListItemBag { Value = "8A444668-19AF-4417-9C74-09F842572974", Text = "Public" };
-            var listItem2 = new ListItemBag { Value = "8C7F7F4E-1C51-41D3-9AC3-02B3F4054798", Text = "Internal" };
+            var listItem1 = new ListItemBag { Value = SystemGuid.WorkflowType.UNATTENDED_CHECKIN, Text = "Unattended Check-in" };
+            var listItem2 = new ListItemBag { Value = SystemGuid.WorkflowType.REQUEST_ASSESSMENT, Text = "Request Assessment" };
 
             var items = new List<FieldTypeTestValue>
             {
+                // Single selection.
                 new FieldTypeTestValue
                 {
                     PrivateValue = listItem1.Value,
-                    PublicEditValue = listItem1.ToCamelCaseJson( true, false ),
+                    PublicEditValue = new List<ListItemBag> { listItem1 }.ToCamelCaseJson( true, false ),
                     PublicDisplayValue = listItem1.Text,
                 },
+                // Multiple selection.
                 new FieldTypeTestValue
                 {
-                    PrivateValue = listItem2.Value,
-                    PublicEditValue = listItem2.ToCamelCaseJson( true, false ),
-                    PublicDisplayValue = listItem2.Text
+                    PrivateValue = $"{listItem1.Value}, {listItem2.Value}",
+                    PublicEditValue = new List<ListItemBag>() { listItem1, listItem2 }.ToCamelCaseJson( true, false ),
+                    PublicDisplayValue = $"{listItem1.Text}, {listItem2.Text}"
                 }
             };
 
             return items;
         }
 
-        protected override bool ShouldReturnInvalidSelectionAsDescription => true;
-
-        protected override bool HasDefaultPublicValueImplementation => true;
+        //protected override bool ShouldAllowMultipleSelection => true;
     }
 }

@@ -72,6 +72,12 @@ namespace Rock.Field.Types
         #region Edit Control
 
         /// <inheritdoc />
+        public override string GetPublicValue( string privateValue, Dictionary<string, string> privateConfigurationValues )
+        {
+            return GetTextValue( privateValue, privateConfigurationValues );
+        }
+
+        /// <inheritdoc />
         public override Dictionary<string, string> GetPublicConfigurationValues( Dictionary<string, string> privateConfigurationValues, ConfigurationValueUsage usage, string value )
         {
             var configurationValues = base.GetPublicConfigurationValues( privateConfigurationValues, usage, value );

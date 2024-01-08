@@ -78,7 +78,7 @@ namespace Rock.Field.Types
         {
             var jsonValue = publicValue.FromJsonOrNull<ListItemBag>();
 
-            if ( jsonValue != null )
+            if ( jsonValue != null ) 
             {
                 return jsonValue.Value;
             }
