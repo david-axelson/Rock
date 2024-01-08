@@ -2,7 +2,7 @@
 <template>
     <NotificationBox v-if="options.caption" alertType="warning">{{ options.caption }}</NotificationBox>
 
-    <SimpleGrid :items="options.duplicatePeople">
+    <SimpleGrid :items="duplicatePeople">
         <template #header>
             <tr>
                 <th>You?</th>
@@ -31,7 +31,7 @@
 </template>
 
 <script setup lang="ts">
-    import { PropType } from "vue";
+    import { PropType, computed } from "vue";
     import SimpleGrid from "./simpleGrid.partial.obs";
     import NotificationBox from "@Obsidian/Controls/notificationBox.obs";
     import RockButton from "@Obsidian/Controls/rockButton.obs";
@@ -67,6 +67,9 @@
     //#region Values
 
     const internalModelValue = useVModelPassthrough(props, "modelValue", emit);
+    const duplicatePeople = computed<AccountEntryDuplicatePersonItemBag[]>(() => {
+        return props.options.duplicatePeople ?? [];
+    });
 
     //#endregion
 

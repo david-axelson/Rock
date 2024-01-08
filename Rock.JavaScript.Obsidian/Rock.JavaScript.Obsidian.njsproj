@@ -253,6 +253,7 @@
     <Folder Include="Framework\Enums\Blocks\" />
     <Folder Include="Framework\Enums\Blocks\Cms\" />
     <Folder Include="Framework\Enums\Blocks\Cms\ContentCollectionView\" />
+    <Folder Include="Framework\Enums\Blocks\Communication\" />
     <Folder Include="Framework\Enums\Blocks\Crm\" />
     <Folder Include="Framework\Enums\Blocks\Crm\FamilyPreRegistration\" />
     <Folder Include="Framework\Enums\Blocks\Engagement\" />
@@ -327,6 +328,7 @@
     <Folder Include="Framework\ViewModels\Blocks\Cms\PersonalLinkSectionList\" />
     <Folder Include="Framework\ViewModels\Blocks\Cms\SiteDetail\" />
     <Folder Include="Framework\ViewModels\Blocks\Communication\" />
+    <Folder Include="Framework\ViewModels\Blocks\Communication\CommunicationEntry\" />
     <Folder Include="Framework\ViewModels\Blocks\Communication\EmailPreferenceEntry\" />
     <Folder Include="Framework\ViewModels\Blocks\Communication\SnippetDetail\" />
     <Folder Include="Framework\ViewModels\Blocks\Communication\SnippetTypeDetail\" />
@@ -496,6 +498,8 @@
     <TypeScriptCompile Include="Framework\Enums\AI\chatMessageRole.ts" />
     <TypeScriptCompile Include="Framework\Enums\AI\moderationFlags.ts" />
     <TypeScriptCompile Include="Framework\Enums\Blocks\Cms\ContentCollectionView\searchOrder.ts" />
+    <TypeScriptCompile Include="Framework\Enums\Blocks\Communication\CommunicationEntry\mediumType.ts" />
+    <TypeScriptCompile Include="Framework\Enums\Blocks\Communication\CommunicationEntry\pushOpenActionType.ts" />
     <TypeScriptCompile Include="Framework\Enums\Blocks\Crm\familyPreRegistrationCommunicationPreference.ts" />
     <TypeScriptCompile Include="Framework\Enums\Blocks\Crm\FamilyPreRegistration\communicationPreference.ts" />
     <TypeScriptCompile Include="Framework\Enums\Blocks\Group\Scheduling\resourceListSourceType.ts" />
@@ -830,6 +834,19 @@
     <TypeScriptCompile Include="Framework\ViewModels\Blocks\Cms\PersonalLinkSectionList\personalLinkSectionListOptionsBag.d.ts" />
     <TypeScriptCompile Include="Framework\ViewModels\Blocks\Cms\SiteDetail\siteBag.d.ts" />
     <TypeScriptCompile Include="Framework\ViewModels\Blocks\Cms\SiteDetail\siteDetailOptionsBag.d.ts" />
+    <TypeScriptCompile Include="Framework\ViewModels\Blocks\Communication\CommunicationEntry\communicationEntryAuthorizationBag.d.ts" />
+    <TypeScriptCompile Include="Framework\ViewModels\Blocks\Communication\CommunicationEntry\communicationEntryCommunicationBag.d.ts" />
+    <TypeScriptCompile Include="Framework\ViewModels\Blocks\Communication\CommunicationEntry\communicationEntryEmailMediumOptionsBag.d.ts" />
+    <TypeScriptCompile Include="Framework\ViewModels\Blocks\Communication\CommunicationEntry\communicationEntryGetMediumOptionsRequestBag.d.ts" />
+    <TypeScriptCompile Include="Framework\ViewModels\Blocks\Communication\CommunicationEntry\communicationEntryGetRecipientsRequestBag.d.ts" />
+    <TypeScriptCompile Include="Framework\ViewModels\Blocks\Communication\CommunicationEntry\communicationEntryInitializationBox.d.ts" />
+    <TypeScriptCompile Include="Framework\ViewModels\Blocks\Communication\CommunicationEntry\communicationEntryMediumOptionsBaseBag.d.ts" />
+    <TypeScriptCompile Include="Framework\ViewModels\Blocks\Communication\CommunicationEntry\communicationEntryRecipientBag.d.ts" />
+    <TypeScriptCompile Include="Framework\ViewModels\Blocks\Communication\CommunicationEntry\communicationEntrySendRequestBag.d.ts" />
+    <TypeScriptCompile Include="Framework\ViewModels\Blocks\Communication\CommunicationEntry\communicationEntrySendResponseBag.d.ts" />
+    <TypeScriptCompile Include="Framework\ViewModels\Blocks\Communication\CommunicationEntry\communicationEntrySendTestRequestBag.d.ts" />
+    <TypeScriptCompile Include="Framework\ViewModels\Blocks\Communication\CommunicationEntry\communicationEntrySendTestResponseBag.d.ts" />
+    <TypeScriptCompile Include="Framework\ViewModels\Blocks\Communication\CommunicationEntry\communicationEntrySmsMediumOptionsBag.d.ts" />
     <TypeScriptCompile Include="Framework\ViewModels\Blocks\Communication\EmailPreferenceEntry\emailPreferenceEntrySaveRequestBag.d.ts" />
     <TypeScriptCompile Include="Framework\ViewModels\Blocks\Communication\EmailPreferenceEntry\emailPreferenceEntrySaveResponseBag.d.ts" />
     <TypeScriptCompile Include="Framework\ViewModels\Blocks\Communication\EmailPreferenceEntry\emailPreferenceIntializationBox.d.ts" />
