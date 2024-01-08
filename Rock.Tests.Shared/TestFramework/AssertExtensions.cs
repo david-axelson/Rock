@@ -114,6 +114,10 @@ namespace Rock.Tests.Shared
         {
             Assert.AreEqual( expected, actual, message, parameters );
         }
+        public static void AreEqual<T>( this Assert assert, T expected, T actual, System.String message )
+        {
+            Assert.AreEqual( expected, actual, message );
+        }
         public static void AreEqual( this Assert assert, System.Double expected, System.Double actual, System.Double delta )
         {
             Assert.AreEqual( expected, actual, delta );
@@ -348,6 +352,16 @@ namespace Rock.Tests.Shared
             }
 
             throw new AssertFailedException( "Collection is empty, but a value was expected." );
+        }
+
+        public static void IsNotEmpty<T>( this Assert assert, ICollection<T> input, string message )
+        {
+            if ( input != null && input.Any() )
+            {
+                return;
+            }
+
+            throw new AssertFailedException( message );
         }
 
         #endregion

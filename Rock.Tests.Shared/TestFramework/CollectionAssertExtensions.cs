@@ -24,6 +24,12 @@ namespace Rock.Tests.Shared
         {
             CollectionAssert.Contains( collection, element );
         }
+
+        public static void Contains( this Assert assert, System.Collections.ICollection collection, object element, string message )
+        {
+            CollectionAssert.Contains( collection, element, message );
+        }
+
         public static void DoesNotContain( this Assert assert, System.Collections.ICollection collection, object element )
         {
             CollectionAssert.DoesNotContain( collection, element );
