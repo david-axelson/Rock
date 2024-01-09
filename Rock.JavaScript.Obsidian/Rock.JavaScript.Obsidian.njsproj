@@ -254,6 +254,7 @@
     <Folder Include="Framework\Enums\Blocks\Cms\" />
     <Folder Include="Framework\Enums\Blocks\Cms\ContentCollectionView\" />
     <Folder Include="Framework\Enums\Blocks\Communication\" />
+    <Folder Include="Framework\Enums\Blocks\Communication\CommunicationEntry\" />
     <Folder Include="Framework\Enums\Blocks\Crm\" />
     <Folder Include="Framework\Enums\Blocks\Crm\FamilyPreRegistration\" />
     <Folder Include="Framework\Enums\Blocks\Engagement\" />
