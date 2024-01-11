@@ -497,6 +497,11 @@ namespace RockWeb.Blocks.Connection
                         connectionRequestsQry = connectionRequestsQry.Where( a => a.CampusId.HasValue && a.CampusId == cpCampusFilter.SelectedCampusId );
                     }
 
+                    connectionRequestsQry = connectionRequestsQry
+                        .Where( cr =>
+                            cr.ConnectionState == ConnectionState.Active
+                            || ( cr.ConnectionState == ConnectionState.FutureFollowUp && cr.FollowupDate.HasValue && cr.FollowupDate.Value < midnightToday ) );
+
                     // Calculate status counts using connectionRequestsQry
                     var statusCounts = connectionRequestsQry
                         .GroupBy( cr => new { cr.ConnectionStatus.Id, cr.ConnectionStatus.Name, cr.ConnectionStatus.HighlightColor } )
