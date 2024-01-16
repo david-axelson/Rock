@@ -843,11 +843,10 @@
     <TypeScriptCompile Include="Framework\ViewModels\Blocks\Communication\CommunicationEntry\communicationEntryInitializationBox.d.ts" />
     <TypeScriptCompile Include="Framework\ViewModels\Blocks\Communication\CommunicationEntry\communicationEntryMediumOptionsBaseBag.d.ts" />
     <TypeScriptCompile Include="Framework\ViewModels\Blocks\Communication\CommunicationEntry\communicationEntryRecipientBag.d.ts" />
-    <TypeScriptCompile Include="Framework\ViewModels\Blocks\Communication\CommunicationEntry\communicationEntrySendRequestBag.d.ts" />
+    <TypeScriptCompile Include="Framework\ViewModels\Blocks\Communication\CommunicationEntry\communicationEntrySaveResponseBag.d.ts" />
     <TypeScriptCompile Include="Framework\ViewModels\Blocks\Communication\CommunicationEntry\communicationEntrySendResponseBag.d.ts" />
-    <TypeScriptCompile Include="Framework\ViewModels\Blocks\Communication\CommunicationEntry\communicationEntrySendTestRequestBag.d.ts" />
-    <TypeScriptCompile Include="Framework\ViewModels\Blocks\Communication\CommunicationEntry\communicationEntrySendTestResponseBag.d.ts" />
     <TypeScriptCompile Include="Framework\ViewModels\Blocks\Communication\CommunicationEntry\communicationEntrySmsMediumOptionsBag.d.ts" />
+    <TypeScriptCompile Include="Framework\ViewModels\Blocks\Communication\CommunicationEntry\communicationEntryTestResponseBag.d.ts" />
     <TypeScriptCompile Include="Framework\ViewModels\Blocks\Communication\EmailPreferenceEntry\emailPreferenceEntrySaveRequestBag.d.ts" />
     <TypeScriptCompile Include="Framework\ViewModels\Blocks\Communication\EmailPreferenceEntry\emailPreferenceEntrySaveResponseBag.d.ts" />
     <TypeScriptCompile Include="Framework\ViewModels\Blocks\Communication\EmailPreferenceEntry\emailPreferenceIntializationBox.d.ts" />
