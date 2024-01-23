@@ -188,6 +188,7 @@
     <Compile Include="HttpRequestMessageWrapper.cs" />
     <Compile Include="ProducesResponseTypeAttribute.cs" />
     <Compile Include="Utility\RockMessageResponseContext.cs" />
+    <Compile Include="v2\CheckInController.cs" />
     <Compile Include="v2\ControlsController.cs" />
     <Compile Include="v2\TvController.cs" />
     <Compile Include="Utility\ApiModelMapper.cs" />
