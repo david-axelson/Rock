@@ -83,7 +83,6 @@ namespace Rock.DownhillCss
             BorderWidths( frameworkCss, settings, applicationColorProperties ); /* somewhat mobile specific now */
 
             
-
             return CssUtilities.ParseCss( frameworkCss.ToString(), settings );
         }
 

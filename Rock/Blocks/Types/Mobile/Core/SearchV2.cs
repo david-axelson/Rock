@@ -264,7 +264,14 @@ namespace Rock.Blocks.Types.Mobile.Core
         /// </summary>
         private static class TemplateKey
         {
+            /// <summary>
+            /// The mobile template key for a person search result item.
+            /// </summary>
             public const string PersonSearchResultItem = "PersonSearchResultItem";
+
+            /// <summary>
+            /// The mobile template key for a group search result item.
+            /// </summary>
             public const string GroupSearchResultItem = "GroupSearchResultItem";
         }
 
@@ -275,7 +282,7 @@ namespace Rock.Blocks.Types.Mobile.Core
         /// <inheritdoc />
         public override object GetMobileConfigurationValues()
         {
-            return new
+            return new Rock.Common.Mobile.Blocks.Core.SearchV2.Configuration
             {
                 HeaderContent = HeaderContent,
                 FooterContent = FooterContent,
@@ -377,12 +384,6 @@ namespace Rock.Blocks.Types.Mobile.Core
                         type = type.BaseType;
                     }
 
-                    var searchResultBag = new SearchResultBag
-                    {
-                        Guid = entity.Guid,
-                        DetailKey = entity.TypeName,
-                    };
-
                     if ( entity is Person personEntity )
                     {
                         if ( unionBag.PersonResults == null )
@@ -390,7 +391,11 @@ namespace Rock.Blocks.Types.Mobile.Core
                             unionBag.PersonResults = new List<PersonSearchItemResultBag>();
                         }
 
-                        unionBag.PersonResults.Add( PopulatePersonSearchResultBag( searchResultBag, personEntity ) );
+                        var personBag = GetPersonSearchResultBag( personEntity );
+                        personBag.DetailKey = $"{type.Name}Guid";
+                        personBag.Guid = personEntity.Guid;
+
+                        unionBag.PersonResults.Add( personBag );
                     }
                     else if ( entity is Group groupEntity )
                     {
@@ -398,6 +403,12 @@ namespace Rock.Blocks.Types.Mobile.Core
                         {
                             unionBag.GroupResults = new List<GroupSearchItemResultBag>();
                         }
+
+                        var groupBag = GetGroupSearchItemResultBag( groupEntity );
+                        groupBag.DetailKey = $"{type.Name}Guid";
+                        groupBag.Guid = groupEntity.Guid;
+
+                        unionBag.GroupResults.Add( groupBag );
                     }
                 }
             } );
@@ -405,14 +416,35 @@ namespace Rock.Blocks.Types.Mobile.Core
             return unionBag;
         }
 
+        private GroupSearchItemResultBag GetGroupSearchItemResultBag( Group group )
+        {
+            var itemBag = new GroupSearchItemResultBag();
+            itemBag.Name = group.Name;
+
+            return itemBag;
+        }
+
+        /// <summary>
+        /// Gets the structured group name for a group.
+        /// Ex: Group Type > Sub Group > Group
+        /// </summary>
+        /// <returns></returns>
+        private string GetStructuredGroupName( Group group )
+        {
+            var groupParentGuid = group.ParentGroup?.Guid;
+
+            return string.Empty;
+        }
+
         /// <summary>
         /// Gets the search result bag for a person.
         /// </summary>
+        /// <param name="bag"></param>
         /// <param name="person"></param>
         /// <returns></returns>
-        private PersonSearchItemResultBag PopulatePersonSearchResultBag( SearchResultBag bag, Person person )
+        private PersonSearchItemResultBag GetPersonSearchResultBag( Person person )
         {
-            PersonSearchItemResultBag itemBag = ( PersonSearchItemResultBag ) bag;
+            var itemBag = new PersonSearchItemResultBag();
             itemBag.NickName = person.NickName;
             itemBag.LastName = person.LastName;
             itemBag.PhotoUrl = MobileHelper.BuildPublicApplicationRootUrl( person.PhotoUrl );
