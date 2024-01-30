@@ -191,7 +191,7 @@ namespace Rock.Web.Cache
         /// HashSet.
         /// </summary>
         /// <param name="locationIds">The set of location identifiers.</param>
-        private void GetAllDescendantLocationIds( HashSet<int> locationIds )
+        internal void GetAllDescendantLocationIds( HashSet<int> locationIds )
         {
             foreach ( var location in ChildLocations )
             {

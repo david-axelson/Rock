@@ -219,6 +219,26 @@ namespace Rock.Web.Cache
         }
 
         /// <summary>
+        /// Gets all location identifiers attached to this device, including
+        /// all descendant locations from the selected locations.
+        /// </summary>
+        /// <returns>An enumeration of location identifiers.</returns>
+        public IEnumerable<int> GetAllLocationIds()
+        {
+            var locationIds = new HashSet<int>();
+
+            foreach ( var location in Locations )
+            {
+                if ( locationIds.Add( location.Id ) )
+                {
+                    location.GetAllDescendantLocationIds( locationIds );
+                }
+            }
+
+            return locationIds;
+        }
+
+        /// <summary>
         /// Returns a <see cref="System.String" /> that represents this instance.
         /// </summary>
         /// <returns>
