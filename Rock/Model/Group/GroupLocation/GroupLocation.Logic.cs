@@ -16,7 +16,9 @@
 //
 
 using System.Data.Entity;
+using System.Linq;
 
+using Rock.Data;
 using Rock.Web.Cache;
 
 namespace Rock.Model
@@ -28,7 +30,29 @@ namespace Rock.Model
         /// <inheritdoc/>
         public void UpdateCache( EntityState entityState, Data.DbContext dbContext )
         {
-            NamedGroupLocationCache.FlushItem( Id );
+            bool isNamed = false;
+
+            if ( NamedLocationCache.TryGet( LocationId, out var namedLocationCache ) )
+            {
+                isNamed = namedLocationCache.Name.IsNotNullOrWhiteSpace();
+            }
+            else if ( dbContext is RockContext rockContext )
+            {
+                isNamed = new LocationService( rockContext ).Queryable()
+                    .Where( l => l.Id == LocationId && l.Name != null && l.Name != string.Empty )
+                    .Any();
+            }
+
+            // Only update the cached entity if it is named, which also updates
+            // the "all" key. Otherwise just flush it.
+            if ( isNamed )
+            {
+                NamedGroupLocationCache.UpdateCachedEntity( Id, entityState );
+            }
+            else
+            {
+                NamedGroupLocationCache.FlushItem( Id );
+            }
         }
 
         /// <inheritdoc/>
