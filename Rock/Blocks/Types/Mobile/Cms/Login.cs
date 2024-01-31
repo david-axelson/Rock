@@ -560,7 +560,7 @@ namespace Rock.Blocks.Types.Mobile.Cms
             // plugin.
             //
             // These plugins handle the naming a little differently, and for the sake
-            // of our community, we're just going to do a quick check to see if
+            // We're just going to do a quick check to see if
             // we can make the UserLogin records match the plugin style.
             //
             // Otherwise, use the standard ENTRA_<email> format.
