@@ -32,6 +32,12 @@ namespace Rock.Web.Cache
     [DataContract]
     public class NamedScheduleCache : ModelCache<NamedScheduleCache, Rock.Model.Schedule>
     {
+        #region Fields
+
+        private Ical.Net.CalendarComponents.CalendarEvent _calendarEvent;
+
+        #endregion
+
         #region Properties
 
         /// <inheritdoc cref="Rock.Model.Schedule.Name" />
@@ -57,6 +63,15 @@ namespace Rock.Web.Cache
         /// <inheritdoc cref="Rock.Model.Schedule.Category" />
         public CategoryCache Category => this.CategoryId.HasValue ? CategoryCache.Get( CategoryId.Value ) : null;
 
+        /// <inheritdoc cref="Rock.Model.Schedule.CheckInStartOffsetMinutes" />
+        public int? CheckInStartOffsetMinutes { get; private set; }
+
+        /// <inheritdoc cref="Rock.Model.Schedule.CheckInEndOffsetMinutes" />
+        public int? CheckInEndOffsetMinutes { get; private set; }
+
+        /// <inheritdoc cref="Rock.Model.Schedule.iCalendarContent" />
+        private string CalendarContent { get; set; }
+
         #endregion Properties
 
         #region Public Methods
@@ -79,8 +94,6 @@ namespace Rock.Web.Cache
             }
         }
         
-        private string iCalendarContent { get; set; }
-
         /// <summary>
         /// Set's the cached objects properties from the model/entities properties.
         /// </summary>
@@ -89,35 +102,88 @@ namespace Rock.Web.Cache
         {
             base.SetFromEntity( entity );
 
-            Rock.Model.Schedule schedule = entity as Rock.Model.Schedule;
-            if ( schedule == null )
+            if ( !( entity is Schedule schedule ) )
             {
                 return;
             }
 
-            this.Name = schedule.Name;
-            this.CategoryId = schedule.CategoryId;
-            this.IsActive = schedule.IsActive;
-            this.FriendlyScheduleText = schedule.ToFriendlyScheduleText();
-            this.iCalendarContent = schedule.iCalendarContent;
-            this.StartTimeOfDay = schedule.StartTimeOfDay;
-        }
-
-        /// <summary>
-        /// returns <see cref="FriendlyScheduleText"/>
-        /// </summary>
-        /// <returns>
-        /// A <see cref="System.String" /> that represents this instance.
-        /// </returns>
-        public override string ToString()
-        {
-            return this.FriendlyScheduleText;
+            Name = schedule.Name;
+            CategoryId = schedule.CategoryId;
+            IsActive = schedule.IsActive;
+            FriendlyScheduleText = schedule.ToFriendlyScheduleText();
+            CalendarContent = schedule.iCalendarContent;
+            StartTimeOfDay = schedule.StartTimeOfDay;
+            CheckInStartOffsetMinutes = schedule.CheckInStartOffsetMinutes;
+            CheckInEndOffsetMinutes = schedule.CheckInEndOffsetMinutes;
         }
 
         /// <inheritdoc cref="Rock.Model.Schedule.GetICalOccurrences(DateTime, DateTime?, DateTime?)" />
         public IList<Ical.Net.DataTypes.Occurrence> GetICalOccurrences( DateTime beginDateTime, DateTime? endDateTime, DateTime? scheduleStartDateTimeOverride )
         {
-            return InetCalendarHelper.GetOccurrences( iCalendarContent, beginDateTime, endDateTime, scheduleStartDateTimeOverride );
+            return InetCalendarHelper.GetOccurrences( CalendarContent, beginDateTime, endDateTime, scheduleStartDateTimeOverride );
+        }
+
+        /// <summary>
+        /// Returns value indicating if check-in was active at the specified time.
+        /// </summary>
+        /// <param name="time">The time.</param>
+        /// <returns></returns>
+        public bool WasCheckInActive( DateTime time )
+        {
+            if ( !( CheckInStartOffsetMinutes.HasValue && IsActive ) )
+            {
+                return false;
+            }
+
+            if ( _calendarEvent == null )
+            {
+                _calendarEvent = InetCalendarHelper.CreateCalendarEvent( CalendarContent );
+            }
+
+            var calEvent = _calendarEvent;
+
+            if ( calEvent != null && calEvent.DtStart != null )
+            {
+                // Is the current time earlier the event's allowed check-in window?
+                var checkInStart = calEvent.DtStart.AddMinutes( 0 - CheckInStartOffsetMinutes.Value );
+                if ( time.TimeOfDay.TotalSeconds < checkInStart.Value.TimeOfDay.TotalSeconds )
+                {
+                    return false;
+                }
+
+                var checkInEnd = calEvent.DtEnd;
+                if ( CheckInEndOffsetMinutes.HasValue )
+                {
+                    checkInEnd = calEvent.DtStart.AddMinutes( CheckInEndOffsetMinutes.Value );
+                }
+
+                // If compare is greater than zero, then check-in offset end resulted in an end time in next day, in 
+                // which case, don't need to compare time
+                int checkInEndDateCompare = checkInEnd.Date.CompareTo( checkInStart.Date );
+
+                if ( checkInEndDateCompare < 0 )
+                {
+                    // End offset is prior to start (Would have required a neg number entered)
+                    return false;
+                }
+
+                // Is the current time later then the event's allowed check-in window?
+                if ( checkInEndDateCompare == 0 && time.TimeOfDay.TotalSeconds > checkInEnd.Value.TimeOfDay.TotalSeconds )
+                {
+                    // Same day, but end time has passed
+                    return false;
+                }
+
+                return GetICalOccurrences( time.Date, null, null ).Count > 0;
+            }
+
+            return false;
+        }
+
+        /// <inheritdoc/>
+        public override string ToString()
+        {
+            return this.FriendlyScheduleText;
         }
 
         #endregion Public Methods
