@@ -2143,7 +2143,7 @@
     <Compile Include="Web\Cache\Entities\FinancialAccountCache.cs" />
     <Compile Include="Web\Cache\Entities\InteractiveExperienceCache.cs" />
     <Compile Include="Web\Cache\Entities\InteractiveExperienceScheduleCache.cs" />
-    <Compile Include="Web\Cache\Entities\NamedGroupLocationCache.cs" />
+    <Compile Include="Web\Cache\Entities\GroupLocationCache.cs" />
     <Compile Include="Web\Cache\Entities\NamedScheduleCache.cs" />
     <Compile Include="Web\Cache\Entities\NamedLocationCache.cs" />
     <Compile Include="Web\Cache\Entities\NotificationMessageTypeCache.cs" />

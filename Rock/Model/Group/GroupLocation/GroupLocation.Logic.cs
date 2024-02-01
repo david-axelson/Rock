@@ -30,35 +30,13 @@ namespace Rock.Model
         /// <inheritdoc/>
         public void UpdateCache( EntityState entityState, Data.DbContext dbContext )
         {
-            bool isNamed = false;
-
-            if ( NamedLocationCache.TryGet( LocationId, out var namedLocationCache ) )
-            {
-                isNamed = namedLocationCache.Name.IsNotNullOrWhiteSpace();
-            }
-            else if ( dbContext is RockContext rockContext )
-            {
-                isNamed = new LocationService( rockContext ).Queryable()
-                    .Where( l => l.Id == LocationId && l.Name != null && l.Name != string.Empty )
-                    .Any();
-            }
-
-            // Only update the cached entity if it is named, which also updates
-            // the "all" key. Otherwise just flush it.
-            if ( isNamed )
-            {
-                NamedGroupLocationCache.UpdateCachedEntity( Id, entityState );
-            }
-            else
-            {
-                NamedGroupLocationCache.FlushItem( Id );
-            }
+            GroupLocationCache.UpdateCachedEntity( this, entityState );
         }
 
         /// <inheritdoc/>
         public IEntityCache GetCacheObject()
         {
-            return NamedGroupLocationCache.Get( Id );
+            return GroupLocationCache.Get( Id );
         }
 
         #endregion ICacheable
