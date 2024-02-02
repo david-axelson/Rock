@@ -16,13 +16,10 @@
 //
 using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
 using System.Runtime.Serialization;
 
 using Rock.Data;
-using Rock.Enums.Core;
 using Rock.Model;
 
 namespace Rock.Web.Cache

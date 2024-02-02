@@ -19,6 +19,9 @@ using System.Collections.Generic;
 using System.Runtime.Serialization;
 
 using Rock.Data;
+using Rock.Enums.Group;
+using Rock.Model;
+using Rock.Utility.Enums;
 
 namespace Rock.Web.Cache
 {
@@ -44,8 +47,163 @@ namespace Rock.Web.Cache
         [DataMember]
         public int GroupTypeId { get; private set; }
 
+        /// <inheritdoc cref="Rock.Model.Group.IsSystem" />
+        [DataMember]
+        public bool IsSystem { get; private set; }
+
+        /// <inheritdoc cref="Rock.Model.Group.ParentGroupId" />
+        [DataMember]
+        public int? ParentGroupId { get; private set; }
+
+        /// <inheritdoc cref="Rock.Model.Group.CampusId" />
+        [DataMember]
+        public int? CampusId { get; private set; }
+
+        /// <inheritdoc cref="Rock.Model.Group.ScheduleId" />
+        [DataMember]
+        public int? ScheduleId { get; private set; }
+
+        /// <inheritdoc cref="Rock.Model.Group.Description" />
+        [DataMember]
+        public string Description { get; private set; }
+
+        /// <inheritdoc cref="Rock.Model.Group.IsSecurityRole" />
+        [DataMember]
+        public bool IsSecurityRole { get; private set; }
+
+        /// <inheritdoc cref="Rock.Model.Group.ElevatedSecurityLevel" />
+        [DataMember]
+        public ElevatedSecurityLevel ElevatedSecurityLevel { get; private set; }
+
+        /// <inheritdoc cref="Rock.Model.Group.Order" />
+        [DataMember]
+        public int Order { get; private set; }
+
+        /// <inheritdoc cref="Rock.Model.Group.AllowGuests" />
+        [DataMember]
+        public bool? AllowGuests { get; private set; }
+
+        /// <inheritdoc cref="Rock.Model.Group.IsPublic" />
+        [DataMember]
+        public bool IsPublic { get; private set; }
+
+        /// <inheritdoc cref="Rock.Model.Group.GroupCapacity" />
+        [DataMember]
+        public int? GroupCapacity { get; private set; }
+
+        /// <inheritdoc cref="Rock.Model.Group.RequiredSignatureDocumentTemplateId" />
+        [DataMember]
+        public int? RequiredSignatureDocumentTemplateId { get; private set; }
+
+        /// <inheritdoc cref="Rock.Model.Group.InactiveDateTime" />
+        [DataMember]
+        public DateTime? InactiveDateTime { get; private set; }
+
+        /// <inheritdoc cref="Rock.Model.Group.IsArchived" />
+        [DataMember]
+        public bool IsArchived { get; private set; }
+
+        /// <inheritdoc cref="Rock.Model.Group.ArchivedDateTime" />
+        [DataMember]
+        public DateTime? ArchivedDateTime { get; private set; }
+
+        /// <inheritdoc cref="Rock.Model.Group.ArchivedByPersonAliasId" />
+        [DataMember]
+        public int? ArchivedByPersonAliasId { get; private set; }
+
+        /// <inheritdoc cref="Rock.Model.Group.StatusValueId" />
+        [DataMember]
+        public int? StatusValueId { get; private set; }
+
+        /// <inheritdoc cref="Rock.Model.Group.SchedulingMustMeetRequirements" />
+        [DataMember]
+        public bool SchedulingMustMeetRequirements { get; private set; }
+
+        /// <inheritdoc cref="Rock.Model.Group.AttendanceRecordRequiredForCheckIn" />
+        [DataMember]
+        public AttendanceRecordRequiredForCheckIn AttendanceRecordRequiredForCheckIn { get; private set; }
+
+        /// <inheritdoc cref="Rock.Model.Group.ScheduleCancellationPersonAliasId" />
+        [DataMember]
+        public int? ScheduleCancellationPersonAliasId { get; private set; }
+
+        /// <inheritdoc cref="Rock.Model.Group.GroupAdministratorPersonAliasId" />
+        [DataMember]
+        public virtual int? GroupAdministratorPersonAliasId { get; private set; }
+
+        /// <inheritdoc cref="Rock.Model.Group.InactiveReasonValueId" />
+        [DataMember]
+        public int? InactiveReasonValueId { get; private set; }
+
+        /// <inheritdoc cref="Rock.Model.Group.InactiveReasonNote" />
+        [DataMember]
+        public string InactiveReasonNote { get; private set; }
+
+        /// <inheritdoc cref="Rock.Model.Group.RSVPReminderSystemCommunicationId" />
+        [DataMember]
+        public int? RSVPReminderSystemCommunicationId { get; private set; }
+
+        /// <inheritdoc cref="Rock.Model.Group.RSVPReminderOffsetDays" />
+        [DataMember]
+        public int? RSVPReminderOffsetDays { get; private set; }
+
+        /// <inheritdoc cref="Rock.Model.Group.DisableScheduleToolboxAccess" />
+        [DataMember]
+        public bool DisableScheduleToolboxAccess { get; private set; }
+
+        /// <inheritdoc cref="Rock.Model.Group.DisableScheduling" />
+        [DataMember]
+        public bool DisableScheduling { get; private set; }
+
+        /// <inheritdoc cref="Rock.Model.Group.GroupSalutation" />
+        [DataMember]
+        public string GroupSalutation { get; private set; }
+
+        /// <inheritdoc cref="Rock.Model.Group.GroupSalutationFull" />
+        [DataMember]
+        public string GroupSalutationFull { get; private set; }
+
+        /// <inheritdoc cref="Rock.Model.Group.ConfirmationAdditionalDetails" />
+        [DataMember]
+        public string ConfirmationAdditionalDetails { get; private set; }
+
+        /// <inheritdoc cref="Rock.Model.Group.ReminderSystemCommunicationId" />
+        [DataMember]
+        public int? ReminderSystemCommunicationId { get; private set; }
+
+        /// <inheritdoc cref="Rock.Model.Group.ReminderOffsetDays" />
+        [DataMember]
+        public int? ReminderOffsetDays { get; private set; }
+
+        /// <inheritdoc cref="Rock.Model.Group.ReminderAdditionalDetails" />
+        [DataMember]
+        public string ReminderAdditionalDetails { get; private set; }
+
+        /// <inheritdoc cref="Rock.Model.Group.ScheduleConfirmationLogic" />
+        [DataMember]
+        public ScheduleConfirmationLogic? ScheduleConfirmationLogic { get; private set; }
+
+        #endregion
+
+        #region Navigation Properties
+
         /// <inheritdoc cref="Rock.Model.Group.GroupType" />
         public GroupTypeCache GroupType => GroupTypeCache.Get( GroupTypeId );
+
+        /// <inheritdoc cref="Rock.Model.Group.ParentGroup" />
+        public GroupCache ParentGroup => ParentGroupId.HasValue ? Get( ParentGroupId.Value ) : null;
+
+        /// <inheritdoc cref="Rock.Model.Group.Campus" />
+        public CampusCache Campus => CampusId.HasValue ? CampusCache.Get( CampusId.Value ) : null;
+
+        /// <inheritdoc cref="Rock.Model.Group.Schedule" />
+        public NamedScheduleCache Schedule => ScheduleId.HasValue ? NamedScheduleCache.Get( ScheduleId.Value ) : null;
+
+        /// <inheritdoc cref="Rock.Model.Group.StatusValue" />
+        public DefinedValueCache StatusValue => StatusValueId.HasValue ? DefinedValueCache.Get( StatusValueId.Value ) : null;
+
+        /// <inheritdoc cref="Rock.Model.Group.InactiveReasonValue" />
+        public DefinedValueCache InactiveReasonValue => InactiveReasonValueId.HasValue ? DefinedValueCache.Get( InactiveReasonValueId.Value ) : null;
 
         #endregion Properties
 
@@ -92,6 +250,40 @@ namespace Rock.Web.Cache
             Name = group.Name;
             IsActive = group.IsActive;
             GroupTypeId = group.GroupTypeId;
+            IsSystem = group.IsSystem;
+            ParentGroupId = group.ParentGroupId;
+            CampusId = group.CampusId;
+            ScheduleId = group.ScheduleId;
+            Description = group.Description;
+            IsSecurityRole = group.IsSecurityRole;
+            ElevatedSecurityLevel = group.ElevatedSecurityLevel;
+            Order = group.Order;
+            AllowGuests = group.AllowGuests;
+            IsPublic = group.IsPublic;
+            GroupCapacity = group.GroupCapacity;
+            RequiredSignatureDocumentTemplateId = group.RequiredSignatureDocumentTemplateId;
+            InactiveDateTime = group.InactiveDateTime;
+            IsArchived = group.IsArchived;
+            ArchivedDateTime = group.ArchivedDateTime;
+            ArchivedByPersonAliasId = group.ArchivedByPersonAliasId;
+            StatusValueId = group.StatusValueId;
+            SchedulingMustMeetRequirements = group.SchedulingMustMeetRequirements;
+            AttendanceRecordRequiredForCheckIn = group.AttendanceRecordRequiredForCheckIn;
+            ScheduleCancellationPersonAliasId = group.ScheduleCancellationPersonAliasId;
+            GroupAdministratorPersonAliasId = group.GroupAdministratorPersonAliasId;
+            InactiveReasonValueId = group.InactiveReasonValueId;
+            InactiveReasonNote = group.InactiveReasonNote;
+            RSVPReminderSystemCommunicationId = group.RSVPReminderSystemCommunicationId;
+            RSVPReminderOffsetDays = group.RSVPReminderOffsetDays;
+            DisableScheduleToolboxAccess = group.DisableScheduleToolboxAccess;
+            DisableScheduling = group.DisableScheduling;
+            GroupSalutation = group.GroupSalutation;
+            GroupSalutationFull = group.GroupSalutationFull;
+            ConfirmationAdditionalDetails = group.ConfirmationAdditionalDetails;
+            ReminderSystemCommunicationId = group.ReminderSystemCommunicationId;
+            ReminderOffsetDays = group.ReminderOffsetDays;
+            ReminderAdditionalDetails = group.ReminderAdditionalDetails;
+            ScheduleConfirmationLogic = group.ScheduleConfirmationLogic;
         }
 
         /// <inheritdoc/>
