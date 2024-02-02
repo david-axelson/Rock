@@ -2129,6 +2129,7 @@
     <Compile Include="WebFarm\RockWebFarm.cs" />
     <Compile Include="Blocks\BreadCrumbResult.cs" />
     <Compile Include="Web\BreadCrumbLink.cs" />
+    <Compile Include="Web\Cache\AlternateIdListCache.cs" />
     <Compile Include="Web\Cache\ClearReferencedEntityDependenciesConsumer.cs" />
     <Compile Include="Web\Cache\Entities\AdaptiveMessageAdaptationCache.cs" />
     <Compile Include="Web\Cache\Entities\AdaptiveMessageCache.cs" />
