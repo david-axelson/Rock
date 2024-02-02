@@ -121,21 +121,22 @@ namespace Rock.Web.Cache
         /// <returns>A list of <see cref="GroupLocationCache"/> objects.</returns>
         public static List<GroupLocationCache> AllForLocationId( int locationId, RockContext rockContext = null )
         {
-            if ( rockContext != null )
+            var keys = _byLocationIdCache.GetOrAddKeys( locationId, locId =>
             {
-                var keys = _byLocationIdCache.GetOrAddKeys( locationId, locId => QueryDbForLocationId( locId, rockContext ) );
-
-                return GetMany( keys.AsIntegerList(), rockContext ).ToList();
-            }
-            else
-            {
-                using ( var newRockContext = new RockContext() )
+                if ( rockContext != null )
                 {
-                    var keys = _byLocationIdCache.GetOrAddKeys( locationId, locId => QueryDbForLocationId( locId, newRockContext ) );
-
-                    return GetMany( keys.AsIntegerList(), rockContext ).ToList();
+                    return QueryDbForLocationId( locId, rockContext );
                 }
-            }
+                else
+                {
+                    using ( var newRockContext = new RockContext() )
+                    {
+                        return QueryDbForLocationId( locId, newRockContext );
+                    }
+                }
+            } );
+
+            return GetMany( keys.AsIntegerList(), rockContext ).ToList();
         }
 
         /// <summary>
