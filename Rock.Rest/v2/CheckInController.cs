@@ -15,25 +15,22 @@
 // </copyright>
 //
 
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using System.Net;
 
-using Microsoft.AspNetCore.Hosting;
-
+using Rock.CheckIn.v2;
+using Rock.Data;
 using Rock.Rest.Filters;
-using Rock.ViewModels.Utility;
+using Rock.ViewModels.Rest.CheckIn;
+using Rock.Web.Cache;
 
 namespace Rock.Rest.v2.Controllers
 {
 #if WEBFORMS
     using FromBodyAttribute = System.Web.Http.FromBodyAttribute;
-    using IActionResult = System.Web.Http.IHttpActionResult;
-    using RoutePrefixAttribute = System.Web.Http.RoutePrefixAttribute;
-    using RouteAttribute = System.Web.Http.RouteAttribute;
     using HttpPostAttribute = System.Web.Http.HttpPostAttribute;
+    using IActionResult = System.Web.Http.IHttpActionResult;
+    using RouteAttribute = System.Web.Http.RouteAttribute;
+    using RoutePrefixAttribute = System.Web.Http.RoutePrefixAttribute;
 #endif
 
     /// <summary>
@@ -44,15 +41,15 @@ namespace Rock.Rest.v2.Controllers
     [Rock.SystemGuid.RestControllerGuid( "52b3c68a-da8d-4374-a199-8bc8368a22bc" )]
     public sealed class CheckInController : ApiControllerBase
     {
-        private readonly IWebHostEnvironment _webHostEnvironment;
+        private readonly RockContext _rockContext;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="CheckInController"/> class.
         /// </summary>
-        /// <param name="webHostEnvironment">The web host environment.</param>
-        public CheckInController( IWebHostEnvironment webHostEnvironment )
+        /// <param name="rockContext">The database context to use for this request.</param>
+        public CheckInController( RockContext rockContext )
         {
-            _webHostEnvironment = webHostEnvironment;
+            _rockContext = rockContext;
         }
 
         /// <summary>
@@ -68,46 +65,24 @@ namespace Rock.Rest.v2.Controllers
         [SystemGuid.RestActionGuid( "200dd82f-6532-4437-9ba4-a289408b0eb8" )]
         public IActionResult PostGetConfigurationList( [FromBody] GetConfigurationListOptionsBag options )
         {
-            var themeDirectory = Path.Combine( _webHostEnvironment.WebRootPath, "Themes" );
-            var themeDirectoryInfo = new DirectoryInfo( themeDirectory );
-            var themes = new List<ListItemBag>();
+            var director = new CheckInDirector( _rockContext );
+            DeviceCache kiosk = null;
 
-            foreach ( var themeDir in themeDirectoryInfo.EnumerateDirectories().OrderBy( a => a.Name ) )
+            if ( options.Kiosk.HasValue )
             {
-                themes.Add( new ListItemBag { Value = themeDir.Name.ToLower(), Text = themeDir.Name } );
+                kiosk = DeviceCache.Get( options.Kiosk.Value );
+
+                if ( kiosk == null )
+                {
+                    return BadRequest( "Kiosk was not found." );
+                }
             }
 
             return Ok( new GetConfigurationListResponseBag
             {
-                Themes = themes
+                Configurations = director.GetConfigurationSummaries(),
+                Areas = director.GetCheckInAreaSummaries( kiosk, null )
             } );
         }
-    }
-
-    public class GetConfigurationListOptionsBag
-    {
-    }
-
-    public class GetConfigurationListResponseBag
-    {
-        public List<ListItemBag> Themes { get; set; }
-
-        public List<CheckInItemBag> Kiosks { get; set; }
-
-        public List<CheckInItemBag> Configurations { get; set; }
-
-        public List<CheckInAreaBag> Areas { get; set; }
-    }
-
-    public class CheckInItemBag
-    {
-        public Guid Guid { get; set; }
-
-        public string Name { get; set; }
-    }
-
-    public class CheckInAreaBag : CheckInItemBag
-    {
-        public Guid ConfigurationGuid { get; set; }
     }
 }

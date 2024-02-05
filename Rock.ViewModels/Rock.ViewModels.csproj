@@ -383,6 +383,8 @@
     <Compile Include="Blocks\WorkFlow\FormBuilder\FormFieldShowHide.cs" />
     <Compile Include="Blocks\WorkFlow\WorkflowTriggerDetail\WorkflowTriggerBag.cs" />
     <Compile Include="Blocks\WorkFlow\WorkflowTriggerDetail\WorkflowTriggerDetailBox.cs" />
+    <Compile Include="CheckIn\AreaItemSummaryBag.cs" />
+    <Compile Include="CheckIn\ConfigurationItemSummaryBag.cs" />
     <Compile Include="Cms\ContentCollectionCustomFieldBag.cs" />
     <Compile Include="Cms\ContentCollectionCustomFieldFilterSettingsBag.cs" />
     <Compile Include="Cms\ObsidianBlockPreferencesBag.cs" />
@@ -390,7 +392,9 @@
     <Compile Include="Communication\ConversationMessageBag.cs" />
     <Compile Include="Controls\PhoneNumberBoxWithSmsControlBag.cs" />
     <Compile Include="Controls\NoteMentionItemBag.cs" />
-    <Compile Include="Blocks\Tv\AppleTvPageDetail\RockCacheabilityBag.cs" /> 
+    <Compile Include="Blocks\Tv\AppleTvPageDetail\RockCacheabilityBag.cs" />
+    <Compile Include="Rest\CheckIn\GetConfigurationListOptionsBag.cs" />
+    <Compile Include="Rest\CheckIn\GetConfigurationListResponseBag.cs" />
     <Compile Include="Rest\Controls\CaptchaControlValidateTokenOptionsBag.cs" />
     <Compile Include="Rest\Controls\CaptchaControlTokenValidateTokenResultBag.cs" />
     <Compile Include="Blocks\Tv\AppleTvPageDetail\TimeIntervalBag.cs" />

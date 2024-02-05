@@ -34,6 +34,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 
 using Rock;
+using Rock.Data;
 using Rock.Net;
 using Rock.Rest.Handler;
 using Rock.Rest.Utility;
@@ -358,6 +359,7 @@ namespace Rock.Rest
         {
             var serviceCollection = new ServiceCollection();
             serviceCollection.AddSingleton<IRockRequestContextAccessor, RockRequestContextAccessor>();
+            serviceCollection.AddScoped<RockContext>();
             serviceCollection.AddSingleton<IWebHostEnvironment>( provider => new WebHostEnvironment
             {
                 WebRootPath = AppDomain.CurrentDomain.BaseDirectory

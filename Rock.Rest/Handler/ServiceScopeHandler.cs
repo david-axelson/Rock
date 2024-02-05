@@ -21,6 +21,7 @@ using System.Threading.Tasks;
 
 using Microsoft.Extensions.DependencyInjection;
 
+using Rock.Data;
 using Rock.Model;
 using Rock.Net;
 using Rock.Rest.Utility;
@@ -50,6 +51,7 @@ namespace Rock.Rest.Handler
             using ( var scope = _serviceProvider.CreateScope() )
             {
                 var accessor = scope.ServiceProvider.GetRequiredService<IRockRequestContextAccessor>();
+                var rockContext = scope.ServiceProvider.GetRequiredService<RockContext>();
 
                 try
                 {
@@ -57,7 +59,7 @@ namespace Rock.Rest.Handler
 
                     var responseContext = new RockMessageResponseContext();
                     var wrapper = new HttpRequestMessageWrapper( request );
-                    var user = UserLoginService.GetCurrentUser( false );
+                    var user = UserLoginService.GetCurrentUser( false, rockContext );
                     var rockRequestContext = new RockRequestContext( wrapper, responseContext, user );
 
                     if ( accessor is RockRequestContextAccessor internalAccessor )
