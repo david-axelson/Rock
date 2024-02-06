@@ -15,6 +15,8 @@
 // </copyright>
 //
 
+using Rock.ViewModels.Utility;
+
 namespace Rock.ViewModels.Blocks.Engagement.AchievementAttemptList
 {
     /// <summary>
@@ -23,12 +25,12 @@ namespace Rock.ViewModels.Blocks.Engagement.AchievementAttemptList
     public class AchievementAttemptListOptionsBag
     {
         /// <summary>
-        /// Gets or sets the name of the attempt's achievement type.
+        /// Gets or sets the attempt's achievement type.
         /// </summary>
         /// <value>
-        /// The name of the achievement type.
+        /// The achievement type.
         /// </value>
-        public string AchievementTypeName { get; set; }
+        public ListItemBag AchievementType { get; set; }
 
         /// <summary>
         /// Gets or sets a value indicating whether the current user has the right permission to view this achievement type.

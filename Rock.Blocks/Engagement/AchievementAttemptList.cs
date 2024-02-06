@@ -91,7 +91,7 @@ namespace Rock.Blocks.Engagement
         /// The name of the achiever.
         /// </value>
         protected string FilterAchieverName => GetBlockPersonPreferences()
-            .GetValue( PreferenceKey.FilterAchieverName );
+            .GetValue( MakeKeyUniqueToAchievementType( PreferenceKey.FilterAchieverName ) );
 
         /// <summary>
         /// Gets the start date after which the results should have occurred.
@@ -100,7 +100,7 @@ namespace Rock.Blocks.Engagement
         /// The attempt start date from filter.
         /// </value>
         protected DateTime? FilterAttemptStartDateFrom => GetBlockPersonPreferences()
-            .GetValue( PreferenceKey.FilterAttemptStartDateFrom )
+            .GetValue( MakeKeyUniqueToAchievementType( PreferenceKey.FilterAttemptStartDateFrom ) )
             .AsDateTime();
 
         /// <summary>
@@ -110,7 +110,7 @@ namespace Rock.Blocks.Engagement
         /// The attempt start date from filter.
         /// </value>
         protected DateTime? FilterAttemptStartDateTo => GetBlockPersonPreferences()
-            .GetValue( PreferenceKey.FilterAttemptStartDateTo )
+            .GetValue( MakeKeyUniqueToAchievementType( PreferenceKey.FilterAttemptStartDateTo ) )
             .AsDateTime();
 
         /// <summary>
@@ -120,7 +120,7 @@ namespace Rock.Blocks.Engagement
         /// The status filter.
         /// </value>
         protected string FilterStatus => GetBlockPersonPreferences()
-            .GetValue( PreferenceKey.FilterStatus );
+            .GetValue( MakeKeyUniqueToAchievementType( PreferenceKey.FilterStatus ) );
 
         /// <summary>
         /// Gets the achievement type with which the results should be filter with.
@@ -129,7 +129,7 @@ namespace Rock.Blocks.Engagement
         /// The achievement type guid.
         /// </value>
         protected Guid? FilterAchievementType => GetBlockPersonPreferences()
-            .GetValue( PreferenceKey.FilterAchievementType )
+            .GetValue( MakeKeyUniqueToAchievementType( PreferenceKey.FilterAchievementType ) )
             .FromJsonOrNull<ListItemBag>()?.Value?.AsGuidOrNull();
 
         #endregion Properties
@@ -161,8 +161,8 @@ namespace Rock.Blocks.Engagement
             var achievementTypeCache = GetAchievementTypeCache();
             var options = new AchievementAttemptListOptionsBag()
             {
-                AchievementTypeName = achievementTypeCache?.Name,
-                CanViewBlock = achievementTypeCache?.IsAuthorized( Authorization.VIEW, GetCurrentPerson() ) == true
+                AchievementType = achievementTypeCache?.ToListItemBag(),
+                CanViewBlock = achievementTypeCache?.IsAuthorized( Authorization.VIEW, GetCurrentPerson() ) == true,
             };
 
             return options;
@@ -335,6 +335,17 @@ namespace Rock.Blocks.Engagement
             }
 
             return default;
+        }
+
+        /// <summary>
+        /// Makes the preference key unique to the current Achievement Type.
+        /// </summary>
+        /// <param name="key">The key.</param>
+        /// <returns></returns>
+        private string MakeKeyUniqueToAchievementType( string key )
+        {
+            var achievementType = GetAchievementTypeCache();
+            return achievementType != null ? $"{achievementType.Guid}-{key}" : key;
         }
 
         #endregion

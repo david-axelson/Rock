@@ -1,6 +1,7 @@
 <!-- Copyright by the Spark Development Network; Licensed under the Rock Community License -->
 <template>
-    <Grid :definition="config.gridDefinition ?? undefined"
+    <Grid v-if="config.options?.canViewBlock"
+          :definition="config.gridDefinition ?? undefined"
           :data="gridDataSource"
           keyField="idKey"
           :itemTerm="itemTerm"
@@ -8,6 +9,7 @@
           stickyHeader
           liveUpdates
           :showLaunchWorkflow="false"
+          :exportTitle="config.options?.achievementType?.text || 'Achievement'"
           gridSettings
           :gridSettingsActive="hasSettingsFilters"
           @gridSettingsClick="onGridSettingsClick"
@@ -21,7 +23,7 @@
                     visiblePriority="xs"
                     width="20%" />
 
-        <TextColumn v-if="!config.options?.achievementTypeName"
+        <TextColumn v-if="!config.options?.achievementType?.value"
                     name="achievement"
                     title="Achievement"
                     field="achievement"
@@ -83,7 +85,7 @@
 
     <GridSettingsModal v-model="gridSettings"
                        v-model:visible="isGridSettingsVisible"
-                       :showAchievementTypePicker="!config.options?.achievementTypeName" />
+                       :showAchievementTypePicker="!config.options?.achievementType?.value" />
 </template>
 
 <style>
@@ -115,11 +117,11 @@
 
     const isGridSettingsVisible = ref(false);
     const gridSettings = ref<GridSettingsOptions>({
-        startDateFrom: preferences.getValue(PreferenceKey.FilterAttemptStartDateFrom),
-        startDateTo: preferences.getValue(PreferenceKey.FilterAttemptStartDateTo),
-        status: preferences.getValue(PreferenceKey.FilterStatus),
-        achieverName: preferences.getValue(PreferenceKey.FilterAchieverName),
-        achievementType: JSON.parse(preferences.getValue(PreferenceKey.FilterAchievementType) || "{}"),
+        startDateFrom: preferences.getValue(makeKeyUniqueToAchievementType(PreferenceKey.FilterAttemptStartDateFrom)),
+        startDateTo: preferences.getValue(makeKeyUniqueToAchievementType(PreferenceKey.FilterAttemptStartDateTo)),
+        status: preferences.getValue(makeKeyUniqueToAchievementType(PreferenceKey.FilterStatus)),
+        achieverName: preferences.getValue(makeKeyUniqueToAchievementType(PreferenceKey.FilterAchieverName)),
+        achievementType: config.options?.achievementType?.value ? null : JSON.parse(preferences.getValue(makeKeyUniqueToAchievementType(PreferenceKey.FilterAchievementType)) || "{}"),
     });
 
     // #endregion
@@ -127,7 +129,7 @@
     // #region Computed Values
 
     const itemTerm = computed((): string => {
-        return `${config.options?.achievementTypeName} Attempts`;
+        return `${config.options?.achievementType?.text} Attempts`.trim();
     });
 
     /** `true` if the grid settings is performing any filtering. */
@@ -192,6 +194,18 @@
         return outsideProgress ? `${outsideProgress}%` : null;
     }
 
+    /**
+    * Makes the key unique to the current achievement type.
+    *
+    * @param row The preference key.
+    */
+    function makeKeyUniqueToAchievementType(key: string): string {
+        if (config.options?.achievementType?.value) {
+            return `${config.options?.achievementType?.value}-${key}`;
+        }
+        return key;
+    }
+
     // #endregion
 
     // #region Event Handlers
@@ -250,11 +264,11 @@
     // #endregion
 
     watch(gridSettings, async () => {
-        preferences.setValue(PreferenceKey.FilterAttemptStartDateFrom, gridSettings.value.startDateFrom ?? "");
-        preferences.setValue(PreferenceKey.FilterAttemptStartDateTo, gridSettings.value.startDateTo ?? "");
-        preferences.setValue(PreferenceKey.FilterStatus, gridSettings.value.status ?? "");
-        preferences.setValue(PreferenceKey.FilterAchieverName, gridSettings.value.achieverName ?? "");
-        preferences.setValue(PreferenceKey.FilterAchievementType, JSON.stringify(gridSettings.value.achievementType));
+        preferences.setValue(makeKeyUniqueToAchievementType(PreferenceKey.FilterAttemptStartDateFrom), gridSettings.value.startDateFrom ?? "");
+        preferences.setValue(makeKeyUniqueToAchievementType(PreferenceKey.FilterAttemptStartDateTo), gridSettings.value.startDateTo ?? "");
+        preferences.setValue(makeKeyUniqueToAchievementType(PreferenceKey.FilterStatus), gridSettings.value.status ?? "");
+        preferences.setValue(makeKeyUniqueToAchievementType(PreferenceKey.FilterAchieverName), gridSettings.value.achieverName ?? "");
+        preferences.setValue(makeKeyUniqueToAchievementType(PreferenceKey.FilterAchievementType), JSON.stringify(gridSettings.value.achievementType));
 
         await preferences.save();
 

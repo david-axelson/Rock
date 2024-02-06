@@ -21,8 +21,13 @@
 // </copyright>
 //
 
+import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
+
 /** The additional configuration options for the Achievement Attempt List block. */
 export type AchievementAttemptListOptionsBag = {
-    /** Gets or sets the name of the attempt's achievement type. */
-    achievementTypeName?: string | null;
+    /** Gets or sets the attempt's achievement type. */
+    achievementType?: ListItemBag | null;
+
+    /** Gets or sets a value indicating whether the current user has the right permission to view this achievement type. */
+    canViewBlock: boolean;
 };
