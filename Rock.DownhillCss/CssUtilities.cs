@@ -228,7 +228,16 @@ namespace Rock.DownhillCss
                     cssStyles = cssStyles.Replace( "?color-background", Settings.BackgroundColor );
                 }
 
-                cssStyles = cssStyles.Replace( "?radius-base", ( ( int ) Math.Floor( Settings.RadiusBase ) ).ToString() );
+                if( Settings.Platform == DownhillPlatform.Mobile )
+                {
+                    // Most Xamarin.Forms controls only support integer values for border-radius.
+                    cssStyles = cssStyles.Replace( "?radius-base", ( ( int ) Math.Floor( Settings.RadiusBase ) ).ToString() );
+                }
+                else
+                {
+                    cssStyles = cssStyles.Replace( "?radius-base", Settings.RadiusBase.ToString() );
+                }
+
                 cssStyles = cssStyles.Replace( "?font-size-default", Settings.FontSizeDefault.ToString() );
 
                 return cssStyles;
@@ -1270,6 +1279,106 @@ icon {
 }
 
 
+/*** Search Block ***/
+.block-search .search-frame {
+  border-color: #c4c4c4;
+  border-radius: 20;
+  
+  margin: 0, 12;
+}
+
+.search-field-layout {
+  column-gap: 4;
+}
+
+.search-layout {
+  row-gap: 4;
+}
+
+.search-item-container {
+  padding: 8;
+  background-color: initial;
+  height: 58;
+}
+
+.search-item-container .search-image {
+  width: 40;
+  height: 40;
+  margin: 0, 4, 14, 0;
+}
+
+.search-item-container .search-item-name {
+  font-size: 17;
+  font-style: bold;
+}
+
+.location-preference-btn,.signup-btn {
+  margin: 0, 0, 0, 4;
+}
+
+.search-loading-indicator {
+  height: 24;
+}
+
+/*** Notification Message List Block ***/
+.block-notification-message-list .btn-filter,
+.block-notification-message-list .btn-mark-all-read {
+  background-color: transparent;
+}
+
+.block-notification-message-list .btn-filter.active {
+  background-color: #eee;
+}
+
+.block-notification-message-list .result-image {
+  height: 48;
+  width: 48;
+}
+
+.block-notification-message-list .result-layout {
+  col-gap: 8;
+  row-gap: 8;
+}
+
+.block-notification-message-list .icon-count-view {
+  height: 32;
+  width: 32;
+}
+
+.block-notification-message-list .message-date,
+.block-notification-message-list .item-chevron {
+  font-size: 12;
+  margin-bottom: 6;
+  color: #666666;
+}
+
+.block-notification-message-list .unread-indicator {
+  height: 12;
+  width: 12;
+  border-radius: 6;
+  padding: 0;
+  background-color: #d4442e;
+}
+
+.block-notification-message-list .date-chevron-layout {
+  -xf-spacing: 2;
+}
+
+.block-notification-message-list .header-view {
+  height: 40;
+  col-gap: 0;
+  row-gap: 0;
+}
+
+.block-notification-message-list .header-view .btn-filter,
+.block-notification-message-list .header-view .btn-mark-all-read {
+    margin: 4, 0, 8, 0;
+}
+
+.block-notification-message-list .text-label {
+  margin: 0, 0, 12, 0;
+}
+
 /* My Prayer Requests */
 .block-my-prayer-requests .prayer-request-list {
     -xf-spacing: 40;
@@ -1768,7 +1877,253 @@ formfield .required-indicator {
     color: #fff;
 }
 
+/*** Onboarding Block ***/
+.block-onboard-person .other-campus-buttons {
+  column-gap: 6;
+}
+
+.block-onboard-person .screen-campus-sticky {
+    padding-bottom: 12;
+}
+
+.block-onboard-person .screen-interests-sticky {
+    padding-bottom: 12;
+}
+
+.block-onboard-person .screen {
+    padding: 16,24,16,24;
+}
+
+.block-onboard-person .header {
+    -xf-spacing: 8;
+}
+
+.android .block-onboard-person .sticky-content {
+    padding-bottom: 24;
+}
+
+.block-onboard-person .screen-personal-information-sticky {
+    padding-bottom: 12;
+}
+
+.block-onboard-person .screen-create-login-sticky {
+    padding-bottom: 12;
+}
+
+.block-onboard-person .header .title {
+  font-size: 36;
+}
+
+.block-onboard-person .mobile-phone-box {
+  rock-placeholder-text-color: #CED4DA;
+}
+
+.block-onboard-person .header .subtitle {
+  font-size: 14;
+}
+
+.block-onboard-person .screen-content {
+    row-gap: 8;
+}
+
+.block-onboard-person .screen-hello .other-signin-text {
+  text-align: center;
+  font-size: 12;
+}
+
+/*** Daily Challenge Entry ***/
+.block-daily-challenge-entry .challenge,
+.block-daily-challenge-entry .challenge-view {
+    -xf-spacing: 0;
+}
+
+.block-daily-challenge-entry .challenge-missed {
+    padding: 20;
+}
+
+.block-daily-challenge-entry .challenge-item {
+    padding: 20;
+    background: linear-gradient(270deg, #00000000 0%, #17000000 100%);
+}
+
+.block-daily-challenge-entry .challenge .input-field ^FormField {
+    background: white;
+}
+
+.block-daily-challenge-entry .memo-field {
+    height: 75;
+}
+
+.field-section {
+    margin-bottom: 12;
+}
+
+/*** Notes ***/
+.notes-container .notes-empty {
+  margin: 16;
+}
+
+.note-edit-container {
+  padding: 16;
+}
+
+.note-container {
+  padding: 14, 14, 14, 0;
+  background-color: initial;
+}
+
+.note-container .separator {
+  margin-top: 14;
+}
+
+.note-container-readonly {
+  padding: 14;
+  background-color: initial;
+}
+
+.note-container .note-author-image {
+  width: 40;
+  height: 40;
+  margin: 0, 4, 14, 0;
+}
+
+.notes-container .note-header .note-edit-icon,
+.notes-container .note-header .note-delete-icon {
+  width: 32;
+  height: 32;
+  font-size: 20;
+  color: #b6b6b6;
+  margin: 20, 8, 0, 0;
+}
+
+.notes-container .note-header .note-child-notes {
+  font-size: 17;
+  font-style: bold;
+  margin: 14, 0, 0, 10;
+}
+
+.note-container .note-author {
+  font-size: 17;
+  font-style: bold;
+}
+
+.note-container .note-private-icon {
+  font-size: 12;
+  color: #999999;
+  margin: 4, 0, 4, 0;
+}
+
+.note-container .note-date {
+  font-size: 12;
+  color: #666666;
+}
+
+.note-container .note-text {
+  font-size: 15;
+  color: #666666;
+  margin: 0, 0, 8, 0;
+}
+
+.note-container .note-read-more-icon {
+  font-size: 12;
+  color: #666666;
+  margin: 0, 1, 0, 0;
+}
+
+.note-container .note-reply-count {
+  font-size: 10;
+  color: #2877c0;
+}
+
+.note-container.note-is-alert {
+  background-color: #d4442e;
+}
+.note-container.note-is-alert .note-author,
+.note-container.note-is-alert .note-date,
+.note-container.note-is-alert .note-text,
+.note-container.note-is-alert .note-read-more-icon {
+  color: #e7e7e7;
+}
+.note-container.note-is-alert .note-private-icon,
+.note-container.note-is-alert .note-reply-count {
+  color: #b3b3b3;
+}
+
 /*** Connection Request Detail Block ***/
+.connection-request-detail-view-content {
+  margin: 12;
+  -xf-spacing: 0;
+}
+
+.add-activity-sheet {
+  padding: 12;
+  background-color: #f3f2f7;
+}
+
+.add-activity-sheet ^FieldStack {
+  background-color: white;
+}
+
+.connection-request-detail-layout {
+  padding: 12;
+  background-color: #f3f2f7;
+}
+
+.connection-request-detail-layout ^FieldStack {
+  background-color: white;
+}
+
+.person-name-and-status {
+    -xf-spacing: 0;
+}
+
+.search-icon {
+    color: #ffffff;
+}
+
+.modal-close {
+    font-size: 32;
+}
+
+.results-layout {
+    padding: 0;
+    margin: 0;
+}
+
+.activity-container .activity-author-image {
+  width: 40;
+  height: 40;
+}
+
+.activity-container .activity-date {
+  font-size: 12;
+  color: #666666;
+}
+
+.activity-container .activity-text {
+  font-size: 15;
+  color: #666666;
+}
+
+.activity-container .activity-read-more-icon {
+  font-size: 12;
+  color: #666666;
+}
+
+.activity-container {
+  background-color: white;
+  row-gap: 0;
+  padding: 12, 12, 12, 0;
+}
+
+.activity-container .divider {
+  margin-top: 12;
+}
+
+.connection-request-detail-content .actions {
+  margin: 0, 0, 0, 8;
+}
+
 .connection-request-detail-content {
     -xf-spacing: 0;
 }
@@ -1950,6 +2305,29 @@ formfield .required-indicator {
     margin: 0, 12, 0, 0;
 }
 
+
+/*** Group Member List Block ***/
+.group-member-list-header {
+  -xf-spacing: 2;
+}
+
+.member-container {
+  padding: 14;
+  background-color: initial;
+  height: 58;
+}
+
+.member-container .member-person-image {
+  width: 40;
+  height: 40;
+  margin: 0, 4, 14, 0;
+}
+
+.member-container .member-name {
+  font-size: 17;
+  font-style: bold;
+}
+
 /*** Group Schedule Toolbox Block ***/
 
 .schedule-toolbox-container .detail-title
@@ -2062,6 +2440,138 @@ formfield .required-indicator {
 
 .reminder-type-frame {
   padding: 0;
+}
+
+/*** SMS Conversation Block ***/
+.block-sms-conversation .header-view {
+    background-color: #f9f4f8;
+    height: 54;
+}
+
+.block-sms-conversation .title-and-subtitle {
+    -xf-spacing: 0;
+}
+
+.block-sms-conversation .header-view .phone-icon {
+    color: #007aff;
+}
+
+.block-sms-conversation .header-view .title {
+    color: #000000;
+}
+
+.block-sms-conversation .header-view .subtitle {
+    color: #827f81;
+}
+
+.block-sms-conversation .reconnecting-view {
+    background-color: #f9f4f8;
+}
+
+.block-sms-conversation .reconnecting-text {
+    color: #000000;
+}
+
+.block-sms-conversation .header-separator {
+    background-color: #e5e5e5;
+    height: 1;
+}
+
+.block-sms-conversation .input-view {
+    col-gap: 6;
+    margin: 0 12;
+}
+
+.block-sms-conversation .input-view .send-icon {
+    color: #ffffff;
+    background-color: #009ce3;
+}
+
+.block-sms-conversation .input-view .send-icon-disabled {
+    color: #ffffff;
+    background-color: #e1e2e5;
+}
+
+.block-sms-conversation .input-view .input-frame {
+    border-color: #c4c4c4;
+}
+
+.block-sms-conversation .snippets-view {
+    background-color: #d5d8dd;
+}
+
+.block-sms-conversation .snippets-view .close-icon {
+    color: #999999;
+}
+
+.block-sms-conversation .snippets-view .snippet {
+    background-color: #ffffff;
+}
+
+.block-sms-conversation .input-grid {
+    col-gap: 0;
+    row-gap: 0;
+    margin: 12, 6, 6, 6;
+}
+
+/*** SMS Conversation List Block ***/
+.block-sms-conversation-list .header-view {
+    background-color: #f9f4f8;
+    height: 54;
+}
+
+.block-sms-conversation-list .header-view .expand-icon {
+    color: #a0a0a0;
+}
+
+.block-sms-conversation-list .header-view .new-icon {
+    color: #007aff;
+}
+
+.block-sms-conversation-list .reconnecting-view {
+    background-color: #f9f4f8;
+}
+
+.block-sms-conversation-list .reconnecting-text {
+    color: #000000;
+}
+
+.block-sms-conversation-list .header-separator {
+    background-color: #e5e5e5;
+    height: 1;
+}
+
+.block-sms-conversation-list .conversation .unread-icon {
+    color: #009ce3;
+}
+
+.block-sms-conversation-list .conversation .more-icon {
+    color: #009ce3;
+}
+
+^PersonSearchView .search-frame {
+    border-color: #c4c4c4;
+    border-radius: 20;
+}
+
+^PersonSearchView .select-icon {
+    color: #009ce3;
+}
+
+^PersonSearchView .result-detail-view {
+    background-color: #f9f9f9;
+    border-radius: 8;
+}
+
+^PersonSearchView .result-item-view {
+    padding: 8, 8, 8, 0;
+    col-gap: 4;
+    row-gap: 0;
+}
+
+^PersonSearchView .divider {
+    margin-top: 8;
+    padding: 0;
 }
 
 /* Person Profile Blocks */
