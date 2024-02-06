@@ -60,17 +60,17 @@ namespace Rock.Rest.v2.Controllers
         [HttpPost]
         [Authenticate]
         //[Secured]
-        [Route( "GetConfigurationList" )]
-        [ProducesResponseType( HttpStatusCode.OK, Type = typeof( GetConfigurationListResponseBag ) )]
+        [Route( "ListConfigurations" )]
+        [ProducesResponseType( HttpStatusCode.OK, Type = typeof( ListConfigurationsResponseBag ) )]
         [SystemGuid.RestActionGuid( "200dd82f-6532-4437-9ba4-a289408b0eb8" )]
-        public IActionResult PostGetConfigurationList( [FromBody] GetConfigurationListOptionsBag options )
+        public IActionResult PostListConfigurations( [FromBody] ListConfigurationsOptionsBag options )
         {
             var director = new CheckInDirector( _rockContext );
             DeviceCache kiosk = null;
 
-            if ( options.Kiosk.HasValue )
+            if ( options.KioskGuid.HasValue )
             {
-                kiosk = DeviceCache.Get( options.Kiosk.Value );
+                kiosk = DeviceCache.Get( options.KioskGuid.Value );
 
                 if ( kiosk == null )
                 {
@@ -78,11 +78,75 @@ namespace Rock.Rest.v2.Controllers
                 }
             }
 
-            return Ok( new GetConfigurationListResponseBag
+            try
             {
-                Configurations = director.GetConfigurationSummaries(),
-                Areas = director.GetCheckInAreaSummaries( kiosk, null )
-            } );
+                return Ok( new ListConfigurationsResponseBag
+                {
+                    Configurations = director.GetConfigurationSummaries(),
+                    Areas = director.GetCheckInAreaSummaries( kiosk, null )
+                } );
+            }
+            catch ( CheckInDirectorException ex )
+            {
+                return BadRequest( ex.Message );
+            }
+        }
+
+        /// <summary>
+        /// Performs a search for matching families that are valid for check-in.
+        /// </summary>
+        /// <param name="options">The options that describe the request.</param>
+        /// <returns>A bag that contains all the matched families.</returns>
+        [HttpPost]
+        [Authenticate]
+        //[Secured]
+        [Route( "SearchForFamilies" )]
+        [ProducesResponseType( HttpStatusCode.OK, Type = typeof( SearchForFamiliesResponseBag ) )]
+        [SystemGuid.RestActionGuid( "2c587733-0e08-4e93-8f2b-3e2518362768" )]
+        public IActionResult PostSearchForFamilies( [FromBody] SearchForFamiliesOptionsBag options )
+        {
+            var configuration = GroupTypeCache.Get( options.ConfigurationGuid );
+            var director = new CheckInDirector( _rockContext );
+            CampusCache sortByCampus = null;
+
+            if ( configuration == null )
+            {
+                return BadRequest( "Configuration was not found." );
+            }
+
+            if ( options.KioskGuid.HasValue && options.PrioritizeKioskCampus )
+            {
+                var kiosk = DeviceCache.Get( options.KioskGuid.Value );
+
+                if ( kiosk == null )
+                {
+                    return BadRequest( "Kiosk was not found." );
+                }
+
+                var campusId = kiosk.GetCampusId();
+
+                if ( campusId.HasValue )
+                {
+                    sortByCampus = CampusCache.Get( campusId.Value, _rockContext );
+                }
+            }
+
+            try
+            {
+                var families = director.SearchForFamilies( options.SearchTerm,
+                    options.SearchType,
+                    configuration,
+                    sortByCampus );
+
+                return Ok( new SearchForFamiliesResponseBag
+                {
+                    Families = families
+                } );
+            }
+            catch ( CheckInDirectorException ex )
+            {
+                return BadRequest( ex.Message );
+            }
         }
     }
 }

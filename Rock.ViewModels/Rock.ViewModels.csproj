@@ -385,6 +385,8 @@
     <Compile Include="Blocks\WorkFlow\WorkflowTriggerDetail\WorkflowTriggerDetailBox.cs" />
     <Compile Include="CheckIn\AreaItemSummaryBag.cs" />
     <Compile Include="CheckIn\ConfigurationItemSummaryBag.cs" />
+    <Compile Include="CheckIn\FamilyMemberSearchItemBag.cs" />
+    <Compile Include="CheckIn\FamilySearchItemBag.cs" />
     <Compile Include="Cms\ContentCollectionCustomFieldBag.cs" />
     <Compile Include="Cms\ContentCollectionCustomFieldFilterSettingsBag.cs" />
     <Compile Include="Cms\ObsidianBlockPreferencesBag.cs" />
@@ -393,8 +395,10 @@
     <Compile Include="Controls\PhoneNumberBoxWithSmsControlBag.cs" />
     <Compile Include="Controls\NoteMentionItemBag.cs" />
     <Compile Include="Blocks\Tv\AppleTvPageDetail\RockCacheabilityBag.cs" />
-    <Compile Include="Rest\CheckIn\GetConfigurationListOptionsBag.cs" />
-    <Compile Include="Rest\CheckIn\GetConfigurationListResponseBag.cs" />
+    <Compile Include="Rest\CheckIn\ListConfigurationsOptionsBag.cs" />
+    <Compile Include="Rest\CheckIn\ListConfigurationsResponseBag.cs" />
+    <Compile Include="Rest\CheckIn\SearchForFamiliesOptionsBag.cs" />
+    <Compile Include="Rest\CheckIn\SearchForFamiliesResponseBag.cs" />
     <Compile Include="Rest\Controls\CaptchaControlValidateTokenOptionsBag.cs" />
     <Compile Include="Rest\Controls\CaptchaControlTokenValidateTokenResultBag.cs" />
     <Compile Include="Blocks\Tv\AppleTvPageDetail\TimeIntervalBag.cs" />

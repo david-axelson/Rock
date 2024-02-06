@@ -20,7 +20,9 @@ using System.Data.Entity;
 using System.Linq;
 using System.Runtime.Serialization;
 
+using Rock.CheckIn.v2;
 using Rock.Data;
+using Rock.Enums.CheckIn;
 using Rock.Enums.Group;
 using Rock.Model;
 
@@ -33,6 +35,8 @@ namespace Rock.Web.Cache
     [DataContract]
     public class GroupTypeCache : ModelCache<GroupTypeCache, GroupType>
     {
+        private CheckInConfigurationData _checkInConfiguration;
+
         #region Properties
 
         /// <summary>
@@ -915,6 +919,67 @@ namespace Rock.Web.Cache
             }
 
             return groupTypeIds;
+        }
+
+        /// <summary>
+        /// Gets the check in configuration that represents all the attribute
+        /// values of this group type. If this group type is not a check-in
+        /// configuration group type then <c>null</c> will be returned.
+        /// </summary>
+        /// <returns>An instance of <see cref="CheckInConfigurationData"/> or <c>null</c>.</returns>
+        internal CheckInConfigurationData GetCheckInConfiguration()
+        {
+            if ( _checkInConfiguration == null )
+            {
+                var checkinTemplateTypeId = DefinedValueCache.GetId( Rock.SystemGuid.DefinedValue.GROUPTYPE_PURPOSE_CHECKIN_TEMPLATE.AsGuid() );
+
+                if ( GroupTypePurposeValueId != checkinTemplateTypeId )
+                {
+                    return null;
+                }
+
+                var configuration = new CheckInConfigurationData
+                {
+                    MinimumPhoneNumberLength = GetAttributeValue( "core_checkin_MinimumPhoneSearchLength" ).AsIntegerOrNull(),
+                    MaximumPhoneNumberLength = GetAttributeValue( "core_checkin_MaximumPhoneSearchLength" ).AsIntegerOrNull(),
+                    MaximumNumberOfResults = GetAttributeValue( "core_checkin_MaxSearchResults" ).AsIntegerOrNull(),
+                    PhoneSearchType = ( PhoneSearchType ) GetAttributeValue( "core_checkin_PhoneSearchType" ).AsInteger(),
+                    PreventInactivePeople = GetAttributeValue( "core_checkin_PreventInactivePeople" ).AsBoolean()
+                };
+
+                var searchType = GetAttributeValue( "core_checkin_SearchType" ).AsGuid();
+
+                if ( searchType == SystemGuid.DefinedValue.CHECKIN_SEARCH_TYPE_PHONE_NUMBER.AsGuid() )
+                {
+                    // Don't make this the final else since this is a common
+                    // value, this way we can avoid some extra .AsGuid() calls.
+                    configuration.FamilySearchType = FamilySearchType.PhoneNumber;
+                }
+                else if ( searchType == SystemGuid.DefinedValue.CHECKIN_SEARCH_TYPE_NAME.AsGuid() )
+                {
+                    configuration.FamilySearchType = FamilySearchType.Name;
+                }
+                else if ( searchType == SystemGuid.DefinedValue.CHECKIN_SEARCH_TYPE_NAME_AND_PHONE.AsGuid() )
+                {
+                    configuration.FamilySearchType = FamilySearchType.NameAndPhone;
+                }
+                else if ( searchType == SystemGuid.DefinedValue.CHECKIN_SEARCH_TYPE_SCANNED_ID.AsGuid() )
+                {
+                    configuration.FamilySearchType = FamilySearchType.ScannedId;
+                }
+                else if ( searchType == SystemGuid.DefinedValue.CHECKIN_SEARCH_TYPE_FAMILY_ID.AsGuid() )
+                {
+                    configuration.FamilySearchType = FamilySearchType.FamilyId;
+                }
+                else
+                {
+                    configuration.FamilySearchType = FamilySearchType.PhoneNumber;
+                }
+
+                _checkInConfiguration = configuration;
+            }
+
+            return _checkInConfiguration;
         }
 
         /// <summary>

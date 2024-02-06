@@ -17,9 +17,11 @@
 
 using System;
 using System.Collections.Generic;
+using System.Data.Entity;
 using System.Linq;
 
 using Rock.Data;
+using Rock.Enums.CheckIn;
 using Rock.Model;
 using Rock.ViewModels.CheckIn;
 using Rock.Web.Cache;
@@ -151,6 +153,183 @@ namespace Rock.CheckIn.v2
             return new List<AreaItemSummaryBag>( areas.Values );
         }
 
+        /// <summary>
+        /// Searches for families that match the criteria for the configuration.
+        /// </summary>
+        /// <param name="searchTerm">The search term.</param>
+        /// <param name="searchType">Type of the search.</param>
+        /// <param name="checkinConfiguration">The checkin configuration.</param>
+        /// <returns>A collection of <see cref="FamilySearchItemBag"/> objects.</returns>
+        public List<FamilySearchItemBag> SearchForFamilies( string searchTerm, FamilySearchType searchType, GroupTypeCache checkinConfiguration )
+        {
+            return SearchForFamilies( searchTerm, searchType, checkinConfiguration, null );
+        }
+
+        /// <summary>
+        /// Searches for families that match the criteria for the configuration.
+        /// </summary>
+        /// <param name="searchTerm">The search term.</param>
+        /// <param name="searchType">Type of the search.</param>
+        /// <param name="checkinConfiguration">The checkin configuration.</param>
+        /// <param name="sortByCampus">If provided, then results will be sorted by families matching this campus first.</param>
+        /// <returns>A collection of <see cref="FamilySearchItemBag"/> objects.</returns>
+        public List<FamilySearchItemBag> SearchForFamilies( string searchTerm, FamilySearchType searchType, GroupTypeCache checkinConfiguration, CampusCache sortByCampus )
+        {
+            var configuration = checkinConfiguration?.GetCheckInConfiguration();
+            IQueryable<Group> familyQry;
+
+            if ( searchTerm.IsNullOrWhiteSpace() )
+            {
+                throw new CheckInDirectorException( "Search term must not be empty." );
+            }
+
+            if ( configuration == null )
+            {
+                throw new ArgumentOutOfRangeException( nameof( checkinConfiguration ), "Check-in configuration data is not valid." );
+            }
+
+            switch ( searchType )
+            {
+                case FamilySearchType.PhoneNumber:
+                    if ( configuration.FamilySearchType != FamilySearchType.PhoneNumber && configuration.FamilySearchType != FamilySearchType.NameAndPhone )
+                    {
+                        throw new CheckInDirectorException( "Searching by phone number is not allowed by the check-in configuration." );
+                    }
+
+                    familyQry = SearchForFamiliesByPhoneNumber( searchTerm, configuration );
+                    break;
+
+                case FamilySearchType.Name:
+                    if ( configuration.FamilySearchType != FamilySearchType.Name && configuration.FamilySearchType != FamilySearchType.NameAndPhone )
+                    {
+                        throw new CheckInDirectorException( "Searching by phone number is not allowed by the check-in configuration." );
+                    }
+
+                    familyQry = SearchForFamiliesByName( searchTerm );
+                    break;
+
+                case FamilySearchType.NameAndPhone:
+                    if ( configuration.FamilySearchType != FamilySearchType.NameAndPhone )
+                    {
+                        throw new CheckInDirectorException( "Searching by phone number is not allowed by the check-in configuration." );
+                    }
+
+                    familyQry = searchTerm.Any( c => char.IsLetter( c ) )
+                        ? SearchForFamiliesByName( searchTerm )
+                        : SearchForFamiliesByPhoneNumber( searchTerm, configuration );
+                    break;
+
+                case FamilySearchType.ScannedId:
+                    familyQry = SearchForFamiliesByScannedId( searchTerm );
+                    break;
+
+                case FamilySearchType.FamilyId:
+                    familyQry = SearchForFamiliesByFamilyId( searchTerm );
+                    break;
+
+                default:
+                    throw new ArgumentOutOfRangeException( nameof( searchType ), "Invalid search type specified." );
+            }
+
+            IQueryable<int> familyIdQry = null;
+
+            if ( sortByCampus != null )
+            {
+                familyIdQry = familyQry
+                    .Select( g => new
+                    {
+                        g.Id,
+                        g.CampusId
+                    } )
+                    .Distinct()
+                    .OrderByDescending( g => g.CampusId.HasValue && g.CampusId.Value == sortByCampus.Id )
+                    .Select( g => g.Id );
+            }
+
+            if ( familyIdQry == null )
+            {
+                familyIdQry = familyQry.Select( g => g.Id );
+            }
+
+            int maxResults = configuration.MaximumNumberOfResults ?? 100;
+
+            if ( maxResults > 0 )
+            {
+                familyIdQry = familyIdQry.Take( maxResults );
+            }
+
+            var familyMemberQry = GetFamilyGroupMemberQuery()
+                .Where( gm => familyIdQry.Contains( gm.GroupId )
+                    && !string.IsNullOrEmpty( gm.Person.NickName ) );
+
+            if ( configuration.PreventInactivePeople )
+            {
+                var inactiveValueId = DefinedValueCache.Get( Rock.SystemGuid.DefinedValue.PERSON_RECORD_STATUS_INACTIVE.AsGuid(), _rockContext )?.Id;
+
+                if ( inactiveValueId.HasValue )
+                {
+                    familyMemberQry = familyMemberQry
+                        .Where( gm => gm.Person.RecordStatusValueId != inactiveValueId.Value );
+                }
+            }
+
+            var familyMembers = familyMemberQry
+                .Select( gm => new
+                {
+                    GroupGuid = gm.Group.Guid,
+                    GroupName = gm.Group.Name,
+                    CampusGuid = gm.Group.Campus.Guid,
+                    RoleOrder = gm.GroupRole.Order,
+                    gm.Person.Guid,
+                    gm.Person.BirthYear,
+                    gm.Person.BirthMonth,
+                    gm.Person.BirthDay,
+                    gm.Person.Gender,
+                    gm.Person.NickName,
+                    gm.Person.LastName
+                } )
+                .ToList();
+
+            var families = familyMembers
+                .GroupBy( fm => fm.GroupGuid )
+                .Select( f =>
+                {
+                    var firstMember = f.First();
+
+                    return new FamilySearchItemBag
+                    {
+                        Guid = firstMember.GroupGuid,
+                        Name = firstMember.GroupName,
+                        CampusGuid = firstMember.CampusGuid,
+                        Members = f
+                            .OrderBy( fm => fm.RoleOrder )
+                            .ThenBy( fm => fm.BirthYear )
+                            .ThenBy( fm => fm.BirthMonth )
+                            .ThenBy( fm => fm.BirthDay )
+                            .ThenBy( fm => fm.Gender )
+                            .ThenBy( fm => fm.NickName )
+                            .Select( fm => new FamilyMemberSearchItemBag
+                            {
+                                Guid = fm.Guid,
+                                NickName = fm.NickName,
+                                LastName = fm.LastName,
+                                RoleOrder = fm.RoleOrder,
+                                Gender = fm.Gender,
+                                BirthYear = fm.BirthYear,
+                                BirthMonth = fm.BirthMonth,
+                                BirthDay = fm.BirthDay,
+                                BirthDate = fm.BirthYear.HasValue && fm.BirthMonth.HasValue && fm.BirthDay.HasValue
+                                    ? new DateTimeOffset( new DateTime( fm.BirthYear.Value, fm.BirthMonth.Value, fm.BirthDay.Value ) )
+                                    : ( DateTimeOffset? ) null
+                            } )
+                            .ToList()
+                    };
+                } )
+                .ToList();
+
+            return families;
+        }
+
         #endregion
 
         #region Internal Methods
@@ -162,7 +341,7 @@ namespace Rock.CheckIn.v2
         /// <exception cref="Exception">Check-in Template Purpose was not found in the database, please check your installation.</exception>
         internal IEnumerable<GroupTypeCache> GetConfigurationGroupTypes()
         {
-            var checkinTemplateTypeId = DefinedValueCache.GetId( Rock.SystemGuid.DefinedValue.GROUPTYPE_PURPOSE_CHECKIN_TEMPLATE.AsGuid() );
+            var checkinTemplateTypeId = DefinedValueCache.Get( Rock.SystemGuid.DefinedValue.GROUPTYPE_PURPOSE_CHECKIN_TEMPLATE.AsGuid(), _rockContext )?.Id;
 
             if ( !checkinTemplateTypeId.HasValue )
             {
@@ -192,21 +371,182 @@ namespace Rock.CheckIn.v2
 
             // Get all the group locations associated with those locations.
             var groupLocations = locationIds
-                .SelectMany( id => GroupLocationCache.AllForLocationId( id ) )
+                .SelectMany( id => GroupLocationCache.AllForLocationId( id, _rockContext ) )
                 .DistinctBy( glc => glc.Id )
                 .ToList();
 
             // Get the distinct group types for those group locations that have
             // attendance enabled.
             return groupLocations
-                .Select( gl => GroupCache.Get( gl.GroupId )?.GroupTypeId )
+                .Select( gl => GroupCache.Get( gl.GroupId, _rockContext )?.GroupTypeId )
                 .Where( id => id.HasValue )
                 .Distinct()
-                .Select( id => GroupTypeCache.Get( id.Value ) )
+                .Select( id => GroupTypeCache.Get( id.Value, _rockContext ) )
                 .Where( gt => gt != null && gt.TakesAttendance )
                 .ToList();
         }
 
+        /// <summary>
+        /// Gets a queryable for GroupMembers that is pre-filtered to the
+        /// minimum requirements to be considered for check-in.
+        /// </summary>
+        /// <returns>A queryable of <see cref="GroupMember"/> objects.</returns>
+        /// <exception cref="Exception">Family group type was not found in the database, please check your installation.</exception>
+        /// <exception cref="Exception">Person record type was not found in the database, please check your installation.</exception>
+        private IQueryable<GroupMember> GetFamilyGroupMemberQuery()
+        {
+            var familyGroupTypeId = GroupTypeCache.Get( Rock.SystemGuid.GroupType.GROUPTYPE_FAMILY.AsGuid(), _rockContext )?.Id;
+            var personRecordTypeId = DefinedValueCache.Get( Rock.SystemGuid.DefinedValue.PERSON_RECORD_TYPE_PERSON.AsGuid(), _rockContext )?.Id;
+
+            if ( !familyGroupTypeId.HasValue )
+            {
+                throw new Exception( "Family group type was not found in the database, please check your installation." );
+            }
+
+            if ( !personRecordTypeId.HasValue )
+            {
+                throw new Exception( "Person record type was not found in the database, please check your installation." );
+            }
+
+            return new GroupMemberService( _rockContext )
+                .Queryable()
+                .AsNoTracking()
+                .Where( gm => gm.GroupTypeId == familyGroupTypeId.Value
+                    && !gm.Person.IsDeceased
+                    && gm.Person.RecordTypeValueId == personRecordTypeId.Value );
+        }
+
+        /// <summary>
+        /// Searches for families by full name, last name first.
+        /// </summary>
+        /// <param name="searchTerm">The family name to search for.</param>
+        /// <returns>A queryable of family <see cref="Group"/> objects.</returns>
+        private IQueryable<Group> SearchForFamiliesByName( string searchTerm )
+        {
+            var personIdQry = new PersonService( _rockContext )
+                .GetByFullName( searchTerm, false )
+                .AsNoTracking()
+                .Select( p => p.Id );
+
+            return GetFamilyGroupMemberQuery()
+                .Where( gm => personIdQry.Contains( gm.PersonId ) )
+                .Select( gm => gm.Group )
+                .Distinct();
+        }
+
+        /// <summary>
+        /// Searches for families by phone number.
+        /// </summary>
+        /// <param name="searchTerm">The phone number to search for.</param>
+        /// <param name="configuration">The check-in configuration data for this search.</param>
+        /// <returns>A queryable of family <see cref="Group"/> objects.</returns>
+        private IQueryable<Group> SearchForFamiliesByPhoneNumber( string searchTerm, CheckInConfigurationData configuration )
+        {
+            var personRecordTypeId = DefinedValueCache.Get( Rock.SystemGuid.DefinedValue.PERSON_RECORD_TYPE_PERSON.AsGuid(), _rockContext )?.Id;
+            var numericSearchTerm = searchTerm.AsNumeric();
+
+            if ( configuration.MinimumPhoneNumberLength.HasValue && searchTerm.Length < configuration.MinimumPhoneNumberLength.Value )
+            {
+                throw new CheckInDirectorException( $"Search term must be at least {configuration.MinimumPhoneNumberLength} digits." );
+            }
+
+            if ( configuration.MaximumPhoneNumberLength.HasValue && searchTerm.Length > configuration.MaximumPhoneNumberLength.Value )
+            {
+                throw new CheckInDirectorException( $"Search term must be at most {configuration.MaximumPhoneNumberLength} digits." );
+            }
+
+            if ( !personRecordTypeId.HasValue )
+            {
+                throw new Exception( "Person record type was not found in the database, please check your installation." );
+            }
+
+            var phoneQry = new PhoneNumberService( _rockContext )
+                .Queryable()
+                .AsNoTracking();
+
+            if ( configuration.PhoneSearchType == Enums.CheckIn.PhoneSearchType.EndsWith )
+            {
+                var charSearchTerm = numericSearchTerm.ToCharArray();
+
+                Array.Reverse( charSearchTerm );
+
+                var reversedSearchTerm = new string( charSearchTerm );
+
+                phoneQry = phoneQry
+                    .Where( pn => pn.NumberReversed.StartsWith( reversedSearchTerm ) );
+            }
+            else
+            {
+                phoneQry = phoneQry
+                    .Where( pn => pn.Number.Contains( numericSearchTerm ) );
+            }
+
+            var personIdQry = phoneQry.Select( pn => pn.PersonId );
+
+            return GetFamilyGroupMemberQuery()
+                .Where( gm => personIdQry.Contains( gm.PersonId ) )
+                .Select( gm => gm.Group );
+        }
+
+        /// <summary>
+        /// Searches for families by a scanned identifier.
+        /// </summary>
+        /// <param name="searchTerm">The scanned identifier to search for.</param>
+        /// <returns>A queryable of family <see cref="Group"/> objects.</returns>
+        private IQueryable<Group> SearchForFamiliesByScannedId( string searchTerm )
+        {
+            var alternateIdValueId = DefinedValueCache.Get( SystemGuid.DefinedValue.PERSON_SEARCH_KEYS_ALTERNATE_ID.AsGuid(), _rockContext )?.Id;
+
+            if ( !alternateIdValueId.HasValue )
+            {
+                throw new Exception( "Alternate Id search type value was not found in the database, please check your installation." );
+            }
+
+            var personIdQry = new PersonSearchKeyService( _rockContext )
+                .Queryable()
+                .AsNoTracking()
+                .Where( psk => psk.SearchTypeValueId == alternateIdValueId.Value
+                    && psk.SearchValue == searchTerm )
+                .Select( psk => psk.PersonAlias.PersonId );
+
+            return GetFamilyGroupMemberQuery()
+                .Where( gm => personIdQry.Contains( gm.PersonId ) )
+                .Select( gm => gm.Group )
+                .Distinct();
+        }
+
+        /// <summary>
+        /// Searches for families by one or more family identifiers.
+        /// </summary>
+        /// <param name="searchTerm">The family identifer to search for as a delimited list of integer identifiers.</param>
+        /// <returns>A queryable of family <see cref="Group"/> objects.</returns>
+        private IQueryable<Group> SearchForFamiliesByFamilyId( string searchTerm )
+        {
+            var searchFamilyIds = searchTerm.SplitDelimitedValues().AsIntegerList();
+
+            return GetFamilyGroupMemberQuery()
+                .Where( gm => searchFamilyIds.Contains( gm.GroupId ) )
+                .Select( gm => gm.Group )
+                .Distinct();
+        }
+
         #endregion
+    }
+
+    /// <summary>
+    /// An exception from the check-in director that can be displayed to the
+    /// individual making the request. It will be formatted in a user-friendly
+    /// way.
+    /// </summary>
+    internal class CheckInDirectorException : Exception
+    {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="CheckInDirectorException"/> class.
+        /// </summary>
+        /// <param name="message">The message that describes the error.</param>
+        public CheckInDirectorException( string message )
+            : base( message )
+        {
+        }
     }
 }

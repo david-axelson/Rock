@@ -803,6 +803,7 @@
     <Compile Include="Chart\ChartDataFactory.cs" />
     <Compile Include="CheckIn\CheckInGroupLocationSchedule.cs" />
     <Compile Include="CheckIn\CompletedAchievement.cs" />
+    <Compile Include="CheckIn\v2\CheckInConfigurationData.cs" />
     <Compile Include="CheckIn\v2\CheckInDirector.cs" />
     <Compile Include="ClientService\ClientServiceBase.cs" />
     <Compile Include="ClientService\Connection\ConnectionOpportunity\ConnectionOpportunityClientService.cs" />
