@@ -108,6 +108,7 @@
     <Compile Include="Communication\SmsPipelineList.cs" />
     <Compile Include="Core\AssetStorageProviderList.cs" />
     <Compile Include="Core\AttributeMatrixTemplateDetail.cs" />
+    <Compile Include="Core\AuditList.cs" />
     <Compile Include="Core\BinaryFileDetail.cs" />
     <Compile Include="Core\BinaryFileList.cs" />
     <Compile Include="Core\BinaryFileTypeDetail.cs" />
