@@ -201,7 +201,7 @@ namespace RockWeb.Blocks.Core
             var mergeTemplateOwnership = this.GetAttributeValue( AttributeKey.MergeTemplatesOwnership ).ConvertToEnum<MergeTemplateOwnership>( MergeTemplateOwnership.Personal );
 
             var personColumn = gMergeTemplates.Columns.OfType<PersonField>().FirstOrDefault();
-            personColumn.Visible = false;
+            personColumn.Visible = true;
 
             // Only Authorization.EDIT should be able to use the grid filter
             if ( mergeTemplateOwnership == MergeTemplateOwnership.Personal )
@@ -216,7 +216,7 @@ namespace RockWeb.Blocks.Core
                     personColumn.Visible = true;
 
                     int? personIdFilter = gfSettings.GetFilterPreference( "Person" ).AsIntegerOrNull();
-                    bool showGlobalMergeTemplates = gfSettings.GetFilterPreference( "Show Global Merge Templates" ).AsBooleanOrNull() ?? true;
+                    bool showGlobalMergeTemplates = gfSettings.GetFilterPreference( "Show Global Merge Templates" ).AsBooleanOrNull() ?? false;
 
                     if ( personIdFilter.HasValue )
                     {
