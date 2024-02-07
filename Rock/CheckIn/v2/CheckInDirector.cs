@@ -160,7 +160,7 @@ namespace Rock.CheckIn.v2
         /// <param name="searchType">Type of the search.</param>
         /// <param name="checkinConfiguration">The checkin configuration.</param>
         /// <returns>A collection of <see cref="FamilySearchItemBag"/> objects.</returns>
-        public List<FamilySearchItemBag> SearchForFamilies( string searchTerm, FamilySearchType searchType, GroupTypeCache checkinConfiguration )
+        public List<FamilySearchItemBag> SearchForFamilies( string searchTerm, FamilySearchMode searchType, GroupTypeCache checkinConfiguration )
         {
             return SearchForFamilies( searchTerm, searchType, checkinConfiguration, null );
         }
@@ -173,9 +173,9 @@ namespace Rock.CheckIn.v2
         /// <param name="checkinConfiguration">The checkin configuration.</param>
         /// <param name="sortByCampus">If provided, then results will be sorted by families matching this campus first.</param>
         /// <returns>A collection of <see cref="FamilySearchItemBag"/> objects.</returns>
-        public List<FamilySearchItemBag> SearchForFamilies( string searchTerm, FamilySearchType searchType, GroupTypeCache checkinConfiguration, CampusCache sortByCampus )
+        public List<FamilySearchItemBag> SearchForFamilies( string searchTerm, FamilySearchMode searchType, GroupTypeCache checkinConfiguration, CampusCache sortByCampus )
         {
-            var configuration = checkinConfiguration?.GetCheckInConfiguration();
+            var configuration = checkinConfiguration?.GetCheckInConfiguration( _rockContext );
             IQueryable<Group> familyQry;
 
             if ( searchTerm.IsNullOrWhiteSpace() )
@@ -190,8 +190,8 @@ namespace Rock.CheckIn.v2
 
             switch ( searchType )
             {
-                case FamilySearchType.PhoneNumber:
-                    if ( configuration.FamilySearchType != FamilySearchType.PhoneNumber && configuration.FamilySearchType != FamilySearchType.NameAndPhone )
+                case FamilySearchMode.PhoneNumber:
+                    if ( configuration.FamilySearchType != FamilySearchMode.PhoneNumber && configuration.FamilySearchType != FamilySearchMode.NameAndPhone )
                     {
                         throw new CheckInDirectorException( "Searching by phone number is not allowed by the check-in configuration." );
                     }
@@ -199,8 +199,8 @@ namespace Rock.CheckIn.v2
                     familyQry = SearchForFamiliesByPhoneNumber( searchTerm, configuration );
                     break;
 
-                case FamilySearchType.Name:
-                    if ( configuration.FamilySearchType != FamilySearchType.Name && configuration.FamilySearchType != FamilySearchType.NameAndPhone )
+                case FamilySearchMode.Name:
+                    if ( configuration.FamilySearchType != FamilySearchMode.Name && configuration.FamilySearchType != FamilySearchMode.NameAndPhone )
                     {
                         throw new CheckInDirectorException( "Searching by phone number is not allowed by the check-in configuration." );
                     }
@@ -208,8 +208,8 @@ namespace Rock.CheckIn.v2
                     familyQry = SearchForFamiliesByName( searchTerm );
                     break;
 
-                case FamilySearchType.NameAndPhone:
-                    if ( configuration.FamilySearchType != FamilySearchType.NameAndPhone )
+                case FamilySearchMode.NameAndPhone:
+                    if ( configuration.FamilySearchType != FamilySearchMode.NameAndPhone )
                     {
                         throw new CheckInDirectorException( "Searching by phone number is not allowed by the check-in configuration." );
                     }
@@ -219,11 +219,11 @@ namespace Rock.CheckIn.v2
                         : SearchForFamiliesByPhoneNumber( searchTerm, configuration );
                     break;
 
-                case FamilySearchType.ScannedId:
+                case FamilySearchMode.ScannedId:
                     familyQry = SearchForFamiliesByScannedId( searchTerm );
                     break;
 
-                case FamilySearchType.FamilyId:
+                case FamilySearchMode.FamilyId:
                     familyQry = SearchForFamiliesByFamilyId( searchTerm );
                     break;
 
@@ -262,7 +262,7 @@ namespace Rock.CheckIn.v2
                 .Where( gm => familyIdQry.Contains( gm.GroupId )
                     && !string.IsNullOrEmpty( gm.Person.NickName ) );
 
-            if ( configuration.PreventInactivePeople )
+            if ( configuration.IsInactivePersonExcluded )
             {
                 var inactiveValueId = DefinedValueCache.Get( Rock.SystemGuid.DefinedValue.PERSON_RECORD_STATUS_INACTIVE.AsGuid(), _rockContext )?.Id;
 
@@ -464,7 +464,7 @@ namespace Rock.CheckIn.v2
                 .Queryable()
                 .AsNoTracking();
 
-            if ( configuration.PhoneSearchType == Enums.CheckIn.PhoneSearchType.EndsWith )
+            if ( configuration.PhoneSearchType == Enums.CheckIn.PhoneSearchMode.EndsWith )
             {
                 var charSearchTerm = numericSearchTerm.ToCharArray();
 

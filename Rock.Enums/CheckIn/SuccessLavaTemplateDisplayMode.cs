@@ -18,18 +18,23 @@
 namespace Rock.Enums.CheckIn
 {
     /// <summary>
-    /// The different ways a phone number search will be performed.
+    /// Determines how the custom Success Lava Template is used.
     /// </summary>
-    public enum PhoneSearchType
+    public enum SuccessLavaTemplateDisplayMode
     {
         /// <summary>
-        /// The phone number must contain the search term anywhere inside of it.
+        /// Hide the custom success template (default).
         /// </summary>
-        Contains = 0,
+        Never = 0,
 
         /// <summary>
-        /// The phone number must end with the search term.
+        /// Replace the standard success content with the template.
         /// </summary>
-        EndsWith = 1
+        Replace = 1,
+
+        /// <summary>
+        /// Place the success template content under the standard content.
+        /// </summary>
+        Append = 2
     }
 }

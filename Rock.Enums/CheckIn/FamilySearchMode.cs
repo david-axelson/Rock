@@ -20,7 +20,7 @@ namespace Rock.Enums.CheckIn
     /// <summary>
     /// The different ways a family search can be performed in check-in.
     /// </summary>
-    public enum FamilySearchType
+    public enum FamilySearchMode
     {
         /// <summary>
         /// Search for family based on phone number.

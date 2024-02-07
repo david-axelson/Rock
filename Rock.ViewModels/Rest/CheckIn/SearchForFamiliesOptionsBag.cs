@@ -50,7 +50,7 @@ namespace Rock.ViewModels.Rest.CheckIn
         /// Gets or sets the type of the search to perform.
         /// </summary>
         /// <value>The type of the search to perform.</value>
-        public FamilySearchType SearchType { get; set; }
+        public FamilySearchMode SearchType { get; set; }
 
         /// <summary>
         /// Gets or sets a value indicating whether to prioritize families

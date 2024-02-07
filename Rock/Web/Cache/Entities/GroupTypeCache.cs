@@ -926,57 +926,25 @@ namespace Rock.Web.Cache
         /// values of this group type. If this group type is not a check-in
         /// configuration group type then <c>null</c> will be returned.
         /// </summary>
+        /// <param name="rockContext">The context to use if access to the database is required.</param>
         /// <returns>An instance of <see cref="CheckInConfigurationData"/> or <c>null</c>.</returns>
-        internal CheckInConfigurationData GetCheckInConfiguration()
+        internal CheckInConfigurationData GetCheckInConfiguration( RockContext rockContext )
         {
+            if ( rockContext == null )
+            {
+                throw new ArgumentNullException( nameof( rockContext ) );
+            }
+
             if ( _checkInConfiguration == null )
             {
-                var checkinTemplateTypeId = DefinedValueCache.GetId( Rock.SystemGuid.DefinedValue.GROUPTYPE_PURPOSE_CHECKIN_TEMPLATE.AsGuid() );
+                var checkinTemplateTypeId = DefinedValueCache.Get( Rock.SystemGuid.DefinedValue.GROUPTYPE_PURPOSE_CHECKIN_TEMPLATE.AsGuid(), rockContext )?.Id;
 
                 if ( GroupTypePurposeValueId != checkinTemplateTypeId )
                 {
                     return null;
                 }
 
-                var configuration = new CheckInConfigurationData
-                {
-                    MinimumPhoneNumberLength = GetAttributeValue( "core_checkin_MinimumPhoneSearchLength" ).AsIntegerOrNull(),
-                    MaximumPhoneNumberLength = GetAttributeValue( "core_checkin_MaximumPhoneSearchLength" ).AsIntegerOrNull(),
-                    MaximumNumberOfResults = GetAttributeValue( "core_checkin_MaxSearchResults" ).AsIntegerOrNull(),
-                    PhoneSearchType = ( PhoneSearchType ) GetAttributeValue( "core_checkin_PhoneSearchType" ).AsInteger(),
-                    PreventInactivePeople = GetAttributeValue( "core_checkin_PreventInactivePeople" ).AsBoolean()
-                };
-
-                var searchType = GetAttributeValue( "core_checkin_SearchType" ).AsGuid();
-
-                if ( searchType == SystemGuid.DefinedValue.CHECKIN_SEARCH_TYPE_PHONE_NUMBER.AsGuid() )
-                {
-                    // Don't make this the final else since this is a common
-                    // value, this way we can avoid some extra .AsGuid() calls.
-                    configuration.FamilySearchType = FamilySearchType.PhoneNumber;
-                }
-                else if ( searchType == SystemGuid.DefinedValue.CHECKIN_SEARCH_TYPE_NAME.AsGuid() )
-                {
-                    configuration.FamilySearchType = FamilySearchType.Name;
-                }
-                else if ( searchType == SystemGuid.DefinedValue.CHECKIN_SEARCH_TYPE_NAME_AND_PHONE.AsGuid() )
-                {
-                    configuration.FamilySearchType = FamilySearchType.NameAndPhone;
-                }
-                else if ( searchType == SystemGuid.DefinedValue.CHECKIN_SEARCH_TYPE_SCANNED_ID.AsGuid() )
-                {
-                    configuration.FamilySearchType = FamilySearchType.ScannedId;
-                }
-                else if ( searchType == SystemGuid.DefinedValue.CHECKIN_SEARCH_TYPE_FAMILY_ID.AsGuid() )
-                {
-                    configuration.FamilySearchType = FamilySearchType.FamilyId;
-                }
-                else
-                {
-                    configuration.FamilySearchType = FamilySearchType.PhoneNumber;
-                }
-
-                _checkInConfiguration = configuration;
+                _checkInConfiguration = new CheckInConfigurationData( this, rockContext );
             }
 
             return _checkInConfiguration;

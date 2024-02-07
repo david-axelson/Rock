@@ -62,8 +62,12 @@
     <Compile Include="Blocks\Security\AccountEntry\AccountEntryStep.cs" />
     <Compile Include="Blocks\Security\Login\LoginMethod.cs" />
     <Compile Include="Blocks\Security\Login\PasswordlessLoginStep.cs" />
-    <Compile Include="CheckIn\FamilySearchType.cs" />
-    <Compile Include="CheckIn\PhoneSearchType.cs" />
+    <Compile Include="CheckIn\AbilityLevelDeterminationMode.cs" />
+    <Compile Include="CheckIn\AutoSelectMode.cs" />
+    <Compile Include="CheckIn\KioskCheckInMode.cs" />
+    <Compile Include="CheckIn\FamilySearchMode.cs" />
+    <Compile Include="CheckIn\PhoneSearchMode.cs" />
+    <Compile Include="CheckIn\SuccessLavaTemplateDisplayMode.cs" />
     <Compile Include="Cms\BlockLocation.cs" />
     <Compile Include="Blocks\Cms\ContentCollectionView\SearchOrder.cs" />
     <Compile Include="Cms\ContentChannelDateType.cs" />
