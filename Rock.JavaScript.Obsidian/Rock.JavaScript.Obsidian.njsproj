@@ -269,6 +269,7 @@
     <Folder Include="Framework\Enums\Blocks\Engagement\SignUp\" />
     <Folder Include="Framework\Enums\Blocks\Security\AccountEntry\" />
     <Folder Include="Framework\Enums\Blocks\Security\Login\" />
+    <Folder Include="Framework\Enums\CheckIn\" />
     <Folder Include="Framework\Enums\Cms\" />
     <Folder Include="Framework\Enums\Communication\" />
     <Folder Include="Framework\Enums\Connection\" />
@@ -411,6 +412,7 @@
     <Folder Include="Framework\ViewModels\Blocks\Utility\RealTimeVisualizer\" />
     <Folder Include="Framework\ViewModels\Blocks\Workflow\" />
     <Folder Include="Framework\ViewModels\Blocks\Workflow\WorkflowTriggerDetail\" />
+    <Folder Include="Framework\ViewModels\CheckIn\" />
     <Folder Include="Framework\ViewModels\Cms\" />
     <Folder Include="Framework\ViewModels\Communication\" />
     <Folder Include="Framework\ViewModels\Connection\" />
@@ -426,6 +428,7 @@
     <Folder Include="Framework\ViewModels\Prayer\PrayerRequestEntry\" />
     <Folder Include="Framework\ViewModels\Reporting\" />
     <Folder Include="Framework\ViewModels\Rest\" />
+    <Folder Include="Framework\ViewModels\Rest\CheckIn\" />
     <Folder Include="Framework\ViewModels\Rest\Controls\" />
     <Folder Include="Framework\ViewModels\Rest\Utilities\" />
     <Folder Include="Framework\ViewModels\Utility\" />
@@ -473,6 +476,12 @@
     <TypeScriptCompile Include="Framework\Enums\Blocks\Security\AccountEntry\accountEntryStep.ts" />
     <TypeScriptCompile Include="Framework\Enums\Blocks\Security\Login\loginMethod.ts" />
     <TypeScriptCompile Include="Framework\Enums\Blocks\Security\Login\passwordlessLoginStep.ts" />
+    <TypeScriptCompile Include="Framework\Enums\CheckIn\abilityLevelDeterminationMode.ts" />
+    <TypeScriptCompile Include="Framework\Enums\CheckIn\autoSelectMode.ts" />
+    <TypeScriptCompile Include="Framework\Enums\CheckIn\familySearchMode.ts" />
+    <TypeScriptCompile Include="Framework\Enums\CheckIn\kioskCheckInMode.ts" />
+    <TypeScriptCompile Include="Framework\Enums\CheckIn\phoneSearchMode.ts" />
+    <TypeScriptCompile Include="Framework\Enums\CheckIn\successLavaTemplateDisplayMode.ts" />
     <TypeScriptCompile Include="Framework\Enums\Cms\blockLocation.ts" />
     <TypeScriptCompile Include="Framework\Enums\Cms\botGuardianLevel.ts" />
     <TypeScriptCompile Include="Framework\Enums\Cms\contentChannelDateType.ts" />
@@ -1062,6 +1071,10 @@
     <TypeScriptCompile Include="Framework\ViewModels\Blocks\Workflow\WorkflowTriggerDetail\workflowTriggerBag.d.ts" />
     <TypeScriptCompile Include="Framework\ViewModels\Blocks\Workflow\WorkflowTriggerDetail\workflowTriggerDetailBox.d.ts" />
     <TypeScriptCompile Include="Framework\ViewModels\Blocks\Workflow\WorkflowTriggerDetail\workflowTriggerDetailOptionsBag.d.ts" />
+    <TypeScriptCompile Include="Framework\ViewModels\CheckIn\areaItemSummaryBag.d.ts" />
+    <TypeScriptCompile Include="Framework\ViewModels\CheckIn\configurationItemSummaryBag.d.ts" />
+    <TypeScriptCompile Include="Framework\ViewModels\CheckIn\familyMemberSearchItemBag.d.ts" />
+    <TypeScriptCompile Include="Framework\ViewModels\CheckIn\familySearchItemBag.d.ts" />
     <TypeScriptCompile Include="Framework\ViewModels\Cms\blockCustomActionBag.d.ts" />
     <TypeScriptCompile Include="Framework\ViewModels\Cms\contentCollectionAttributeFilterSettingsBag.d.ts" />
     <TypeScriptCompile Include="Framework\ViewModels\Cms\contentCollectionCustomFieldBag.d.ts" />
@@ -1125,6 +1138,10 @@
     <TypeScriptCompile Include="Framework\ViewModels\Reporting\fieldFilterGroupBag.d.ts" />
     <TypeScriptCompile Include="Framework\ViewModels\Reporting\fieldFilterRuleBag.d.ts" />
     <TypeScriptCompile Include="Framework\ViewModels\Reporting\fieldFilterSourceBag.d.ts" />
+    <TypeScriptCompile Include="Framework\ViewModels\Rest\CheckIn\listConfigurationsOptionsBag.d.ts" />
+    <TypeScriptCompile Include="Framework\ViewModels\Rest\CheckIn\listConfigurationsResponseBag.d.ts" />
+    <TypeScriptCompile Include="Framework\ViewModels\Rest\CheckIn\searchForFamiliesOptionsBag.d.ts" />
+    <TypeScriptCompile Include="Framework\ViewModels\Rest\CheckIn\searchForFamiliesResponseBag.d.ts" />
     <TypeScriptCompile Include="Framework\ViewModels\Rest\Controls\accountPickerGetChildrenOptionsBag.d.ts" />
     <TypeScriptCompile Include="Framework\ViewModels\Rest\Controls\accountPickerGetParentGuidsOptionsBag.d.ts" />
     <TypeScriptCompile Include="Framework\ViewModels\Rest\Controls\accountPickerGetPreviewItemsOptionsBag.d.ts" />
