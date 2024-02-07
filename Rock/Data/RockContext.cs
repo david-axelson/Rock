@@ -24,6 +24,7 @@ using System.Linq;
 using System.Reflection;
 
 using Rock.Model;
+using Rock.Utility.Settings;
 
 namespace Rock.Data
 {
@@ -86,7 +87,7 @@ namespace Rock.Data
         /// Initializes a new instance of the <see cref="RockContext"/> class.
         /// </summary>
         public RockContext()
-            : base()
+            : base( RockInstanceConfig.Database.ConnectionString )
         {
         }
 
@@ -2409,6 +2410,14 @@ namespace Rock.Data
         /// The snippet types.
         /// </value>
         public DbSet<SnippetType> SnippetTypes { get; set; }
+
+        /// <summary>
+        /// Gets or sets the analytics source zip codes.
+        /// </summary>
+        /// <value>
+        /// The analytics source zip codes.
+        /// </value>
+        public DbSet<AnalyticsSourceZipCode> AnalyticsSourceZipCodes { get; set; }
 
         #endregion
 

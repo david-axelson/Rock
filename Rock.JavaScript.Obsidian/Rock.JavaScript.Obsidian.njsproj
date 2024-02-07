@@ -474,6 +474,7 @@
     <TypeScriptCompile Include="Framework\Enums\Blocks\Security\Login\loginMethod.ts" />
     <TypeScriptCompile Include="Framework\Enums\Blocks\Security\Login\passwordlessLoginStep.ts" />
     <TypeScriptCompile Include="Framework\Enums\Cms\blockLocation.ts" />
+    <TypeScriptCompile Include="Framework\Enums\Cms\botGuardianLevel.ts" />
     <TypeScriptCompile Include="Framework\Enums\Cms\contentChannelDateType.ts" />
     <TypeScriptCompile Include="Framework\Enums\Cms\contentChannelItemStatus.ts" />
     <TypeScriptCompile Include="Framework\Enums\Cms\contentCollectionFilterControl.ts" />
@@ -722,6 +723,7 @@
     <TypeScriptCompile Include="Framework\Utility\form.ts" />
     <TypeScriptCompile Include="Framework\Utility\util.ts" />
     <TypeScriptCompile Include="Framework\Core\Reporting\comparisonType.ts" />
+    <TypeScriptCompile Include="Framework\ViewModels\Blocks\blockActionContextBag.d.ts" />
     <TypeScriptCompile Include="Framework\ViewModels\Blocks\blockBox.d.ts" />
     <TypeScriptCompile Include="Framework\ViewModels\Blocks\Bus\QueueDetail\queueBag.d.ts" />
     <TypeScriptCompile Include="Framework\ViewModels\Blocks\Bus\QueueDetail\queueDetailOptionsBag.d.ts" />
@@ -1156,6 +1158,8 @@
     <TypeScriptCompile Include="Framework\ViewModels\Rest\Controls\contentChannelItemPickerGetAllForContentChannelItemOptionsBag.d.ts" />
     <TypeScriptCompile Include="Framework\ViewModels\Rest\Controls\contentChannelItemPickerGetAllForContentChannelItemResultsBag.d.ts" />
     <TypeScriptCompile Include="Framework\ViewModels\Rest\Controls\contentChannelItemPickerGetContentChannelItemsOptionsBag.d.ts" />
+    <TypeScriptCompile Include="Framework\ViewModels\Rest\Controls\currencyBoxGetCurrencyInfoOptionsBag.d.ts" />
+    <TypeScriptCompile Include="Framework\ViewModels\Rest\Controls\currencyBoxGetCurrencyInfoResultsBag.d.ts" />
     <TypeScriptCompile Include="Framework\ViewModels\Rest\Controls\dataViewPickerGetDataViewsOptionsBag.d.ts" />
     <TypeScriptCompile Include="Framework\ViewModels\Rest\Controls\componentPickerGetComponentsOptionsBag.d.ts" />
     <TypeScriptCompile Include="Framework\ViewModels\Rest\Controls\definedValuePickerGetAttributesOptionsBag.d.ts" />

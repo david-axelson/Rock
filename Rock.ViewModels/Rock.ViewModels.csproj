@@ -47,6 +47,7 @@
     <Compile Include="..\Rock.Version\AssemblySharedInfo.cs">
       <Link>AssemblySharedInfo.cs</Link>
     </Compile>
+    <Compile Include="Blocks\BlockActionContextBag.cs" />
     <Compile Include="Blocks\Cms\AdaptiveMessageAdaptationDetail\AdaptiveMessageAdaptationBag.cs" />
     <Compile Include="Blocks\Cms\AdaptiveMessageAdaptationDetail\AdaptiveMessageAdaptationDetailOptionsBag.cs" />
     <Compile Include="Blocks\Cms\AdaptiveMessageDetail\AdaptiveMessageBag.cs" />
@@ -399,6 +400,8 @@
     <Compile Include="Rest\CheckIn\ListConfigurationsResponseBag.cs" />
     <Compile Include="Rest\CheckIn\SearchForFamiliesOptionsBag.cs" />
     <Compile Include="Rest\CheckIn\SearchForFamiliesResponseBag.cs" />
+    <Compile Include="Rest\Controls\CurrencyBoxGetCurrencyInfoResultsBag.cs" />
+    <Compile Include="Rest\Controls\CurrencyBoxGetCurrencyInfoOptionsBag.cs" />
     <Compile Include="Rest\Controls\CaptchaControlValidateTokenOptionsBag.cs" />
     <Compile Include="Rest\Controls\CaptchaControlTokenValidateTokenResultBag.cs" />
     <Compile Include="Blocks\Tv\AppleTvPageDetail\TimeIntervalBag.cs" />
@@ -487,6 +490,7 @@
     <Compile Include="Rest\Controls\LocationListSaveNewLocationOptionsBag.cs" />
     <Compile Include="Rest\Controls\WorkflowPickerGetWorkflowTypeForWorkflowOptionsBag.cs" />
     <Compile Include="Rest\Controls\WorkflowPickerGetWorkflowOptionsBag.cs" />
+    <Compile Include="Utility\CurrencyInfoBag.cs" />
     <Compile Include="Rest\Utilities\UpdatePersonPreferencesAccessedOptionsBag.cs" />
     <Compile Include="Rest\Utilities\UpdatePersonPreferencesOptionsBag.cs" />
     <Compile Include="Utility\IValidPropertiesBox.cs" />

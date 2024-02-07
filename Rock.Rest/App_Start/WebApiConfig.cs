@@ -27,6 +27,7 @@ using System.Web.Http.OData.Builder;
 using System.Web.Http.OData.Extensions;
 using System.Web.Http.OData.Routing;
 using System.Web.Http.OData.Routing.Conventions;
+using System.Web.Http.Validation;
 using System.Web.Http.ValueProviders;
 using System.Web.Routing;
 
@@ -39,6 +40,7 @@ using Rock.Net;
 using Rock.Rest.Handler;
 using Rock.Rest.Utility;
 using Rock.Rest.Utility.ValueProviders;
+using Rock.Rest.Validation;
 
 namespace Rock.Rest
 {
@@ -61,6 +63,7 @@ namespace Rock.Rest
             config.Services.Replace( typeof( IExceptionHandler ), new RockApiExceptionHandler() );
             config.Services.Replace( typeof( IAssembliesResolver ), new RockAssembliesResolver() );
             config.Services.Replace( typeof( IHttpControllerSelector ), new Handler.RockHttpControllerSelector( config ) );
+            config.Services.Replace( typeof( IBodyModelValidator ), new RockBodyModelValidator() );
 
             ConfigureServiceProvider( config );
 
@@ -343,7 +346,6 @@ namespace Rock.Rest
             var conventions = defaultConventions.Except( defaultConventions.OfType<MetadataRoutingConvention>() );
 
             config.Routes.MapODataServiceRoute( "api", "api", builder.GetEdmModel(), pathHandler: new DefaultODataPathHandler(), routingConventions: conventions );
-
 
             new Rock.Transactions.RegisterControllersTransaction().Enqueue();
         }
