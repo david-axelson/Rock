@@ -420,7 +420,6 @@ namespace RockWeb.Blocks.Groups
             gGroupMemberAttributesInherited.GridRebind += gGroupMemberAttributesInherited_GridRebind;
 
             gGroupMemberAttributes.DataKeyNames = new string[] { "Guid" };
-            gGroupMemberAttributes.Actions.ShowAdd = true;
             gGroupMemberAttributes.Actions.AddClick += gGroupMemberAttributes_Add;
             gGroupMemberAttributes.EmptyDataText = Server.HtmlEncode( None.Text );
             gGroupMemberAttributes.GridRebind += gGroupMemberAttributes_GridRebind;
@@ -1483,6 +1482,7 @@ namespace RockWeb.Blocks.Groups
                 SetScheduleControls( groupType, null );
                 ShowGroupTypeEditDetails( groupType, group, true );
                 BindInheritedAttributes( CurrentGroupTypeId, new AttributeService( new RockContext() ) );
+                BindGroupMemberAttributesGrid( group );
                 BindGroupRequirementsGrid();
                 BindAdministratorPerson( group, groupType );
             }
@@ -1963,7 +1963,7 @@ namespace RockWeb.Blocks.Groups
                     .OrderBy( a => a.Order )
                     .ThenBy( a => a.Name )
                     .ToList();
-            BindGroupMemberAttributesGrid();
+            BindGroupMemberAttributesGrid( group );
 
             BindInheritedAttributes( group.GroupTypeId, attributeService );
 
@@ -4066,7 +4066,7 @@ namespace RockWeb.Blocks.Groups
             if ( CurrentGroupTypeCache != null && wpGroupMemberAttributes.Visible )
             {
                 wpGroupMemberAttributes.Visible = GroupMemberAttributesInheritedState.Any() || GroupMemberAttributesState.Any() || CurrentGroupTypeCache.AllowSpecificGroupMemberAttributes;
-                rcwGroupMemberAttributes.Visible = GroupMemberAttributesInheritedState.Any() || GroupMemberAttributesState.Any() || CurrentGroupTypeCache.AllowSpecificGroupMemberAttributes;
+                rcwGroupMemberAttributes.Visible = GroupMemberAttributesState.Any() || CurrentGroupTypeCache.AllowSpecificGroupMemberAttributes;
             }
 
             gGroupMemberAttributesInherited.AddCssClass( "inherited-attribute-grid" );
@@ -4080,12 +4080,18 @@ namespace RockWeb.Blocks.Groups
         /// <summary>
         /// Binds the group member attributes grid.
         /// </summary>
-        private void BindGroupMemberAttributesGrid()
+        private void BindGroupMemberAttributesGrid( Group group = null )
         {
             gGroupMemberAttributes.AddCssClass( "attribute-grid" );
             SetAttributeListOrder( GroupMemberAttributesState );
             gGroupMemberAttributes.DataSource = GroupMemberAttributesState.OrderBy( a => a.Order ).ThenBy( a => a.Name ).ToList();
             gGroupMemberAttributes.DataBind();
+
+            if ( group != null && CurrentGroupTypeCache != null )
+            {
+                var canAdministrate = group.IsAuthorized( Authorization.ADMINISTRATE, CurrentPerson );
+                gGroupMemberAttributes.Actions.ShowAdd = canAdministrate && CurrentGroupTypeCache.AllowSpecificGroupMemberAttributes;
+            }
         }
 
         /// <summary>
