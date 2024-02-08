@@ -1,6 +1,6 @@
 <template>
     <span v-if="step.state.value === 'Running'" class="label label-info">{{ runningText }}</span>
-    <span v-if="step.state.value === 'OK'" class="label label-success">Success</span>
+    <span v-if="step.state.value === 'OK'" class="label label-success">{{ successText }}</span>
     <span v-if="step.state.value === 'Error'" class="label label-danger">
         <template v-if="step.errorMessage.value">Error: {{ step.errorMessage.value }}</template>
         <template v-else>Error</template>
@@ -17,22 +17,45 @@
     import { asFormattedString } from "@Obsidian/Utility/numberUtils";
 
     const props = defineProps({
+        /** The step whose status labels will be rendered. */
         step: {
             type: Object as PropType<CheckInStep>,
             required: true
         }
     });
 
+    /**
+     * The text that should be displayed when the step is running.
+     */
     const runningText = computed((): string => {
         let text = "Running";
 
-            if (props.step.targetExecutionCount.value) {
-            text = `${text} ${props.step.executionDurations.length ?? 0} of ${props.step.targetExecutionCount.value}`;
+        if (props.step.targetExecutionCount.value) {
+            text = `${text} ${asFormattedString(props.step.executionDurations.length, 0)} of ${asFormattedString(props.step.targetExecutionCount.value, 0)}`;
+        }
+        else if (props.step.executionDurations.length > 1) {
+            text = `${text} ${asFormattedString(props.step.executionDurations.length, 0)}`;
         }
 
         return text;
     });
 
+    /**
+     * The step that should be displayed when the step has succeeded.
+     */
+    const successText = computed((): string => {
+        let text = "Success";
+
+        if (props.step.targetExecutionCount.value || props.step.executionDurations.length > 1) {
+            text = `${text} ${asFormattedString(props.step.executionDurations.length ?? 0, 0)} iterations`;
+        }
+
+        return text;
+    });
+
+    /**
+     * The text that should be displayed to describe the last execution.
+     */
     const lastExecutionText = computed((): string => {
         let text = "";
 
@@ -40,7 +63,12 @@
             const totalDuration = props.step.executionDurations.reduce((partialSum, a) => partialSum + a, 0);
             const avgDuration = totalDuration / props.step.executionDurations.length;
 
-            text = `${asFormattedString(avgDuration, 0)}ms`;
+            if (props.step.executionDurations.length > 1) {
+                text = `${asFormattedString(avgDuration, 0)}ms average`;
+            }
+            else {
+                text = `${asFormattedString(avgDuration, 0)}ms`;
+            }
         }
 
         if (props.step.lastExecution.value) {

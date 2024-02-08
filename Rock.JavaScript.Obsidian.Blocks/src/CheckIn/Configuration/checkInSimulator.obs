@@ -38,6 +38,24 @@
                                   :repeatColumns="4" />
                 </div>
             </div>
+
+            <hr style="margin-left: calc(var(--panel-body-padding, 0px) * -1); margin-right: calc(var(--panel-body-padding, 0px) * -1);" />
+
+            <div>
+                <div class="col-md-6">
+                    <NumberBox label="Benchmark Iterations"
+                               v-model="benchmarkIterations"
+                               :minimumValue="0"
+                               help="The maximum number of iterations to run during a benchmark." />
+                </div>
+
+                <div class="col-md-6">
+                    <NumberBox label="Benchmark Duration"
+                               v-model="benchmarkDuration"
+                               :minimumValue="0"
+                               help="The maximum number of seconds to run during a benchmark." />
+                </div>
+            </div>
         </Panel>
 
         <Panel title="Family Search">
@@ -69,19 +87,22 @@
                         </template>
                     </TextBox>
                 </div>
+
+                <div class="col-md-8">
+                    <ol v-if="familySearchData">
+                        <li v-for="item in familySearchData" :key="item.guid ?? undefined">
+                            {{ item.name }} ({{ item.members?.map(m => m.nickName).join(", ") }})
+                        </li>
+                    </ol>
+                </div>
             </div>
 
             <div class="actions">
-                <RockButton btnType="primary"
-                            :disabled="!isFamilySearchReady"
-                            title="Executes all steps up to and including this step."
-                            autoDisable
-                            @click="executeFamilySearch(true)">Execute To Here</RockButton>
-                <RockButton btnType="default"
-                            :disabled="!isFamilySearchReady"
-                            title="Executes only this step by re-using data from previous steps."
-                            autoDisable
-                            @click="executeFamilySearch(false)">Execute This Step Only</RockButton>
+                <SplitButton btnType="primary"
+                             :items="familySearchActions"
+                             :disabled="!isFamilySearchReady"
+                             autoDisable
+                             @click="executeAction($event, familySearchStep)" />
             </div>
         </Panel>
 
@@ -98,16 +119,10 @@
             </div>
 
             <div class="actions">
-                <RockButton btnType="primary"
-                            :disabled="!isFamilySearchReady"
-                            title="Executes all steps up to and including this step."
-                            autoDisable
-                            @click="executeSecond(true)">Execute To Here</RockButton>
-                <RockButton btnType="default"
-                            :disabled="!isFamilySearchReady"
-                            title="Executes only this step by re-using data from previous steps."
-                            autoDisable
-                            @click="executeSecond(false)">Execute This Step Only</RockButton>
+                <SplitButton btnType="primary"
+                             :items="secondStepActions"
+                             autoDisable
+                             @click="executeAction($event, secondStep)" />
             </div>
         </Panel>
     </Panel>
@@ -116,6 +131,7 @@
 <style scoped></style>
 
 <script setup lang="ts">
+    import SplitButton from "./CheckInSimulator/splitButton.partial.obs";
     import StepStatus from "./CheckInSimulator/stepStatus.partial.obs";
     import CheckBoxList from "@Obsidian/Controls/checkBoxList.obs";
     import DropDownList from "@Obsidian/Controls/dropDownList.obs";
@@ -126,11 +142,12 @@
     import { ConfigurationItemSummaryBag } from "@Obsidian/ViewModels/CheckIn/configurationItemSummaryBag";
     import { AreaItemSummaryBag } from "@Obsidian/ViewModels/CheckIn/areaItemSummaryBag";
     import { FamilySearchMode, FamilySearchModeDescription } from "@Obsidian/Enums/CheckIn/familySearchMode";
+    import { FamilySearchItemBag } from "@Obsidian/ViewModels/CheckIn/familySearchItemBag";
     import { computed, ref, watch } from "vue";
     import { enumToListItemBag } from "@Obsidian/Utility/enumUtils";
-    import RockButton from "@Obsidian/Controls/rockButton.obs";
-    import { toNumber } from "@Obsidian/Utility/numberUtils";
+    import { toNumber, toNumberOrNull } from "@Obsidian/Utility/numberUtils";
     import { CheckInStep } from "./CheckInSimulator/utils.partial";
+    import NumberBox from "@Obsidian/Controls/numberBox.obs";
 
     // #region Types
 
@@ -155,6 +172,14 @@
         text: c.name
     })) ?? [];
 
+    const benchmarkIterations = ref<number>();
+    const benchmarkDuration = ref<number>();
+
+    const executeToHereAction: ListItemBag = { value: "executeToHere", text: "Execute" };
+    const executeThisStepAction: ListItemBag = { value: "executeThisStep", text: "Execute This Step" };
+    const benchmarkToHereAction: ListItemBag = { value: "benchmarkToHere", text: "Benchmark" };
+    const bencharkThisStepAction: ListItemBag = { value: "benchmarkThisStep", text: "Benchmark This Step" };
+
     const kioskGuid = ref("");
 
     const primaryAreaGuids = ref<string[]>([]);
@@ -166,6 +191,7 @@
     const familySearchTypeItems = enumToListItemBag(FamilySearchModeDescription);
     const familySearchType = ref(familySearchTypeItems[0]);
     const familySearchStep = new CheckInStep(executeFamilySearchStep);
+    const familySearchData = ref<FamilySearchItemBag[]>();
 
     const secondStep = new CheckInStep(executeSecondStep, familySearchStep);
 
@@ -173,18 +199,66 @@
 
     // #region Computed Values
 
+    /**
+     * Determines if we have all the basic configuration data required for
+     * any step to function.
+     */
     const isConfigurationReady = computed((): boolean => {
         return !!configurationGuid.value && !!kioskGuid.value;
     });
 
+    /**
+     * Determines if we have enough information in the configuration to
+     * run benchmark tests.
+     */
+    const isBenchmarkReady = computed((): boolean => {
+        return (benchmarkIterations.value ?? 0) > 0
+            || (benchmarkDuration.value ?? 0) > 0;
+    });
+
+    /**
+     * Determines if we are ready to run any of the family search actions.
+     */
     const isFamilySearchReady = computed((): boolean => {
         return isConfigurationReady.value && !!familySearchTerm.value;
+    });
+
+    /**
+     * Determines if we have all the data required to run a family search
+     * without running any previous steps.
+     */
+    const isFamilySearchDataReady = computed((): boolean => {
+        return isConfigurationReady.value;
+    });
+
+    /**
+     * Gets the button actions available to family search.
+     */
+    const familySearchActions = computed((): ListItemBag[] => {
+        return getStepActions(isFamilySearchDataReady.value);
+    });
+
+    /**
+     * Determines if we have all the data required for the second step.
+     */
+    const isSecondStepDataReady = computed((): boolean => {
+        return isFamilySearchDataReady.value && !!familySearchData.value;
+    });
+
+    /**
+     * Gets the button actions available to family search.
+     */
+     const secondStepActions = computed((): ListItemBag[] => {
+        return getStepActions(isSecondStepDataReady.value);
     });
 
     // #endregion
 
     // #region Functions
 
+    /**
+     * Restores the state of the UI from the URL.
+     */
     async function restoreState(): Promise<void> {
         const originalUrl = new URL(location.href);
 
@@ -194,6 +268,12 @@
             configurationGuid.value = originalUrl.searchParams.get("configuration") ?? "";
             kioskGuid.value = originalUrl.searchParams.get("kiosk") ?? "";
 
+            benchmarkIterations.value = toNumberOrNull(originalUrl.searchParams.get("benchmarkIterations")) ?? undefined;
+            benchmarkDuration.value = toNumberOrNull(originalUrl.searchParams.get("benchmarkDuration")) ?? undefined;
+
+            familySearchTerm.value = originalUrl.searchParams.get("familySearchTerm") ?? "";
+            familySearchType.value = familySearchTypeItems.find(item => item.value === originalUrl.searchParams.get("familySearchType")) ?? familySearchTypeItems[0];
+
             if (!configurationGuid.value || !kioskGuid.value) {
                 return;
             }
@@ -202,15 +282,40 @@
 
             primaryAreaGuids.value = originalUrl.searchParams.get("primaryAreas")?.split(",") ?? [];
             secondaryAreaGuids.value = originalUrl.searchParams.get("secondaryAreas")?.split(",") ?? [];
-
-            familySearchTerm.value = originalUrl.searchParams.get("familySearchTerm") ?? "";
-            familySearchType.value = familySearchTypeItems.find(item => item.value === originalUrl.searchParams.get("familySearchType")) ?? familySearchTypeItems[0];
         }
         finally {
             disableUrlUpdate = false;
         }
     }
 
+    /**
+     * Gets the actions available to a step. This uses the parameters and other
+     * data to determine which actions can be used.
+     *
+     * @param isDataReady True if enough data is ready to execute just this step.
+     */
+    function getStepActions(isDataReady: boolean): ListItemBag[] {
+        const actions: ListItemBag[] = [executeToHereAction];
+
+        if (isBenchmarkReady.value) {
+            actions.push(benchmarkToHereAction);
+        }
+
+        if (isDataReady) {
+            actions.push(executeThisStepAction);
+
+            if (isBenchmarkReady.value) {
+                actions.push(bencharkThisStepAction);
+            }
+        }
+
+        return actions;
+    }
+
+    /**
+     * Gets the area items from the server and updates the selected values
+     * to only those which are still valid.
+     */
     async function updateAreaItems(): Promise<void> {
         if (!kioskGuid.value) {
             primaryAreaGuids.value = [];
@@ -236,18 +341,34 @@
         }
     }
 
-    async function executeFamilySearch(deep: boolean): Promise<void> {
-        // await familySearchStatus.execute(deep);
-        await familySearchStep.executeBatch(100, deep);
-    }
-
-    async function executeSecond(deep: boolean): Promise<void> {
-        // await secondStep.execute(deep);
-        await secondStep.executeBatch(100, deep);
+    /**
+     * Executes the specified action on the step.
+     *
+     * @param action The name of the action from the split button.
+     * @param step The step to execute the action on.
+     */
+    async function executeAction(action: string, step: CheckInStep): Promise<void> {
+        try {
+            if (action === executeToHereAction.value) {
+                await step.execute(true);
+            }
+            else if (action === executeThisStepAction.value) {
+                await step.execute(false);
+            }
+            else if (action === benchmarkToHereAction.value) {
+                await step.executeBatch(benchmarkIterations.value, benchmarkDuration.value, true);
+            }
+            else if (action === bencharkThisStepAction.value) {
+                await step.executeBatch(benchmarkIterations.value, benchmarkDuration.value, false);
+            }
+        }
+        catch (error) {
+            console.error(error);
+        }
     }
 
     async function executeFamilySearchStep(): Promise<void> {
-        const response = await invokeBlockAction("SearchForFamilies", {
+        const response = await invokeBlockAction<FamilySearchItemBag[]>("SearchForFamilies", {
             searchTerm: familySearchTerm.value,
             searchType: toNumber(familySearchType.value.value),
             configurationGuid: configurationGuid.value,
@@ -255,17 +376,17 @@
         });
 
         if (response.isSuccess && response.data) {
-            console.log(response);
+            familySearchData.value = response.data;
         }
         else {
+            familySearchData.value = undefined;
             throw new Error(response.errorMessage ?? undefined);
         }
     }
 
     function executeSecondStep(): Promise<void> {
-        return new Promise<void>(resolve => {
-            console.log("boo");
-            setTimeout(resolve, 100);
+        return new Promise<void>((resolve, reject) => {
+            setTimeout(() => reject(new Error("Failed")), 100);
         });
     }
 
@@ -273,7 +394,17 @@
 
     watch(kioskGuid, () => updateAreaItems());
 
-    watch([configurationGuid, kioskGuid, primaryAreaGuids, secondaryAreaGuids, familySearchTerm, familySearchType], () => {
+    const urlUpdateWatchees = [configurationGuid,
+        kioskGuid,
+        benchmarkIterations,
+        benchmarkDuration,
+        primaryAreaGuids,
+        secondaryAreaGuids,
+        familySearchTerm,
+        familySearchType];
+
+    // Watch for changes to values that require a URL update.
+    watch(urlUpdateWatchees, () => {
         if (disableUrlUpdate) {
             return;
         }
@@ -296,6 +427,14 @@
 
         if (secondaryAreaGuids.value.length > 0) {
             url.searchParams.append("secondaryAreas", secondaryAreaGuids.value.join(","));
+        }
+
+        if (benchmarkIterations.value) {
+            url.searchParams.append("benchmarkIterations", benchmarkIterations.value.toString());
+        }
+
+        if (benchmarkDuration.value) {
+            url.searchParams.append("benchmarkDuration", benchmarkDuration.value.toString());
         }
 
         if (familySearchTerm.value) {

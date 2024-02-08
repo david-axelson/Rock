@@ -49,7 +49,7 @@ export class CheckInStep {
      * @param iterationCount The number of iterations in the batch.
      * @param executePreviousSteps True if the previous step will be executed as part of the batch.
      */
-    private startBatch(iterationCount: number, executePreviousSteps: boolean): void {
+    private startBatch(iterationCount: number | undefined, executePreviousSteps: boolean): void {
         this.isBatchExecution = true;
         this.state.value = "Running";
         this.errorMessage.value = undefined;
@@ -67,7 +67,7 @@ export class CheckInStep {
      */
     private stopBatch(): void {
         this.previousStep?.stopBatch();
-        this.state.value = this.errorMessage ? "OK" : "Error";
+        this.state.value = !this.errorMessage.value ? "OK" : "Error";
         this.isBatchExecution = false;
     }
 
@@ -123,8 +123,13 @@ export class CheckInStep {
      *
      * @param executePreviousSteps True if the previous steps should be executed again.
      */
-    public executeBatch(iterationCount: number, executePreviousSteps: boolean): Promise<void> {
+    public executeBatch(iterationCount: number | undefined, maximumDuration: number | undefined, executePreviousSteps: boolean): Promise<void> {
         return new Promise<void>(resolve => {
+            if (!iterationCount && !maximumDuration) {
+                return resolve();
+            }
+
+            const startTime = performance.now();
             this.startBatch(iterationCount, executePreviousSteps);
 
             const doStep = async (): Promise<void> => {
@@ -137,15 +142,21 @@ export class CheckInStep {
                     return resolve();
                 }
 
-                if ((this.executionDurations ?? []).length < iterationCount) {
-                    setTimeout(doStep, 0);
-                }
-                else {
+                if (iterationCount && this.executionDurations.length >= iterationCount) {
                     this.errorMessage.value = undefined;
                     this.stopBatch();
 
-                    resolve();
+                    return resolve();
                 }
+
+                if (maximumDuration && (performance.now() - startTime) >= (maximumDuration * 1000)) {
+                    this.errorMessage.value = undefined;
+                    this.stopBatch();
+
+                    return resolve();
+                }
+
+                setTimeout(doStep, 0);
             };
 
             doStep();
