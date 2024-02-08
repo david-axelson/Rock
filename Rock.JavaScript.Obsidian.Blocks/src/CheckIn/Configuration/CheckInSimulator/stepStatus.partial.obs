@@ -1,0 +1,57 @@
+<template>
+    <span v-if="step.state.value === 'Running'" class="label label-info">{{ runningText }}</span>
+    <span v-if="step.state.value === 'OK'" class="label label-success">Success</span>
+    <span v-if="step.state.value === 'Error'" class="label label-danger">
+        <template v-if="step.errorMessage.value">Error: {{ step.errorMessage.value }}</template>
+        <template v-else>Error</template>
+    </span>
+
+    <span v-if="lastExecutionText" class="label label-info">
+        {{ lastExecutionText }}
+    </span>
+</template>
+
+<script setup lang="ts">
+    import { PropType, computed } from "vue";
+    import { CheckInStep } from "./utils.partial";
+    import { asFormattedString } from "@Obsidian/Utility/numberUtils";
+
+    const props = defineProps({
+        step: {
+            type: Object as PropType<CheckInStep>,
+            required: true
+        }
+    });
+
+    const runningText = computed((): string => {
+        let text = "Running";
+
+            if (props.step.targetExecutionCount.value) {
+            text = `${text} ${props.step.executionDurations.length ?? 0} of ${props.step.targetExecutionCount.value}`;
+        }
+
+        return text;
+    });
+
+    const lastExecutionText = computed((): string => {
+        let text = "";
+
+        if (props.step.executionDurations.length > 0) {
+            const totalDuration = props.step.executionDurations.reduce((partialSum, a) => partialSum + a, 0);
+            const avgDuration = totalDuration / props.step.executionDurations.length;
+
+            text = `${asFormattedString(avgDuration, 0)}ms`;
+        }
+
+        if (props.step.lastExecution.value) {
+            if (text.length > 0) {
+                text += ` - ${props.step.lastExecution.value}`;
+            }
+            else {
+                text = props.step.lastExecution.value;
+            }
+        }
+
+        return text;
+    });
+</script>

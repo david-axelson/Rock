@@ -1,0 +1,313 @@
+<template>
+    <Panel title="Check-in Simulator"
+           type="block"
+           hasFullscreen>
+        <Panel title="Configuration"
+               :modelValue="true"
+               hasCollapse>
+            <div class="row">
+                <div class="col-md-6">
+                    <DropDownList label="Configuration"
+                                  v-model="configurationGuid"
+                                  :items="configurationItems"
+                                  rules="required" />
+                </div>
+
+                <div class="col-md-6">
+                    <DropDownList label="Kiosk"
+                                  v-model="kioskGuid"
+                                  :items="config.kiosks ?? []"
+                                  rules="required" />
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <CheckBoxList label="Primary Areas"
+                                  v-model="primaryAreaGuids"
+                                  :items="primaryAreas"
+                                  horizontal
+                                  :repeatColumns="4" />
+                </div>
+
+                <div class="col-md-6">
+                    <CheckBoxList label="Secondary Areas"
+                                  v-model="secondaryAreaGuids"
+                                  :items="secondaryAreas"
+                                  horizontal
+                                  :repeatColumns="4" />
+                </div>
+            </div>
+        </Panel>
+
+        <Panel title="Family Search">
+            <template #headerActions>
+                <div class="d-flex gap action">
+                    <StepStatus :step="familySearchStep" />
+                </div>
+            </template>
+
+            <div class="row">
+                <div class="col-md-4">
+                    <TextBox label="Search Term"
+                             v-model="familySearchTerm"
+                             rules="required">
+                        <template #inputGroupPrepend>
+                            <div class="input-group-btn">
+                                <button type="button"
+                                        class="btn btn-default dropdown-toggle"
+                                        data-toggle="dropdown">
+                                    {{ familySearchType.text }} <span class="caret"></span>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-right">
+                                    <li v-for="item in familySearchTypeItems">
+                                        <a href="#" title="test"
+                                           @click.prevent="familySearchType = item">{{ item.text }}</a>
+                                    </li>
+                                </ul>
+                            </div>
+                        </template>
+                    </TextBox>
+                </div>
+            </div>
+
+            <div class="actions">
+                <RockButton btnType="primary"
+                            :disabled="!isFamilySearchReady"
+                            title="Executes all steps up to and including this step."
+                            autoDisable
+                            @click="executeFamilySearch(true)">Execute To Here</RockButton>
+                <RockButton btnType="default"
+                            :disabled="!isFamilySearchReady"
+                            title="Executes only this step by re-using data from previous steps."
+                            autoDisable
+                            @click="executeFamilySearch(false)">Execute This Step Only</RockButton>
+            </div>
+        </Panel>
+
+        <Panel title="Second Step">
+            <template #headerActions>
+                <div class="d-flex gap action">
+                    <StepStatus :step="secondStep" />
+                </div>
+            </template>
+
+            <div class="row">
+                <div class="col-md-4">
+                </div>
+            </div>
+
+            <div class="actions">
+                <RockButton btnType="primary"
+                            :disabled="!isFamilySearchReady"
+                            title="Executes all steps up to and including this step."
+                            autoDisable
+                            @click="executeSecond(true)">Execute To Here</RockButton>
+                <RockButton btnType="default"
+                            :disabled="!isFamilySearchReady"
+                            title="Executes only this step by re-using data from previous steps."
+                            autoDisable
+                            @click="executeSecond(false)">Execute This Step Only</RockButton>
+            </div>
+        </Panel>
+    </Panel>
+</template>
+
+<style scoped></style>
+
+<script setup lang="ts">
+    import StepStatus from "./CheckInSimulator/stepStatus.partial.obs";
+    import CheckBoxList from "@Obsidian/Controls/checkBoxList.obs";
+    import DropDownList from "@Obsidian/Controls/dropDownList.obs";
+    import Panel from "@Obsidian/Controls/panel.obs";
+    import TextBox from "@Obsidian/Controls/textBox.obs";
+    import { useConfigurationValues, useInvokeBlockAction } from "@Obsidian/Utility/block";
+    import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
+    import { ConfigurationItemSummaryBag } from "@Obsidian/ViewModels/CheckIn/configurationItemSummaryBag";
+    import { AreaItemSummaryBag } from "@Obsidian/ViewModels/CheckIn/areaItemSummaryBag";
+    import { FamilySearchMode, FamilySearchModeDescription } from "@Obsidian/Enums/CheckIn/familySearchMode";
+    import { computed, ref, watch } from "vue";
+    import { enumToListItemBag } from "@Obsidian/Utility/enumUtils";
+    import RockButton from "@Obsidian/Controls/rockButton.obs";
+    import { toNumber } from "@Obsidian/Utility/numberUtils";
+    import { CheckInStep } from "./CheckInSimulator/utils.partial";
+
+    // #region Types
+
+    type CheckInSimulatorOptionsBag = {
+        configurations: ConfigurationItemSummaryBag[] | null;
+
+        kiosks: ListItemBag[] | null;
+    };
+
+    // #endregion
+
+    const config = useConfigurationValues<CheckInSimulatorOptionsBag>();
+    const invokeBlockAction = useInvokeBlockAction();
+
+    // #region Values
+
+    let disableUrlUpdate = false;
+
+    const configurationGuid = ref("");
+    const configurationItems: ListItemBag[] = config.configurations?.map(c => ({
+        value: c.guid,
+        text: c.name
+    })) ?? [];
+
+    const kioskGuid = ref("");
+
+    const primaryAreaGuids = ref<string[]>([]);
+    const secondaryAreaGuids = ref<string[]>([]);
+    const primaryAreas = ref<ListItemBag[]>([]);
+    const secondaryAreas = ref<ListItemBag[]>([]);
+
+    const familySearchTerm = ref("");
+    const familySearchTypeItems = enumToListItemBag(FamilySearchModeDescription);
+    const familySearchType = ref(familySearchTypeItems[0]);
+    const familySearchStep = new CheckInStep(executeFamilySearchStep);
+
+    const secondStep = new CheckInStep(executeSecondStep, familySearchStep);
+
+    // #endregion
+
+    // #region Computed Values
+
+    const isConfigurationReady = computed((): boolean => {
+        return !!configurationGuid.value && !!kioskGuid.value;
+    });
+
+    const isFamilySearchReady = computed((): boolean => {
+        return isConfigurationReady.value && !!familySearchTerm.value;
+    });
+
+    // #endregion
+
+    // #region Functions
+
+    async function restoreState(): Promise<void> {
+        const originalUrl = new URL(location.href);
+
+        disableUrlUpdate = true;
+
+        try {
+            configurationGuid.value = originalUrl.searchParams.get("configuration") ?? "";
+            kioskGuid.value = originalUrl.searchParams.get("kiosk") ?? "";
+
+            if (!configurationGuid.value || !kioskGuid.value) {
+                return;
+            }
+
+            await updateAreaItems();
+
+            primaryAreaGuids.value = originalUrl.searchParams.get("primaryAreas")?.split(",") ?? [];
+            secondaryAreaGuids.value = originalUrl.searchParams.get("secondaryAreas")?.split(",") ?? [];
+
+            familySearchTerm.value = originalUrl.searchParams.get("familySearchTerm") ?? "";
+            familySearchType.value = familySearchTypeItems.find(item => item.value === originalUrl.searchParams.get("familySearchType")) ?? familySearchTypeItems[0];
+        }
+        finally {
+            disableUrlUpdate = false;
+        }
+    }
+
+    async function updateAreaItems(): Promise<void> {
+        if (!kioskGuid.value) {
+            primaryAreaGuids.value = [];
+            primaryAreas.value = [];
+            secondaryAreaGuids.value = [];
+            secondaryAreas.value = [];
+
+            return;
+        }
+
+        const response = await invokeBlockAction<AreaItemSummaryBag[]>("GetAreas", {
+            kioskGuid: kioskGuid.value
+        });
+
+        if (response.isSuccess && response.data) {
+            primaryAreas.value = response.data
+                .filter(a => (a.primaryConfigurationGuids ?? []).includes(configurationGuid.value))
+                .map(a => ({ value: a.guid, text: a.name }));
+
+            secondaryAreas.value = response.data
+                .filter(a => !(a.primaryConfigurationGuids ?? []).includes(configurationGuid.value))
+                .map(a => ({ value: a.guid, text: a.name }));
+        }
+    }
+
+    async function executeFamilySearch(deep: boolean): Promise<void> {
+        // await familySearchStatus.execute(deep);
+        await familySearchStep.executeBatch(100, deep);
+    }
+
+    async function executeSecond(deep: boolean): Promise<void> {
+        // await secondStep.execute(deep);
+        await secondStep.executeBatch(100, deep);
+    }
+
+    async function executeFamilySearchStep(): Promise<void> {
+        const response = await invokeBlockAction("SearchForFamilies", {
+            searchTerm: familySearchTerm.value,
+            searchType: toNumber(familySearchType.value.value),
+            configurationGuid: configurationGuid.value,
+            kioskGuid: kioskGuid.value
+        });
+
+        if (response.isSuccess && response.data) {
+            console.log(response);
+        }
+        else {
+            throw new Error(response.errorMessage ?? undefined);
+        }
+    }
+
+    function executeSecondStep(): Promise<void> {
+        return new Promise<void>(resolve => {
+            console.log("boo");
+            setTimeout(resolve, 100);
+        });
+    }
+
+    // #endregion
+
+    watch(kioskGuid, () => updateAreaItems());
+
+    watch([configurationGuid, kioskGuid, primaryAreaGuids, secondaryAreaGuids, familySearchTerm, familySearchType], () => {
+        if (disableUrlUpdate) {
+            return;
+        }
+
+        const url = new URL(location.href);
+
+        url.search = "";
+
+        if (configurationGuid.value) {
+            url.searchParams.append("configuration", configurationGuid.value);
+        }
+
+        if (kioskGuid.value) {
+            url.searchParams.append("kiosk", kioskGuid.value);
+        }
+
+        if (primaryAreaGuids.value.length > 0) {
+            url.searchParams.append("primaryAreas", primaryAreaGuids.value.join(","));
+        }
+
+        if (secondaryAreaGuids.value.length > 0) {
+            url.searchParams.append("secondaryAreas", secondaryAreaGuids.value.join(","));
+        }
+
+        if (familySearchTerm.value) {
+            url.searchParams.append("familySearchTerm", familySearchTerm.value);
+        }
+
+        if (familySearchType.value.value && familySearchType.value.value !== FamilySearchMode.PhoneNumber.toString()) {
+            url.searchParams.append("familySearchType", familySearchType.value.value);
+        }
+
+        history.replaceState(undefined, "", url);
+    });
+
+    restoreState();
+</script>

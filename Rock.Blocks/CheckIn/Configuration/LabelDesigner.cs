@@ -26,7 +26,7 @@ namespace Rock.Blocks.CheckIn.Configuration
     /// </summary>
 
     [DisplayName( "Label Designer" )]
-    [Category( "Check-inn > Configuration" )]
+    [Category( "Check-in > Configuration" )]
     [Description( "Designs a check-in label with a nice drag and drop experience." )]
     [IconCssClass( "fa fa-question" )]
     // [SupportedSiteTypes( Model.SiteType.Web )]
