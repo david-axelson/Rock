@@ -5,6 +5,7 @@
         <template v-if="step.errorMessage.value">Error: {{ step.errorMessage.value }}</template>
         <template v-else>Error</template>
     </span>
+    <span v-if="step.state.value === 'NotRun'" class="label label-default">Not Run</span>
 
     <span v-if="lastExecutionText" class="label label-info">
         {{ lastExecutionText }}
