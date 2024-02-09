@@ -83,7 +83,7 @@ namespace Rock.Blocks.CheckIn.Configuration
                 {
                     return ActionOk( director.GetCheckInAreaSummaries( kiosk, null ) );
                 }
-                catch ( CheckInDirectorException ex )
+                catch ( CheckInMessageException ex )
                 {
                     return ActionBadRequest( ex.Message );
                 }
@@ -105,7 +105,7 @@ namespace Rock.Blocks.CheckIn.Configuration
                 {
                     return ActionOk( director.SearchForFamilies( searchTerm, searchType, configuration, sortByCampus ) );
                 }
-                catch ( CheckInDirectorException ex )
+                catch ( CheckInMessageException ex )
                 {
                     return ActionBadRequest( ex.Message );
                 }

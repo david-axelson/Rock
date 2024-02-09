@@ -176,11 +176,10 @@ namespace Rock.CheckIn.v2
         public List<FamilySearchItemBag> SearchForFamilies( string searchTerm, FamilySearchMode searchType, GroupTypeCache checkinConfiguration, CampusCache sortByCampus )
         {
             var configuration = checkinConfiguration?.GetCheckInConfiguration( _rockContext );
-            IQueryable<Group> familyQry;
 
             if ( searchTerm.IsNullOrWhiteSpace() )
             {
-                throw new CheckInDirectorException( "Search term must not be empty." );
+                throw new CheckInMessageException( "Search term must not be empty." );
             }
 
             if ( configuration == null )
@@ -188,91 +187,11 @@ namespace Rock.CheckIn.v2
                 throw new ArgumentOutOfRangeException( nameof( checkinConfiguration ), "Check-in configuration data is not valid." );
             }
 
-            switch ( searchType )
-            {
-                case FamilySearchMode.PhoneNumber:
-                    if ( configuration.FamilySearchType != FamilySearchMode.PhoneNumber && configuration.FamilySearchType != FamilySearchMode.NameAndPhone )
-                    {
-                        throw new CheckInDirectorException( "Searching by phone number is not allowed by the check-in configuration." );
-                    }
+            var familyQry = GetFamilySearchQuery( searchTerm, searchType, configuration );
+            var familyIdQry = GetSortedFamilyIdSearchQuery( familyQry, sortByCampus, configuration );
+            var familyMemberQry = GetFamilyMemberSearchQuery( familyIdQry, configuration );
 
-                    familyQry = SearchForFamiliesByPhoneNumber( searchTerm, configuration );
-                    break;
-
-                case FamilySearchMode.Name:
-                    if ( configuration.FamilySearchType != FamilySearchMode.Name && configuration.FamilySearchType != FamilySearchMode.NameAndPhone )
-                    {
-                        throw new CheckInDirectorException( "Searching by phone number is not allowed by the check-in configuration." );
-                    }
-
-                    familyQry = SearchForFamiliesByName( searchTerm );
-                    break;
-
-                case FamilySearchMode.NameAndPhone:
-                    if ( configuration.FamilySearchType != FamilySearchMode.NameAndPhone )
-                    {
-                        throw new CheckInDirectorException( "Searching by phone number is not allowed by the check-in configuration." );
-                    }
-
-                    familyQry = searchTerm.Any( c => char.IsLetter( c ) )
-                        ? SearchForFamiliesByName( searchTerm )
-                        : SearchForFamiliesByPhoneNumber( searchTerm, configuration );
-                    break;
-
-                case FamilySearchMode.ScannedId:
-                    familyQry = SearchForFamiliesByScannedId( searchTerm );
-                    break;
-
-                case FamilySearchMode.FamilyId:
-                    familyQry = SearchForFamiliesByFamilyId( searchTerm );
-                    break;
-
-                default:
-                    throw new ArgumentOutOfRangeException( nameof( searchType ), "Invalid search type specified." );
-            }
-
-            IQueryable<int> familyIdQry = null;
-
-            if ( sortByCampus != null )
-            {
-                familyIdQry = familyQry
-                    .Select( g => new
-                    {
-                        g.Id,
-                        g.CampusId
-                    } )
-                    .Distinct()
-                    .OrderByDescending( g => g.CampusId.HasValue && g.CampusId.Value == sortByCampus.Id )
-                    .Select( g => g.Id );
-            }
-
-            if ( familyIdQry == null )
-            {
-                familyIdQry = familyQry.Select( g => g.Id );
-            }
-
-            int maxResults = configuration.MaximumNumberOfResults ?? 100;
-
-            if ( maxResults > 0 )
-            {
-                familyIdQry = familyIdQry.Take( maxResults );
-            }
-
-            var familyMemberQry = GetFamilyGroupMemberQuery()
-                .Where( gm => familyIdQry.Contains( gm.GroupId )
-                    && !string.IsNullOrEmpty( gm.Person.NickName ) );
-
-            if ( configuration.IsInactivePersonExcluded )
-            {
-                var inactiveValueId = DefinedValueCache.Get( Rock.SystemGuid.DefinedValue.PERSON_RECORD_STATUS_INACTIVE.AsGuid(), _rockContext )?.Id;
-
-                if ( inactiveValueId.HasValue )
-                {
-                    familyMemberQry = familyMemberQry
-                        .Where( gm => gm.Person.RecordStatusValueId != inactiveValueId.Value );
-                }
-            }
-
+            // Pull just the information we need from the database.
             var familyMembers = familyMemberQry
                 .Select( gm => new
                 {
@@ -290,18 +209,20 @@ namespace Rock.CheckIn.v2
                 } )
                 .ToList();
 
+            // Convert the raw database data into the bags that are understood
+            // by different elements of the check-in system.
             var families = familyMembers
                 .GroupBy( fm => fm.GroupGuid )
-                .Select( f =>
+                .Select( family =>
                 {
-                    var firstMember = f.First();
+                    var firstMember = family.First();
 
                     return new FamilySearchItemBag
                     {
                         Guid = firstMember.GroupGuid,
                         Name = firstMember.GroupName,
                         CampusGuid = firstMember.CampusGuid,
-                        Members = f
+                        Members = family
                             .OrderBy( fm => fm.RoleOrder )
                             .ThenBy( fm => fm.BirthYear )
                             .ThenBy( fm => fm.BirthMonth )
@@ -447,12 +368,12 @@ namespace Rock.CheckIn.v2
 
             if ( configuration.MinimumPhoneNumberLength.HasValue && searchTerm.Length < configuration.MinimumPhoneNumberLength.Value )
             {
-                throw new CheckInDirectorException( $"Search term must be at least {configuration.MinimumPhoneNumberLength} digits." );
+                throw new CheckInMessageException( $"Search term must be at least {configuration.MinimumPhoneNumberLength} digits." );
             }
 
             if ( configuration.MaximumPhoneNumberLength.HasValue && searchTerm.Length > configuration.MaximumPhoneNumberLength.Value )
             {
-                throw new CheckInDirectorException( $"Search term must be at most {configuration.MaximumPhoneNumberLength} digits." );
+                throw new CheckInMessageException( $"Search term must be at most {configuration.MaximumPhoneNumberLength} digits." );
             }
 
             if ( !personRecordTypeId.HasValue )
@@ -531,22 +452,127 @@ namespace Rock.CheckIn.v2
         }
 
         #endregion
-    }
 
-    /// <summary>
-    /// An exception from the check-in director that can be displayed to the
-    /// individual making the request. It will be formatted in a user-friendly
-    /// way.
-    /// </summary>
-    internal class CheckInDirectorException : Exception
-    {
+        #region Private Methods
+
         /// <summary>
-        /// Initializes a new instance of the <see cref="CheckInDirectorException"/> class.
+        /// Gets a query to perform the basic family search based on the term
+        /// and search type.
         /// </summary>
-        /// <param name="message">The message that describes the error.</param>
-        public CheckInDirectorException( string message )
-            : base( message )
+        /// <param name="searchTerm">The search term.</param>
+        /// <param name="searchType">Type of the search.</param>
+        /// <param name="configuration">The check-in configuration.</param>
+        /// <returns>A queryable for <see cref="Group"/> objects that match the search criteria.</returns>
+        private IQueryable<Group> GetFamilySearchQuery( string searchTerm, FamilySearchMode searchType, CheckInConfigurationData configuration )
         {
+            switch ( searchType )
+            {
+                case FamilySearchMode.PhoneNumber:
+                    if ( configuration.FamilySearchType != FamilySearchMode.PhoneNumber && configuration.FamilySearchType != FamilySearchMode.NameAndPhone )
+                    {
+                        throw new CheckInMessageException( "Searching by phone number is not allowed by the check-in configuration." );
+                    }
+
+                    return SearchForFamiliesByPhoneNumber( searchTerm, configuration );
+
+                case FamilySearchMode.Name:
+                    if ( configuration.FamilySearchType != FamilySearchMode.Name && configuration.FamilySearchType != FamilySearchMode.NameAndPhone )
+                    {
+                        throw new CheckInMessageException( "Searching by phone number is not allowed by the check-in configuration." );
+                    }
+
+                    return SearchForFamiliesByName( searchTerm );
+
+                case FamilySearchMode.NameAndPhone:
+                    if ( configuration.FamilySearchType != FamilySearchMode.NameAndPhone )
+                    {
+                        throw new CheckInMessageException( "Searching by phone number is not allowed by the check-in configuration." );
+                    }
+
+                    return searchTerm.Any( c => char.IsLetter( c ) )
+                        ? SearchForFamiliesByName( searchTerm )
+                        : SearchForFamiliesByPhoneNumber( searchTerm, configuration );
+
+                case FamilySearchMode.ScannedId:
+                    return SearchForFamiliesByScannedId( searchTerm );
+
+                case FamilySearchMode.FamilyId:
+                    return SearchForFamiliesByFamilyId( searchTerm );
+
+                default:
+                    throw new ArgumentOutOfRangeException( nameof( searchType ), "Invalid search type specified." );
+            }
         }
+
+        /// <summary>
+        /// Gets the sorted family identifier search query. This is used during
+        /// the family search process to apply the correct sorting and maximum
+        /// result limits to the query.
+        /// </summary>
+        /// <param name="familyQry">The family query to be sorted and limited..</param>
+        /// <param name="sortByCampus">The campus to use when sorting the results.</param>
+        /// <param name="configuration">The check-in configuration.</param>
+        /// <returns>A queryable of family group identifiers to be included in the results.</returns>
+        private IQueryable<int> GetSortedFamilyIdSearchQuery( IQueryable<Group> familyQry, CampusCache sortByCampus, CheckInConfigurationData configuration )
+        {
+            var maxResults = configuration.MaximumNumberOfResults ?? 100;
+            IQueryable<int> familyIdQry;
+
+            // Handle sorting of the results. We either sort by campus or just
+            // take the results as-is.
+            if ( sortByCampus != null )
+            {
+                familyIdQry = familyQry
+                    .Select( g => new
+                    {
+                        g.Id,
+                        g.CampusId
+                    } )
+                    .Distinct()
+                    .OrderByDescending( g => g.CampusId.HasValue && g.CampusId.Value == sortByCampus.Id )
+                    .Select( g => g.Id );
+            }
+            else
+            {
+                familyIdQry = familyQry.Select( g => g.Id ).Distinct();
+            }
+
+            // Limit the results.
+            if ( maxResults > 0 )
+            {
+                familyIdQry = familyIdQry.Take( maxResults );
+            }
+
+            return familyIdQry;
+        }
+
+        /// <summary>
+        /// Gets the family member query that contains all the family members
+        /// are valid for check-in and a member of one of the specified families.
+        /// </summary>
+        /// <param name="familyIdQry">The family identifier query specifying which families to include.</param>
+        /// <param name="configuration">The check-in configuration.</param>
+        /// <returns>A queryable of <see cref="GroupMember"/> objects.</returns>
+        private IQueryable<GroupMember> GetFamilyMemberSearchQuery( IQueryable<int> familyIdQry, CheckInConfigurationData configuration )
+        {
+            var familyMemberQry = GetFamilyGroupMemberQuery()
+                .Where( gm => familyIdQry.Contains( gm.GroupId )
+                    && !string.IsNullOrEmpty( gm.Person.NickName ) );
+
+            if ( configuration.IsInactivePersonExcluded )
+            {
+                var inactiveValueId = DefinedValueCache.Get( Rock.SystemGuid.DefinedValue.PERSON_RECORD_STATUS_INACTIVE.AsGuid(), _rockContext )?.Id;
+
+                if ( inactiveValueId.HasValue )
+                {
+                    familyMemberQry = familyMemberQry
+                        .Where( gm => gm.Person.RecordStatusValueId != inactiveValueId.Value );
+                }
+            }
+
+            return familyMemberQry;
+        }
+
+        #endregion
     }
 }

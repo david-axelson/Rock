@@ -86,7 +86,7 @@ namespace Rock.Rest.v2.Controllers
                     Areas = director.GetCheckInAreaSummaries( kiosk, null )
                 } );
             }
-            catch ( CheckInDirectorException ex )
+            catch ( CheckInMessageException ex )
             {
                 return BadRequest( ex.Message );
             }
@@ -143,7 +143,7 @@ namespace Rock.Rest.v2.Controllers
                     Families = families
                 } );
             }
-            catch ( CheckInDirectorException ex )
+            catch ( CheckInMessageException ex )
             {
                 return BadRequest( ex.Message );
             }

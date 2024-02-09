@@ -805,6 +805,7 @@
     <Compile Include="CheckIn\CompletedAchievement.cs" />
     <Compile Include="CheckIn\v2\CheckInConfigurationData.cs" />
     <Compile Include="CheckIn\v2\CheckInDirector.cs" />
+    <Compile Include="CheckIn\v2\CheckInMessageException.cs" />
     <Compile Include="ClientService\ClientServiceBase.cs" />
     <Compile Include="ClientService\Connection\ConnectionOpportunity\ConnectionOpportunityClientService.cs" />
     <Compile Include="ClientService\Connection\ConnectionType\ConnectionTypeClientService.cs" />
