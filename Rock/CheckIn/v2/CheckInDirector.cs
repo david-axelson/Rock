@@ -19,6 +19,7 @@ using System;
 using System.Collections.Generic;
 using System.Data.Entity;
 using System.Linq;
+using System.Linq.Expressions;
 
 using Rock.Data;
 using Rock.Enums.CheckIn;
@@ -170,7 +171,7 @@ namespace Rock.CheckIn.v2
         /// </summary>
         /// <param name="searchTerm">The search term.</param>
         /// <param name="searchType">Type of the search.</param>
-        /// <param name="checkinConfiguration">The checkin configuration.</param>
+        /// <param name="checkinConfiguration">The check-in configuration.</param>
         /// <param name="sortByCampus">If provided, then results will be sorted by families matching this campus first.</param>
         /// <returns>A collection of <see cref="FamilySearchItemBag"/> objects.</returns>
         public List<FamilySearchItemBag> SearchForFamilies( string searchTerm, FamilySearchMode searchType, GroupTypeCache checkinConfiguration, CampusCache sortByCampus )
@@ -250,6 +251,218 @@ namespace Rock.CheckIn.v2
 
             return families;
         }
+
+        /// <summary>
+        /// Find all family members that match the specified family unique
+        /// identifier for check-in. This normally includes immediate family
+        /// members as well as people associated to the family with one of
+        /// the configured "can check-in" known relationships.
+        /// </summary>
+        /// <param name="familyGuid">The family unique identifier.</param>
+        /// <param name="checkinConfiguration">The check-in configuration.</param>
+        /// <returns>A queryable that can be used to load all the group members associated with the family.</returns>
+        /// <exception cref="ArgumentOutOfRangeException">Check-in configuration data is not valid.</exception>
+        public IQueryable<GroupMember> GetFamilyMembersForCheckInQuery( Guid familyGuid, GroupTypeCache checkinConfiguration )
+        {
+            var configuration = checkinConfiguration?.GetCheckInConfiguration( _rockContext );
+
+            if ( configuration == null )
+            {
+                throw new ArgumentOutOfRangeException( nameof( checkinConfiguration ), "Check-in configuration data is not valid." );
+            }
+
+            var familyMemberQry = GetImmediateFamilyMembersQuery( familyGuid, configuration );
+            var canCheckInFamilyMemberQry = GetCanCheckInFamilyMembersQuery( familyGuid, configuration );
+
+            return familyMemberQry.Union( canCheckInFamilyMemberQry );
+        }
+
+        /// <summary>
+        /// Converts the family members into bags that represent the data
+        /// required for check-in.
+        /// </summary>
+        /// <param name="familyGuid">The primary family unique identifier, this is used to resolve duplicates where a family member is also marked as can check-in.</param>
+        /// <param name="groupMembers">The <see cref="GroupMember"/> objects to be converted to bags.</param>
+        /// <returns>A collection of <see cref="FamilyMemberBag"/> objects.</returns>
+        public List<FamilyMemberBag> GetFamilyMemberBags( Guid familyGuid, IQueryable<GroupMember> groupMembers )
+        {
+            var familyMembers = new List<FamilyMemberBag>();
+
+            // Get the group members along with the person record in memory.
+            // Then sort by those that match the correct family first so that
+            // any duplicates (non family members) can be skipped. This ensures
+            // that a family member has precedence over the same person record
+            // that is also flagged as "can check-in".
+            var members = groupMembers
+                .Select( gm => new
+                {
+                    GroupGuid = gm.Person.PrimaryFamily != null ? gm.Person.PrimaryFamily.Guid : familyGuid,
+                    RoleOrder = gm.GroupRole.Order,
+                    gm.Person
+                } )
+                .ToList()
+                .OrderByDescending( gm => gm.GroupGuid == familyGuid )
+                .ThenBy( gm => gm.RoleOrder );
+
+            foreach ( var member in members )
+            {
+                // Skip any duplicates.
+                if ( familyMembers.Any( fm => fm.Guid == member.Person.Guid ) )
+                {
+                    continue;
+                }
+
+                var familyMember = new FamilyMemberBag
+                {
+                    Guid = member.Person.Guid,
+                    FamilyGuid = member.GroupGuid,
+                    FirstName = member.Person.FirstName,
+                    NickName = member.Person.NickName,
+                    LastName = member.Person.LastName,
+                    FullName = member.Person.FullName,
+                    PhotoUrl = member.Person.PhotoUrl,
+                    BirthYear = member.Person.BirthYear,
+                    BirthMonth = member.Person.BirthMonth,
+                    BirthDay = member.Person.BirthDay,
+                    BirthDate = member.Person.BirthYear.HasValue ? member.Person.BirthDate : null,
+                    Age = member.Person.Age,
+                    AgePrecise = member.Person.AgePrecise,
+                    GradeOffset = member.Person.GradeOffset,
+                    GradeFormatted = member.Person.GradeFormatted,
+                    Gender = member.Person.Gender,
+                    RoleOrder = member.RoleOrder
+                };
+
+                familyMembers.Add( familyMember );
+            }
+
+            return familyMembers;
+        }
+
+        public Dictionary<Guid, object> GetCheckInOptionsForFamilyMembers( IReadOnlyList<FamilyMemberBag> familyMembers, IReadOnlyList<GroupTypeCache> possibleAreas, CheckInConfigurationData configuration, DeviceCache kiosk )
+        {
+            // Get the primary campus for this kiosk.
+            var kioskCampusId = kiosk.GetCampusId();
+            var kioskCampus = kioskCampusId.HasValue ? CampusCache.Get( kioskCampusId.Value, _rockContext ) : null;
+
+            // Get the current timestamp as well as today's date for filtering
+            // in later logic.
+            var now = kioskCampus?.CurrentDateTime ?? RockDateTime.Now;
+            var today = now.Date;
+
+            // Get all areas that don't have exclusions for today.
+            var activeAreas = possibleAreas
+                .Where( a => !a.GroupScheduleExclusions.Any( e => today >= e.Start && today <= e.End ) )
+                .ToList();
+
+            // Get all area identifiers as a HashSet for faster lookups.
+            var activeAreaIds = new HashSet<int>( activeAreas.Select( a => a.Id ) );
+
+            // Get all locations for the kiosk that are active.
+            var locations = kiosk.GetAllLocationIds()
+                .Select( id => NamedLocationCache.Get( id ) )
+                .Where( nlc => nlc != null && nlc.IsActive )
+                .ToList();
+
+            // Get all the group locations for these locations. This also
+            // filters down to only groups in an active area.
+            var groupLocations = locations
+                .SelectMany( l => GroupLocationCache.AllForLocationId( l.Id ) )
+                .DistinctBy( glc => glc.Id )
+                .Where( glc => activeAreaIds.Contains( GroupCache.Get( glc.GroupId, _rockContext )?.GroupTypeId ?? 0 ) )
+                .ToList();
+
+            // Get all the schedules that are active.
+            var activeSchedules = groupLocations
+                .SelectMany( gl => gl.ScheduleIds )
+                .Distinct()
+                .Select( id => NamedScheduleCache.Get( id, _rockContext ) )
+                .Where( s => s != null
+                    && s.IsActive
+                    && s.WasCheckInActive( now ) )
+                .ToList();
+
+            // Get just the schedule identifiers in a hash set for faster lookups.
+            var activeScheduleIds = new HashSet<int>( activeSchedules.Select( s => s.Id ) );
+
+            // Get just the group locations with active schedules.
+            var activeGroupLocations = groupLocations
+                .Where( gl => gl.ScheduleIds.Any( sid => activeScheduleIds.Contains( sid ) ) )
+                .ToList();
+
+            var activeGroupLocationsByGroupType = activeGroupLocations.GroupBy( gl => gl.GroupId )
+                .Select( grp => new
+                {
+                    Group = GroupCache.Get( grp.Key, _rockContext ),
+                    Locations = grp
+                } )
+                .GroupBy( a => a.Group?.GroupTypeId )
+                .Select( grp => new
+                {
+                    GroupType = grp.Key.HasValue ? GroupTypeCache.Get( grp.Key.Value, _rockContext ) : null,
+                    Groups = grp
+                } );
+
+            //foreach ( var byGroupType in activeGroupLocationsByGroupType )
+            //{
+            //    if ( byGroupType.GroupType == null )
+            //    {
+            //        continue;
+            //    }
+
+            //    System.Diagnostics.Debug.WriteLine( $"{byGroupType.GroupType.Name}" );
+
+            //    foreach ( var byGroup in byGroupType.Groups )
+            //    {
+            //        if ( byGroup.Group == null )
+            //        {
+            //            continue;
+            //        }
+
+            //        System.Diagnostics.Debug.WriteLine( $"    {byGroup.Group.Name}" );
+
+            //        foreach ( var location in byGroup.Locations )
+            //        {
+            //            System.Diagnostics.Debug.WriteLine( $"        {location.Location.Name}" );
+            //        }
+            //    }
+            //}
+
+            return null;
+            /*
+             * {
+             *   "Noah Decker Identifier": {
+             *     "areas": [
+             *       {
+             *         "name": "Early Childhood (4's)",
+             *         "groups": [
+             *           {
+             *             "name": "4 Years",
+             *             "locations": [
+             *               {
+             *                 "name": "136 - Train Depot"
+             *               },
+             *               {
+             *                 "name": "143 - Flex Bakery"
+             *               }
+             *             ]
+             *           }
+             *         ]
+             *       }
+             *     ]
+             *   },
+             *   "Alex Decker Identifier": {
+             *     "areas": []
+             *   }
+             * }
+             * 
+             */
+        }
+
+        //public List<FamilyMemberItemBag> GetFamilyMemberItemBags( IEnumerable<FamilyMemberBag> familyMembers )
+        //{
+
+        //}
 
         #endregion
 
@@ -571,6 +784,140 @@ namespace Rock.CheckIn.v2
             }
 
             return familyMemberQry;
+        }
+
+        /// <summary>
+        /// Gets a queryable that will return all family members that are
+        /// part of the specified family. Only <see cref="GroupMember"/>
+        /// records that are part of the <see cref="Group"/> specified by
+        /// <paramref name="familyGuid"/> will be returned.
+        /// </summary>
+        /// <param name="familyGuid">The unique identifier of the family.</param>
+        /// <param name="configuration">The check-in configuration.</param>
+        /// <returns>A queryable of matching <see cref="GroupMember"/> objects.</returns>
+        /// <exception cref="Exception">Inactive person record status was not found in the database, please check your installation.</exception>
+        private IQueryable<GroupMember> GetImmediateFamilyMembersQuery( Guid familyGuid, CheckInConfigurationData configuration )
+        {
+            var groupMemberService = new GroupMemberService( _rockContext );
+            var qry = groupMemberService.GetByGroupGuid( familyGuid ).AsNoTracking();
+
+            if ( configuration.IsInactivePersonExcluded )
+            {
+                var personRecordStatusInactiveId = DefinedValueCache.Get( SystemGuid.DefinedValue.PERSON_RECORD_STATUS_INACTIVE.AsGuid(), _rockContext )?.Id;
+
+                if ( !personRecordStatusInactiveId.HasValue )
+                {
+                    throw new Exception( "Inactive person record status was not found in the database, please check your installation." );
+                }
+
+                qry = qry.Where( m => m.Person.RecordStatusValueId != personRecordStatusInactiveId.Value );
+            }
+
+            return qry;
+        }
+
+        /// <summary>
+        /// Gets a queryable that will return any group member records with
+        /// a valid relationship to any member of the family. This uses the
+        /// allowed can check-in roles defined on the configuration.
+        /// </summary>
+        /// <param name="familyGuid">The family unique identifier.</param>
+        /// <param name="configuration">The check-in configuration.</param>
+        /// <returns>A queryable of matching <see cref="GroupMember"/> objects.</returns>
+        /// <exception cref="Exception">Known relationship group type was not found in the database, please check your installation.</exception>
+        /// <exception cref="Exception">Inactive person record status was not found in the database, please check your installation.</exception>
+        /// <exception cref="Exception">Known relationship owner role was not found in the database, please check your installation.</exception>
+        private IQueryable<GroupMember> GetCanCheckInFamilyMembersQuery( Guid familyGuid, CheckInConfigurationData configuration )
+        {
+            var knownRelationshipGroupType = GroupTypeCache.Get( Rock.SystemGuid.GroupType.GROUPTYPE_KNOWN_RELATIONSHIPS.AsGuid(), _rockContext );
+            int? personRecordStatusInactiveId = null;
+
+            if ( knownRelationshipGroupType == null )
+            {
+                throw new Exception( "Known relationship group type was not found in the database, please check your installation." );
+            }
+
+            if ( configuration.IsInactivePersonExcluded )
+            {
+                personRecordStatusInactiveId = DefinedValueCache.Get( SystemGuid.DefinedValue.PERSON_RECORD_STATUS_INACTIVE.AsGuid(), _rockContext )?.Id;
+
+                if ( !personRecordStatusInactiveId.HasValue )
+                {
+                    throw new Exception( "Inactive person record status was not found in the database, please check your installation." );
+                }
+            }
+
+            var knownRelationshipsOwnerGuid = SystemGuid.GroupRole.GROUPROLE_KNOWN_RELATIONSHIPS_OWNER.AsGuid();
+            var ownerRole = knownRelationshipGroupType.Roles.FirstOrDefault( r => r.Guid == knownRelationshipsOwnerGuid );
+
+            if ( ownerRole == null )
+            {
+                throw new Exception( "Known relationship owner role was not found in the database, please check your installation." );
+            }
+
+            var familyMemberPersonIdQry = GetImmediateFamilyMembersQuery( familyGuid, configuration )
+                .Select( fm => fm.PersonId );
+            var groupMemberService = new GroupMemberService( _rockContext );
+            var canCheckInRoleIds = knownRelationshipGroupType.Roles
+                .Where( r => configuration.CanCheckInKnownRelationshipRoleGuids.Contains( r.Guid ) )
+                .Select( r => r.Id )
+                .ToList();
+
+            // Get the Known Relationship group ids for each member of the family.
+            var relationshipGroupIdQry = groupMemberService
+                .Queryable()
+                .AsNoTracking()
+                .Where( g => g.GroupRoleId == ownerRole.Id
+                    && familyMemberPersonIdQry.Contains( g.PersonId ) )
+                .Select( g => g.GroupId );
+
+            // Get anyone in any of those groups that has a role flagged as "can check-in".
+            var canCheckInFamilyMemberQry = groupMemberService
+                .Queryable()
+                .AsNoTracking()
+                .Where( gm => relationshipGroupIdQry.Contains( gm.GroupId ) );
+
+            /*  02-12-2024 DSH
+
+              Build LINQ expression 'canCheckInRoleIds.Contains( gm.GroupRoleId )'
+              manually. If EF sees a List<>.Contains() call then it won't re-use
+              the cache and has to re-create the SQL statement each time. This
+              costs about 15-20ms. Considering this query will otherwise take
+              only about 2-3ms, that is a lot of overhead.
+           */
+            Expression<Func<GroupMember, bool>> predicate = null;
+            var gmParameter = Expression.Parameter( typeof( GroupMember ), "gm" );
+            foreach ( var roleId in canCheckInRoleIds )
+            {
+                // Don't use LinqPredicateBuilder as that will cause a SQL
+                // parameter to be generated for each comparison. Since we
+                // are not in control of how many items are in the list we
+                // could run out of parameters. So build it with constant
+                // values instead.
+                var propExpr = Expression.Property( gmParameter, nameof( GroupMember.GroupRoleId ) );
+                var equalExpr = Expression.Equal( propExpr, Expression.Constant( roleId ) );
+                var expression = Expression.Lambda<Func<GroupMember, bool>>( equalExpr, gmParameter );
+
+                predicate = predicate != null
+                    ? predicate.Or( expression )
+                    : expression;
+            }
+
+            // If we had any canCheckInRoleIds then append the predicate.
+            if ( predicate != null )
+            {
+                canCheckInFamilyMemberQry = canCheckInFamilyMemberQry.Where( predicate );
+            }
+
+            // If check-in does not allow inactive people then add that
+            // check now.
+            if ( configuration.IsInactivePersonExcluded )
+            {
+                canCheckInFamilyMemberQry = canCheckInFamilyMemberQry
+                    .Where( gm => gm.Person.RecordStatusReasonValueId != personRecordStatusInactiveId.Value );
+            }
+
+            return canCheckInFamilyMemberQry;
         }
 
         #endregion

@@ -15,6 +15,7 @@
 // </copyright>
 //
 
+using System.Linq;
 using System.Net;
 
 using Rock.CheckIn.v2;
@@ -105,7 +106,7 @@ namespace Rock.Rest.v2.Controllers
         [SystemGuid.RestActionGuid( "2c587733-0e08-4e93-8f2b-3e2518362768" )]
         public IActionResult PostSearchForFamilies( [FromBody] SearchForFamiliesOptionsBag options )
         {
-            var configuration = GroupTypeCache.Get( options.ConfigurationGuid );
+            var configuration = GroupTypeCache.Get( options.ConfigurationGuid, _rockContext );
             var director = new CheckInDirector( _rockContext );
             CampusCache sortByCampus = null;
 
@@ -141,6 +142,54 @@ namespace Rock.Rest.v2.Controllers
                 return Ok( new SearchForFamiliesResponseBag
                 {
                     Families = families
+                } );
+            }
+            catch ( CheckInMessageException ex )
+            {
+                return BadRequest( ex.Message );
+            }
+        }
+
+        /// <summary>
+        /// Performs a search for matching families that are valid for check-in.
+        /// </summary>
+        /// <param name="options">The options that describe the request.</param>
+        /// <returns>A bag that contains all the matched families.</returns>
+        [HttpPost]
+        [Authenticate]
+        //[Secured]
+        [Route( "ListFamilyMembers" )]
+        [ProducesResponseType( HttpStatusCode.OK, Type = typeof( object ) )]
+        [SystemGuid.RestActionGuid( "2bd5afdf-da57-48bb-a6db-7dd9ad1ab8da" )]
+        public IActionResult PostListFamilyMembers( [FromBody] ListFamilyMembersOptionsBag options )
+        {
+            var configuration = GroupTypeCache.Get( options.ConfigurationGuid, _rockContext );
+            var kiosk = DeviceCache.Get( options.KioskGuid, _rockContext );
+            var director = new CheckInDirector( _rockContext );
+
+            if ( configuration == null )
+            {
+                return BadRequest( "Configuration was not found." );
+            }
+
+            if ( kiosk == null )
+            {
+                return BadRequest( "Kiosk was not found." );
+            }
+
+            try
+            {
+                var familyMembersQry = director.GetFamilyMembersForCheckInQuery( options.FamilyGuid, configuration );
+                var familyMembers = director.GetFamilyMemberBags( options.FamilyGuid, familyMembersQry );
+
+                director.GetCheckInOptionsForFamilyMembers( familyMembers,
+                    options.AreaGuids.Select( guid => GroupTypeCache.Get( guid, _rockContext ) ).ToList(),
+                    configuration.GetCheckInConfiguration( _rockContext ),
+                    kiosk );
+
+                return Ok( new
+                {
+                    Members = familyMembers
                 } );
             }
             catch ( CheckInMessageException ex )

@@ -386,6 +386,8 @@
     <Compile Include="Blocks\WorkFlow\WorkflowTriggerDetail\WorkflowTriggerDetailBox.cs" />
     <Compile Include="CheckIn\AreaItemSummaryBag.cs" />
     <Compile Include="CheckIn\ConfigurationItemSummaryBag.cs" />
+    <Compile Include="CheckIn\FamilyMemberBag.cs" />
+    <Compile Include="CheckIn\FamilyMemberItemBag.cs" />
     <Compile Include="CheckIn\FamilyMemberSearchItemBag.cs" />
     <Compile Include="CheckIn\FamilySearchItemBag.cs" />
     <Compile Include="Cms\ContentCollectionCustomFieldBag.cs" />
@@ -398,6 +400,7 @@
     <Compile Include="Blocks\Tv\AppleTvPageDetail\RockCacheabilityBag.cs" />
     <Compile Include="Rest\CheckIn\ListConfigurationsOptionsBag.cs" />
     <Compile Include="Rest\CheckIn\ListConfigurationsResponseBag.cs" />
+    <Compile Include="Rest\CheckIn\ListFamilyMembersOptionsBag.cs" />
     <Compile Include="Rest\CheckIn\SearchForFamiliesOptionsBag.cs" />
     <Compile Include="Rest\CheckIn\SearchForFamiliesResponseBag.cs" />
     <Compile Include="Rest\Controls\CurrencyBoxGetCurrencyInfoResultsBag.cs" />

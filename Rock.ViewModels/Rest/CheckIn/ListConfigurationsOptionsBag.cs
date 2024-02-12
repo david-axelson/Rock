@@ -19,7 +19,7 @@ using System;
 namespace Rock.ViewModels.Rest.CheckIn
 {
     /// <summary>
-    /// The request parameters to use when generating the list of valid
+    /// The request parameters to use when requesting the list of valid
     /// check-in configurations.
     /// </summary>
     public class ListConfigurationsOptionsBag
