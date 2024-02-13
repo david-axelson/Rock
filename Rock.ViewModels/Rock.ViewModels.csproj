@@ -385,6 +385,9 @@
     <Compile Include="Blocks\WorkFlow\WorkflowTriggerDetail\WorkflowTriggerBag.cs" />
     <Compile Include="Blocks\WorkFlow\WorkflowTriggerDetail\WorkflowTriggerDetailBox.cs" />
     <Compile Include="CheckIn\AreaItemSummaryBag.cs" />
+    <Compile Include="CheckIn\CheckInGroupItemBag.cs" />
+    <Compile Include="CheckIn\CheckInItemBag.cs" />
+    <Compile Include="CheckIn\CheckInLocationItemBag.cs" />
     <Compile Include="CheckIn\ConfigurationItemSummaryBag.cs" />
     <Compile Include="CheckIn\FamilyMemberBag.cs" />
     <Compile Include="CheckIn\FamilyMemberItemBag.cs" />

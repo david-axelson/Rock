@@ -18,6 +18,7 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.Serialization;
 
+using Rock.CheckIn.v2;
 using Rock.Data;
 using Rock.Enums.Group;
 using Rock.Model;
@@ -33,7 +34,17 @@ namespace Rock.Web.Cache
     [DataContract]
     public class GroupCache : ModelCache<GroupCache, Rock.Model.Group>
     {
+        private CheckInGroupData _checkInData;
+
         #region Properties
+
+        /// <inheritdoc/>
+        public override TimeSpan? Lifespan
+        {
+            // Currently, we only check-in related groups for any period of time.
+            // This is a 3ns check assuming the group types are already cached.
+            get => GroupType?.GetCheckInConfigurationType() == null ? new TimeSpan( 0, 10, 0 ) : base.Lifespan;
+        }
 
         /// <inheritdoc cref="Rock.Model.Group.Name" />
         [DataMember]
@@ -209,14 +220,6 @@ namespace Rock.Web.Cache
 
         #region Public Methods
 
-        /// <inheritdoc/>
-        public override TimeSpan? Lifespan
-        {
-            // Currently, we only check-in related groups for any period of time.
-            // This is a 3ns check assuming the group types are already cached.
-            get => GroupType?.GetCheckInConfigurationType() == null ? new TimeSpan( 0, 10, 0 ) : base.Lifespan;
-        }
-
         /// <summary>
         /// Not supported on GroupCache.
         /// </summary>
@@ -235,6 +238,27 @@ namespace Rock.Web.Cache
             // Since there will be a very large number of groups in the
             // database, we don't support loading all of them.
             throw new NotSupportedException( "GroupCache does not support All()" );
+        }
+
+        /// <summary>
+        /// Gets the check in data that represents all the attribute
+        /// values of this group.
+        /// </summary>
+        /// <param name="rockContext">The context to use if access to the database is required.</param>
+        /// <returns>An instance of <see cref="CheckInGroupData"/> or <c>null</c>.</returns>
+        internal CheckInGroupData GetCheckInData( RockContext rockContext )
+        {
+            if ( rockContext == null )
+            {
+                throw new ArgumentNullException( nameof( rockContext ) );
+            }
+
+            if ( _checkInData == null )
+            {
+                _checkInData = new CheckInGroupData( this, rockContext );
+            }
+
+            return _checkInData;
         }
 
         /// <inheritdoc/>

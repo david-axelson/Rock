@@ -21,6 +21,7 @@ using System.Data.Entity;
 using System.Linq;
 using System.Linq.Expressions;
 
+using Rock.CheckIn.v2.Filters;
 using Rock.Data;
 using Rock.Enums.CheckIn;
 using Rock.Model;
@@ -339,10 +340,32 @@ namespace Rock.CheckIn.v2
             return familyMembers;
         }
 
-        public Dictionary<Guid, object> GetCheckInOptionsForFamilyMembers( IReadOnlyList<FamilyMemberBag> familyMembers, IReadOnlyList<GroupTypeCache> possibleAreas, CheckInConfigurationData configuration, DeviceCache kiosk )
+        /// <summary>
+        /// <para>
+        /// Gets all the check-in options that are possible for the kiosk or
+        /// locations. 
+        /// </para>
+        /// <para>
+        /// If you provide an array of locations they will be used, otherwise
+        /// the locations of the kiosk will be used. If you provide a kiosk
+        /// then it will be used to determine the current timestamp when
+        /// checking if locations are open or not.
+        /// </para>
+        /// </summary>
+        /// <param name="possibleAreas">The possible areas that are to be considered when generating the options.</param>
+        /// <param name="kiosk">The optional kiosk to use.</param>
+        /// <param name="locations">The list of locations to use.</param>
+        /// <returns>An instance of <see cref="CheckInOptions"/> that describes the available options.</returns>
+        /// <exception cref="System.ArgumentNullException">kiosk - Kiosk must be specified unless locations are specified.</exception>
+        public CheckInOptions GetAllCheckInOptions( IReadOnlyList<GroupTypeCache> possibleAreas, DeviceCache kiosk, IReadOnlyList<NamedLocationCache> locations )
         {
+            if ( kiosk == null && locations == null )
+            {
+                throw new ArgumentNullException( nameof( kiosk ), "Kiosk must be specified unless locations are specified." );
+            }
+
             // Get the primary campus for this kiosk.
-            var kioskCampusId = kiosk.GetCampusId();
+            var kioskCampusId = kiosk?.GetCampusId();
             var kioskCampus = kioskCampusId.HasValue ? CampusCache.Get( kioskCampusId.Value, _rockContext ) : null;
 
             // Get the current timestamp as well as today's date for filtering
@@ -358,11 +381,21 @@ namespace Rock.CheckIn.v2
             // Get all area identifiers as a HashSet for faster lookups.
             var activeAreaIds = new HashSet<int>( activeAreas.Select( a => a.Id ) );
 
-            // Get all locations for the kiosk that are active.
-            var locations = kiosk.GetAllLocationIds()
-                .Select( id => NamedLocationCache.Get( id ) )
-                .Where( nlc => nlc != null && nlc.IsActive )
-                .ToList();
+            // Get the active locations to work with.
+            if ( locations != null )
+            {
+                locations = locations
+                    .Where( nlc => nlc.IsActive )
+                    .ToList();
+            }
+            else
+            {
+                // Get all locations for the kiosk that are active.
+                locations = kiosk.GetAllLocationIds()
+                    .Select( id => NamedLocationCache.Get( id ) )
+                    .Where( nlc => nlc != null && nlc.IsActive )
+                    .ToList();
+            }
 
             // Get all the group locations for these locations. This also
             // filters down to only groups in an active area.
@@ -390,79 +423,205 @@ namespace Rock.CheckIn.v2
                 .Where( gl => gl.ScheduleIds.Any( sid => activeScheduleIds.Contains( sid ) ) )
                 .ToList();
 
-            var activeGroupLocationsByGroupType = activeGroupLocations.GroupBy( gl => gl.GroupId )
-                .Select( grp => new
+            // Construct the initial options bag.
+            var options = new CheckInOptions
+            {
+                AbilityLevels = DefinedTypeCache.Get( SystemGuid.DefinedType.PERSON_ABILITY_LEVEL_TYPE.AsGuid(), _rockContext )
+                    ?.DefinedValues
+                    .Select( dv => new CheckInAbilityLevelItem
+                    {
+                        Guid = dv.Guid,
+                        Name = dv.Value
+                    } )
+                    .ToList(),
+                Areas = activeAreas
+                    .Select( a => new CheckInAreaItem
+                    {
+                        Guid = a.Guid,
+                        Name = a.Name
+                    } )
+                    .ToList(),
+                Groups = new List<CheckInGroupItem>(),
+                Locations = new List<CheckInLocationItem>(),
+                Schedules = activeSchedules
+                    .Select( s => new CheckInScheduleItem
+                    {
+                        Guid = s.Guid,
+                        Name = s.Name
+                    } )
+                    .ToList()
+            };
+
+            // Add in all the Groups to the options bag.
+            foreach ( var grp in activeGroupLocations.GroupBy( gl => gl.GroupId ) )
+            {
+                var group = GroupCache.Get( grp.Key, _rockContext );
+                var groupTypeGuid = group?.GroupType?.Guid;
+
+                if ( !groupTypeGuid.HasValue )
                 {
-                    Group = GroupCache.Get( grp.Key, _rockContext ),
-                    Locations = grp
-                } )
-                .GroupBy( a => a.Group?.GroupTypeId )
-                .Select( grp => new
+                    continue;
+                }
+
+                options.Groups.Add( new CheckInGroupItem
                 {
-                    GroupType = grp.Key.HasValue ? GroupTypeCache.Get( grp.Key.Value, _rockContext ) : null,
-                    Groups = grp
+                    Guid = group.Guid,
+                    Name = group.Name,
+                    AbilityLevelGuid = null,
+                    AreaGuid = groupTypeGuid.Value,
+                    CheckInData = group.GetCheckInData( _rockContext )
                 } );
+            }
 
-            //foreach ( var byGroupType in activeGroupLocationsByGroupType )
-            //{
-            //    if ( byGroupType.GroupType == null )
-            //    {
-            //        continue;
-            //    }
+            // Add in all the locations to the options bag.
+            foreach ( var grp in activeGroupLocations.GroupBy( gl => gl.LocationId ) )
+            {
+                var location = NamedLocationCache.Get( grp.Key, _rockContext );
+                var locationScheduleIds = new HashSet<int>( grp.SelectMany( gl => gl.ScheduleIds ).Distinct() );
 
-            //    System.Diagnostics.Debug.WriteLine( $"{byGroupType.GroupType.Name}" );
+                options.Locations.Add( new CheckInLocationItem
+                {
+                    Guid = location.Guid,
+                    Name = location.Name,
+                    Available = null,
+                    Capacity = null,
+                    GroupGuids = grp.Select( gl => GroupCache.Get( gl.GroupId, _rockContext )?.Guid ).Where( g => g.HasValue ).Select( g => g.Value ).ToList(),
+                    ScheduleGuids = activeSchedules.Where( s => locationScheduleIds.Contains( s.Id ) ).Select( s => s.Guid ).ToList()
+                } );
+            }
 
-            //    foreach ( var byGroup in byGroupType.Groups )
-            //    {
-            //        if ( byGroup.Group == null )
-            //        {
-            //            continue;
-            //        }
-
-            //        System.Diagnostics.Debug.WriteLine( $"    {byGroup.Group.Name}" );
-
-            //        foreach ( var location in byGroup.Locations )
-            //        {
-            //            System.Diagnostics.Debug.WriteLine( $"        {location.Location.Name}" );
-            //        }
-            //    }
-            //}
-
-            return null;
-            /*
-             * {
-             *   "Noah Decker Identifier": {
-             *     "areas": [
-             *       {
-             *         "name": "Early Childhood (4's)",
-             *         "groups": [
-             *           {
-             *             "name": "4 Years",
-             *             "locations": [
-             *               {
-             *                 "name": "136 - Train Depot"
-             *               },
-             *               {
-             *                 "name": "143 - Flex Bakery"
-             *               }
-             *             ]
-             *           }
-             *         ]
-             *       }
-             *     ]
-             *   },
-             *   "Alex Decker Identifier": {
-             *     "areas": []
-             *   }
-             * }
-             * 
-             */
+            return options;
         }
 
-        //public List<FamilyMemberItemBag> GetFamilyMemberItemBags( IEnumerable<FamilyMemberBag> familyMembers )
-        //{
+        /// <summary>
+        /// Filters the check-in options for a single person.
+        /// </summary>
+        /// <param name="options">The options to be filtered.</param>
+        /// <param name="person">The person to use when filtering options.</param>
+        /// <param name="configuration">The check-inconfiguration.</param>
+        public void FilterOptionsForPerson( CheckInOptions options, FamilyMemberBag person, CheckInConfigurationData configuration )
+        {
+            var groupFilters = GetPersonOptionsFilters( person, configuration );
 
-        //}
+            options.Groups = options.Groups
+                .Where( g => groupFilters.All( f => f.IsGroupValid( g ) ) )
+                .ToList();
+
+
+            // Filter Locations:
+            //  1. Filter By Threshold (capacity)
+
+            // Remove Empty Options
+        }
+
+        /// <summary>
+        /// Gets the filters to use when filtering options for the specified
+        /// person.
+        /// </summary>
+        /// <param name="person">The person to filter options for.</param>
+        /// <param name="configuration">The check-in configuration.</param>
+        /// <returns>A list of <see cref="ICheckInOptionsFilter"/> objects that will perform filtering logic.</returns>
+        private List<ICheckInOptionsFilter> GetPersonOptionsFilters( FamilyMemberBag person, CheckInConfigurationData configuration )
+        {
+            return GetPersonOptionsFilterTypes( configuration )
+                .Where( t => typeof( ICheckInOptionsFilter ).IsAssignableFrom( t ) )
+                .Select( t =>
+                {
+                    var filter = ( ICheckInOptionsFilter ) Activator.CreateInstance( t );
+
+                    filter.Configuration = configuration;
+                    filter.RockContext = _rockContext;
+
+                    if ( filter is ICheckInOptionsPersonFilter personFilter )
+                    {
+                        personFilter.Person = person;
+                    }
+
+                    return filter;
+                } )
+                .ToList();
+        }
+
+        /// <summary>
+        /// Gets the filter type definitions to use when filtering options for
+        /// a specified person.
+        /// </summary>
+        /// <param name="configuration">The check-in configuration.</param>
+        /// <returns>A collection of <see cref="Type"/> objects.</returns>
+        private IReadOnlyCollection<Type> GetPersonOptionsFilterTypes( CheckInConfigurationData configuration )
+        {
+            return new[]
+            {
+                typeof( CheckInByAgeOptionsFilter )
+            };
+            // Filter Groups:
+            //  1. Filter By Age DONE
+            //  2. Filter By Grade
+            //  3. Filter By Gender
+            //  4. Filter by Group Membership (do this last since it requires a query)
+            //  5. Filter By DataView
+        }
+
+        /// <summary>
+        /// Clones the options. This creates an entirely new options bag as well
+        /// as new instances of every object it contains. The new options bag
+        /// can be modified at will without affecting the original bag. It seems
+        /// like we are doing a lot, but this is insanely fast, clocking in at
+        /// 6ns per call.
+        /// </summary>
+        /// <remarks>TODO: This should be an extension method.</remarks>
+        /// <param name="options">The options to be cloned.</param>
+        /// <returns>A new instance of <see cref="CheckInOptions"/>.</returns>
+        public CheckInOptions CloneOptions( CheckInOptions options )
+        {
+            var clonedOptions = new CheckInOptions
+            {
+                AbilityLevels = options.AbilityLevels
+                    .Select( al => new CheckInAbilityLevelItem
+                    {
+                        Guid = al.Guid,
+                        Name = al.Name
+                    } )
+                    .ToList(),
+                Areas = options.Areas
+                    .Select( a => new CheckInAreaItem
+                    {
+                        Guid = a.Guid,
+                        Name = a.Name
+                    } )
+                    .ToList(),
+                Groups = options.Groups
+                    .Select( g => new CheckInGroupItem
+                    {
+                        Guid = g.Guid,
+                        Name = g.Name,
+                        AbilityLevelGuid = g.AbilityLevelGuid,
+                        AreaGuid = g.AreaGuid,
+                        CheckInData = g.CheckInData
+                    } )
+                    .ToList(),
+                Locations = options.Locations
+                    .Select( l => new CheckInLocationItem
+                    {
+                        Guid = l.Guid,
+                        Name = l.Name,
+                        Available = l.Available,
+                        Capacity = l.Capacity,
+                        GroupGuids = l.GroupGuids.ToList(),
+                        ScheduleGuids = l.ScheduleGuids.ToList()
+                    } )
+                    .ToList(),
+                Schedules = options.Schedules
+                    .Select( s => new CheckInScheduleItem
+                    {
+                        Guid = s.Guid,
+                        Name = s.Name
+                    } )
+                    .ToList()
+            };
+
+            return clonedOptions;
+        }
 
         #endregion
 
