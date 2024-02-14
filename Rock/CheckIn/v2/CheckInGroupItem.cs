@@ -29,5 +29,11 @@ namespace Rock.CheckIn.v2
         /// </summary>
         /// <value>The check in data.</value>
         public CheckInGroupData CheckInData { get; set; }
+
+        /// <summary>
+        /// Gets or sets the check in area data for this group.
+        /// </summary>
+        /// <value>The check in area data.</value>
+        public CheckInAreaData CheckInAreaData { get; set; }
     }
 }

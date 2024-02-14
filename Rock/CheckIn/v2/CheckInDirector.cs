@@ -456,9 +456,9 @@ namespace Rock.CheckIn.v2
             foreach ( var grp in activeGroupLocations.GroupBy( gl => gl.GroupId ) )
             {
                 var group = GroupCache.Get( grp.Key, _rockContext );
-                var groupTypeGuid = group?.GroupType?.Guid;
+                var groupType = group?.GroupType;
 
-                if ( !groupTypeGuid.HasValue )
+                if ( groupType == null )
                 {
                     continue;
                 }
@@ -468,8 +468,9 @@ namespace Rock.CheckIn.v2
                     Guid = group.Guid,
                     Name = group.Name,
                     AbilityLevelGuid = null,
-                    AreaGuid = groupTypeGuid.Value,
-                    CheckInData = group.GetCheckInData( _rockContext )
+                    AreaGuid = groupType.Guid,
+                    CheckInData = group.GetCheckInData( _rockContext ),
+                    CheckInAreaData = groupType.GetCheckInAreaData( _rockContext )
                 } );
             }
 
@@ -554,13 +555,14 @@ namespace Rock.CheckIn.v2
             {
                 typeof( CheckInByAgeOptionsFilter ),
                 typeof( CheckInByGradeOptionsFilter ),
-                typeof( CheckInByGenderOptionsFilter )
+                typeof( CheckInByGenderOptionsFilter ),
+                typeof( CheckInByMembershipOptionsFilter )
             };
             // Filter Groups:
             //  1. Filter By Age DONE
             //  2. Filter By Grade DONE
             //  3. Filter By Gender DONE
-            //  4. Filter by Group Membership (do this late since it requires a query)
+            //  4. Filter by Group Membership (do this late since it requires a query) DONE
             //  5. Filter By DataView
         }
 
@@ -599,7 +601,8 @@ namespace Rock.CheckIn.v2
                         Name = g.Name,
                         AbilityLevelGuid = g.AbilityLevelGuid,
                         AreaGuid = g.AreaGuid,
-                        CheckInData = g.CheckInData
+                        CheckInData = g.CheckInData,
+                        CheckInAreaData = g.CheckInAreaData
                     } )
                     .ToList(),
                 Locations = options.Locations

@@ -804,6 +804,7 @@
     <Compile Include="CheckIn\CheckInGroupLocationSchedule.cs" />
     <Compile Include="CheckIn\CompletedAchievement.cs" />
     <Compile Include="CheckIn\v2\CheckInAbilityLevelItem.cs" />
+    <Compile Include="CheckIn\v2\CheckInAreaData.cs" />
     <Compile Include="CheckIn\v2\CheckInAreaItem.cs" />
     <Compile Include="CheckIn\v2\CheckInConfigurationData.cs" />
     <Compile Include="CheckIn\v2\CheckInDirector.cs" />
@@ -815,6 +816,7 @@
     <Compile Include="CheckIn\v2\Filters\CheckInByAgeOptionsFilter.cs" />
     <Compile Include="CheckIn\v2\Filters\CheckInByGenderOptionsFilter.cs" />
     <Compile Include="CheckIn\v2\Filters\CheckInByGradeOptionsFilter.cs" />
+    <Compile Include="CheckIn\v2\Filters\CheckInByMembershipOptionsFilter.cs" />
     <Compile Include="CheckIn\v2\Filters\CheckInPersonOptionsFilter.cs" />
     <Compile Include="CheckIn\v2\CheckInScheduleItem.cs" />
     <Compile Include="CheckIn\v2\ICheckInOptionsFilter.cs" />

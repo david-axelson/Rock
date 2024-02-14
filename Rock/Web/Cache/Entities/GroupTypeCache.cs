@@ -22,7 +22,6 @@ using System.Runtime.Serialization;
 
 using Rock.CheckIn.v2;
 using Rock.Data;
-using Rock.Enums.CheckIn;
 using Rock.Enums.Group;
 using Rock.Model;
 
@@ -36,6 +35,8 @@ namespace Rock.Web.Cache
     public class GroupTypeCache : ModelCache<GroupTypeCache, GroupType>
     {
         private CheckInConfigurationData _checkInConfiguration;
+
+        private CheckInAreaData _checkInAreaData;
 
         #region Properties
 
@@ -922,7 +923,7 @@ namespace Rock.Web.Cache
         }
 
         /// <summary>
-        /// Gets the check in configuration that represents all the attribute
+        /// Gets the check-in configuration that represents all the attribute
         /// values of this group type. If this group type is not a check-in
         /// configuration group type then <c>null</c> will be returned.
         /// </summary>
@@ -948,6 +949,27 @@ namespace Rock.Web.Cache
             }
 
             return _checkInConfiguration;
+        }
+
+        /// <summary>
+        /// Gets the check-in data that represents all the attribute
+        /// values of this area group type.
+        /// </summary>
+        /// <param name="rockContext">The context to use if access to the database is required.</param>
+        /// <returns>An instance of <see cref="CheckInAreaData"/>.</returns>
+        internal CheckInAreaData GetCheckInAreaData( RockContext rockContext )
+        {
+            if ( rockContext == null )
+            {
+                throw new ArgumentNullException( nameof( rockContext ) );
+            }
+
+            if ( _checkInAreaData == null )
+            {
+                _checkInAreaData = new CheckInAreaData( this, rockContext );
+            }
+
+            return _checkInAreaData;
         }
 
         /// <summary>
