@@ -62,6 +62,22 @@ namespace Rock.CheckIn.v2
         /// <value>The maximum birthdate requirement.</value>
         public DateTime? MaximumBirthdate { get; }
 
+        /// <summary>
+        /// Gets the minimum grade offset requirement or <c>null</c> if there
+        /// is no minimum. The person's grade offset must be greater than or
+        /// equal to this value.
+        /// </summary>
+        /// <value>The minimum grade offset requirement.</value>
+        public int? MinimumGradeOffset { get; }
+
+        /// <summary>
+        /// Gets the maximum grade offset requirement or <c>null</c> if there
+        /// is no maximum. The person's grade offset must be less than or
+        /// equal to this value.
+        /// </summary>
+        /// <value>The maximum grade offset requirement.</value>
+        public int? MaximumGradeOffset { get; }
+
         #endregion
 
         #region Constructors
@@ -75,6 +91,7 @@ namespace Rock.CheckIn.v2
         {
             (MinimumAge, MaximumAge) = GetAgeRange( groupCache );
             (MinimumBirthdate, MaximumBirthdate) = GetBirthdateRange( groupCache );
+            (MinimumGradeOffset, MaximumGradeOffset) = GetGradeOffsetRange( groupCache );
         }
 
         #endregion
@@ -116,6 +133,36 @@ namespace Rock.CheckIn.v2
             }
 
             return (birthdateRangePair[0].AsDateTime(), birthdateRangePair[1].AsDateTime());
+        }
+
+        /// <summary>
+        /// Gets the grade range specified by the group attribute value.
+        /// </summary>
+        /// <param name="groupCache">The group cache.</param>
+        /// <returns>A tuple that contains the minimum and maximum values.</returns>
+        private static (int? MinimumGradeOffset, int? MaximumGradeOffset) GetGradeOffsetRange( IHasAttributes groupCache )
+        {
+            string gradeOffsetRange = groupCache.GetAttributeValue( "GradeRange" ) ?? string.Empty;
+            var gradeOffsetRangePair = gradeOffsetRange.Split( new char[] { ',' }, StringSplitOptions.None ).AsGuidOrNullList().ToArray();
+
+            if ( gradeOffsetRangePair.Length != 2 )
+            {
+                return (null, null);
+            }
+
+            var minGradeDefinedValue = gradeOffsetRangePair[0].HasValue
+                ? DefinedValueCache.Get( gradeOffsetRangePair[0].Value )
+                : null;
+
+            var maxGradeDefinedValue = gradeOffsetRangePair[1].HasValue
+                ? DefinedValueCache.Get( gradeOffsetRangePair[1].Value )
+                : null;
+
+            // NOTE: the grade offsets are actually reversed because the range
+            // defined values then specify the grade offset as the value, which
+            // is the number of years until graduation. So the UI says "4th to 6th"
+            // but the offset numbers are "8 to 6".
+            return (maxGradeDefinedValue?.Value.AsIntegerOrNull(), minGradeDefinedValue?.Value.AsIntegerOrNull());
         }
 
         #endregion

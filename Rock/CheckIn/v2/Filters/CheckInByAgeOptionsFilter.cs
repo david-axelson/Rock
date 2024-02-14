@@ -126,7 +126,7 @@ namespace Rock.CheckIn.v2.Filters
         /// <param name="minimumAge">The minimum age.</param>
         /// <param name="maximumAge">The maximum age.</param>
         /// <param name="isAgeRequired">if set to <c>true</c> and no age is provided then <c>false</c> will be returned.</param>
-        /// <returns><c>true</c> if <paramref name="age"/> matches <paramref name="minimumAge"/> and <paramref name="maximumAge"/>, <c>false</c> otherwise.</returns>
+        /// <returns><c>true</c> if <paramref name="age"/> matches <paramref name="minimumAge"/> and <paramref name="maximumAge"/>, <c>false</c> if it doesn't or <c>null</c> it could not be determined.</returns>
         protected static bool? CheckAgeMatches( decimal? age, decimal? minimumAge, decimal? maximumAge, bool isAgeRequired )
         {
             if ( !minimumAge.HasValue && !maximumAge.HasValue )

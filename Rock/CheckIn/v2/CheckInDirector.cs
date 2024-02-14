@@ -552,7 +552,8 @@ namespace Rock.CheckIn.v2
         {
             return new[]
             {
-                typeof( CheckInByAgeOptionsFilter )
+                typeof( CheckInByAgeOptionsFilter ),
+                typeof( CheckInByGradeOptionsFilter )
             };
             // Filter Groups:
             //  1. Filter By Age DONE
