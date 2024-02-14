@@ -553,13 +553,14 @@ namespace Rock.CheckIn.v2
             return new[]
             {
                 typeof( CheckInByAgeOptionsFilter ),
-                typeof( CheckInByGradeOptionsFilter )
+                typeof( CheckInByGradeOptionsFilter ),
+                typeof( CheckInByGenderOptionsFilter )
             };
             // Filter Groups:
             //  1. Filter By Age DONE
-            //  2. Filter By Grade
-            //  3. Filter By Gender
-            //  4. Filter by Group Membership (do this last since it requires a query)
+            //  2. Filter By Grade DONE
+            //  3. Filter By Gender DONE
+            //  4. Filter by Group Membership (do this late since it requires a query)
             //  5. Filter By DataView
         }
 

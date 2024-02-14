@@ -19,6 +19,7 @@ using System;
 
 using Rock.Attribute;
 using Rock.Data;
+using Rock.Model;
 using Rock.Web.Cache;
 
 namespace Rock.CheckIn.v2
@@ -78,6 +79,13 @@ namespace Rock.CheckIn.v2
         /// <value>The maximum grade offset requirement.</value>
         public int? MaximumGradeOffset { get; }
 
+        /// <summary>
+        /// Gets the gender that an individual must be in order to check-in to
+        /// this group or <c>null</c> if there is no requirement.
+        /// </summary>
+        /// <value>The required gender.</value>
+        public Gender? Gender { get; }
+
         #endregion
 
         #region Constructors
@@ -92,6 +100,7 @@ namespace Rock.CheckIn.v2
             (MinimumAge, MaximumAge) = GetAgeRange( groupCache );
             (MinimumBirthdate, MaximumBirthdate) = GetBirthdateRange( groupCache );
             (MinimumGradeOffset, MaximumGradeOffset) = GetGradeOffsetRange( groupCache );
+            Gender = groupCache.GetAttributeValue( "Gender" ).ConvertToEnumOrNull<Gender>();
         }
 
         #endregion

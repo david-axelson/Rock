@@ -813,6 +813,7 @@
     <Compile Include="CheckIn\v2\CheckInMessageException.cs" />
     <Compile Include="CheckIn\v2\CheckInOptions.cs" />
     <Compile Include="CheckIn\v2\Filters\CheckInByAgeOptionsFilter.cs" />
+    <Compile Include="CheckIn\v2\Filters\CheckInByGenderOptionsFilter.cs" />
     <Compile Include="CheckIn\v2\Filters\CheckInByGradeOptionsFilter.cs" />
     <Compile Include="CheckIn\v2\Filters\CheckInPersonOptionsFilter.cs" />
     <Compile Include="CheckIn\v2\CheckInScheduleItem.cs" />

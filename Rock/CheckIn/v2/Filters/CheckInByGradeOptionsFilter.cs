@@ -15,8 +15,6 @@
 // </copyright>
 //
 
-using System;
-
 namespace Rock.CheckIn.v2.Filters
 {
     /// <summary>

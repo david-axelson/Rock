@@ -196,7 +196,7 @@ namespace Rock.Rest.v2.Controllers
 
                 return Ok( new
                 {
-                    CloneTime = sw.Elapsed.TotalMilliseconds,
+                    Time = sw.Elapsed.TotalMilliseconds,
                     Members = familyMembers,
                     Options = checkInOptions
                 } );
