@@ -33,6 +33,12 @@ namespace Rock.ViewModels.CheckIn
         public Guid Guid { get; set; }
 
         /// <summary>
+        /// Gets or sets the identifier key of the Person.
+        /// </summary>
+        /// <value>The identifier key of the Person.</value>
+        public string IdKey { get; set; }
+
+        /// <summary>
         /// Gets or sets the person's nick name.
         /// </summary>
         /// <value>The person's nick name.</value>

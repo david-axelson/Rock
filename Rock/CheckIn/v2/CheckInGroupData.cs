@@ -16,6 +16,7 @@
 //
 
 using System;
+using System.Collections.Generic;
 
 using Rock.Attribute;
 using Rock.Data;
@@ -80,6 +81,13 @@ namespace Rock.CheckIn.v2
         public int? MaximumGradeOffset { get; }
 
         /// <summary>
+        /// Gets the data view unique identifiers for this group. An individual
+        /// must be a member of all of these data views.
+        /// </summary>
+        /// <value>The data view unique identifiers.</value>
+        public IReadOnlyCollection<Guid> DataViewGuids { get; }
+
+        /// <summary>
         /// Gets the gender that an individual must be in order to check-in to
         /// this group or <c>null</c> if there is no requirement.
         /// </summary>
@@ -101,6 +109,7 @@ namespace Rock.CheckIn.v2
             (MinimumBirthdate, MaximumBirthdate) = GetBirthdateRange( groupCache );
             (MinimumGradeOffset, MaximumGradeOffset) = GetGradeOffsetRange( groupCache );
             Gender = groupCache.GetAttributeValue( "Gender" ).ConvertToEnumOrNull<Gender>();
+            DataViewGuids = groupCache.GetAttributeValue( "DataView" ).SplitDelimitedValues().AsGuidList();
         }
 
         #endregion

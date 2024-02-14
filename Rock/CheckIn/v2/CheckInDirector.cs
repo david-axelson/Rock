@@ -25,6 +25,7 @@ using Rock.CheckIn.v2.Filters;
 using Rock.Data;
 using Rock.Enums.CheckIn;
 using Rock.Model;
+using Rock.Utility;
 using Rock.ViewModels.CheckIn;
 using Rock.Web.Cache;
 
@@ -202,6 +203,7 @@ namespace Rock.CheckIn.v2
                     CampusGuid = gm.Group.Campus.Guid,
                     RoleOrder = gm.GroupRole.Order,
                     gm.Person.Guid,
+                    gm.Person.Id,
                     gm.Person.BirthYear,
                     gm.Person.BirthMonth,
                     gm.Person.BirthDay,
@@ -234,6 +236,7 @@ namespace Rock.CheckIn.v2
                             .Select( fm => new FamilyMemberSearchItemBag
                             {
                                 Guid = fm.Guid,
+                                IdKey = IdHasher.Instance.GetHash( fm.Id ),
                                 NickName = fm.NickName,
                                 LastName = fm.LastName,
                                 RoleOrder = fm.RoleOrder,
@@ -316,6 +319,7 @@ namespace Rock.CheckIn.v2
                 var familyMember = new FamilyMemberBag
                 {
                     Guid = member.Person.Guid,
+                    IdKey = IdHasher.Instance.GetHash( member.Person.Id ),
                     FamilyGuid = member.GroupGuid,
                     FirstName = member.Person.FirstName,
                     NickName = member.Person.NickName,
@@ -556,14 +560,9 @@ namespace Rock.CheckIn.v2
                 typeof( CheckInByAgeOptionsFilter ),
                 typeof( CheckInByGradeOptionsFilter ),
                 typeof( CheckInByGenderOptionsFilter ),
-                typeof( CheckInByMembershipOptionsFilter )
+                typeof( CheckInByMembershipOptionsFilter ),
+                typeof( CheckInByDataViewOptionsFilter )
             };
-            // Filter Groups:
-            //  1. Filter By Age DONE
-            //  2. Filter By Grade DONE
-            //  3. Filter By Gender DONE
-            //  4. Filter by Group Membership (do this late since it requires a query) DONE
-            //  5. Filter By DataView
         }
 
         /// <summary>

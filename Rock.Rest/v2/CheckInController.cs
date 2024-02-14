@@ -182,21 +182,23 @@ namespace Rock.Rest.v2.Controllers
                 var areas = options.AreaGuids.Select( guid => GroupTypeCache.Get( guid, _rockContext ) ).ToList();
                 var familyMembersQry = director.GetFamilyMembersForCheckInQuery( options.FamilyGuid, configuration );
                 var familyMembers = director.GetFamilyMemberBags( options.FamilyGuid, familyMembersQry );
-
                 var checkInOptions = director.GetAllCheckInOptions( areas, kiosk, null );
+                var configData = configuration.GetCheckInConfiguration( _rockContext );
 
                 var sw = System.Diagnostics.Stopwatch.StartNew();
-                var configData = configuration.GetCheckInConfiguration( _rockContext );
-                for ( int i = 0; i < 1000; i++ )
+                for ( int i = 0; i < 100; i++ )
                 {
                     var clonedOptions = director.CloneOptions( checkInOptions );
                     director.FilterOptionsForPerson( clonedOptions, familyMembers[0], configData );
                 }
                 sw.Stop();
 
+                director.FilterOptionsForPerson( checkInOptions, familyMembers[0], configData );
+
                 return Ok( new
                 {
-                    Time = sw.Elapsed.TotalMilliseconds,
+                    TotalTime = sw.Elapsed.TotalMilliseconds,
+                    PerTime = sw.Elapsed.TotalMilliseconds / 100,
                     Members = familyMembers,
                     Options = checkInOptions
                 } );
