@@ -117,67 +117,61 @@ namespace Rock.Web.Cache
             CheckInEndOffsetMinutes = schedule.CheckInEndOffsetMinutes;
         }
 
-        /// <inheritdoc cref="Rock.Model.Schedule.GetICalOccurrences(DateTime, DateTime?, DateTime?)" />
-        public IList<Ical.Net.DataTypes.Occurrence> GetICalOccurrences( DateTime beginDateTime, DateTime? endDateTime, DateTime? scheduleStartDateTimeOverride )
-        {
-            return InetCalendarHelper.GetOccurrences( CalendarContent, beginDateTime, endDateTime, scheduleStartDateTimeOverride );
-        }
-
         /// <summary>
-        /// Returns value indicating if check-in was active at the specified time.
+        /// Gets the calendar event. This ensures we only create it one time.
         /// </summary>
-        /// <param name="time">The time.</param>
-        /// <returns></returns>
-        public bool WasCheckInActive( DateTime time )
+        /// <returns>An instance of <see cref="Ical.Net.CalendarComponents.CalendarEvent"/>.</returns>
+        private Ical.Net.CalendarComponents.CalendarEvent GetCalendarEvent()
         {
-            if ( !( CheckInStartOffsetMinutes.HasValue && IsActive ) )
-            {
-                return false;
-            }
-
             if ( _calendarEvent == null )
             {
                 _calendarEvent = InetCalendarHelper.CreateCalendarEvent( CalendarContent );
             }
 
-            var calEvent = _calendarEvent;
+            return _calendarEvent;
+        }
 
-            if ( calEvent != null && calEvent.DtStart != null )
+        /// <summary>
+        /// Returns value indicating if the schedule was active at the specified time.
+        /// </summary>
+        /// <param name="time">The time at which to use when determining if check-in was active.</param>
+        /// <returns><c>true</c> if the schedule was active; <c>false</c> otherwise.</returns>
+        public bool WasScheduleActive( DateTime time )
+        {
+            return Schedule.WasScheduleActive( time,
+                GetCalendarEvent(),
+                CategoryId,
+                CalendarContent );
+        }
+
+        /// <summary>
+        /// Returns value indicating if check-in was active at the specified time.
+        /// </summary>
+        /// <param name="time">The time at which to use when determining if check-in was active.</param>
+        /// <returns><c>true</c> if the schedule was active; <c>false</c> otherwise.</returns>
+        public bool WasCheckInActive( DateTime time )
+        {
+            if ( !CheckInStartOffsetMinutes.HasValue || !IsActive )
             {
-                // Is the current time earlier the event's allowed check-in window?
-                var checkInStart = calEvent.DtStart.AddMinutes( 0 - CheckInStartOffsetMinutes.Value );
-                if ( time.TimeOfDay.TotalSeconds < checkInStart.Value.TimeOfDay.TotalSeconds )
-                {
-                    return false;
-                }
-
-                var checkInEnd = calEvent.DtEnd;
-                if ( CheckInEndOffsetMinutes.HasValue )
-                {
-                    checkInEnd = calEvent.DtStart.AddMinutes( CheckInEndOffsetMinutes.Value );
-                }
-
-                // If compare is greater than zero, then check-in offset end resulted in an end time in next day, in 
-                // which case, don't need to compare time
-                int checkInEndDateCompare = checkInEnd.Date.CompareTo( checkInStart.Date );
-
-                if ( checkInEndDateCompare < 0 )
-                {
-                    // End offset is prior to start (Would have required a neg number entered)
-                    return false;
-                }
-
-                // Is the current time later then the event's allowed check-in window?
-                if ( checkInEndDateCompare == 0 && time.TimeOfDay.TotalSeconds > checkInEnd.Value.TimeOfDay.TotalSeconds )
-                {
-                    // Same day, but end time has passed
-                    return false;
-                }
-
-                return GetICalOccurrences( time.Date, null, null ).Count > 0;
+                return false;
             }
 
-            return false;
+            return Schedule.WasCheckInActive( time,
+                GetCalendarEvent(),
+                CheckInStartOffsetMinutes.Value,
+                CheckInEndOffsetMinutes,
+                CategoryId,
+                CalendarContent );
+        }
+
+        /// <summary>
+        /// Returns value indicating if check-in was active at a current time for this schedule.
+        /// </summary>
+        /// <param name="time">The time at which to use when determining if check-in was active.</param>
+        /// <returns><c>true</c> if the schedule was active; <c>false</c> otherwise.</returns>
+        public bool WasScheduleOrCheckInActive( DateTime time )
+        {
+            return WasScheduleActive( time ) || WasCheckInActive( time );
         }
 
         /// <inheritdoc/>
