@@ -694,69 +694,6 @@ namespace Rock.CheckIn.v2
                 .ToList();
         }
 
-        /// <summary>
-        /// Clones the options. This creates an entirely new options bag as well
-        /// as new instances of every object it contains. The new options bag
-        /// can be modified at will without affecting the original bag. It seems
-        /// like we are doing a lot, but this is insanely fast, clocking in at
-        /// 6ns per call.
-        /// </summary>
-        /// <remarks>TODO: This should be an extension method.</remarks>
-        /// <param name="options">The options to be cloned.</param>
-        /// <returns>A new instance of <see cref="CheckInOptions"/>.</returns>
-        public CheckInOptions CloneOptions( CheckInOptions options )
-        {
-            var clonedOptions = new CheckInOptions
-            {
-                AbilityLevels = options.AbilityLevels
-                    .Select( al => new CheckInAbilityLevelItem
-                    {
-                        Guid = al.Guid,
-                        Name = al.Name
-                    } )
-                    .ToList(),
-                Areas = options.Areas
-                    .Select( a => new CheckInAreaItem
-                    {
-                        Guid = a.Guid,
-                        Name = a.Name
-                    } )
-                    .ToList(),
-                Groups = options.Groups
-                    .Select( g => new CheckInGroupItem
-                    {
-                        Guid = g.Guid,
-                        Name = g.Name,
-                        AbilityLevelGuid = g.AbilityLevelGuid,
-                        AreaGuid = g.AreaGuid,
-                        CheckInData = g.CheckInData,
-                        CheckInAreaData = g.CheckInAreaData,
-                        LocationGuids = g.LocationGuids.ToList()
-                    } )
-                    .ToList(),
-                Locations = options.Locations
-                    .Select( l => new CheckInLocationItem
-                    {
-                        Guid = l.Guid,
-                        Name = l.Name,
-                        CurrentCount = l.CurrentCount,
-                        Capacity = l.Capacity,
-                        CurrentPersonGuids = new HashSet<Guid>( l.CurrentPersonGuids ),
-                        ScheduleGuids = l.ScheduleGuids.ToList().ToList()
-                    } )
-                    .ToList(),
-                Schedules = options.Schedules
-                    .Select( s => new CheckInScheduleItem
-                    {
-                        Guid = s.Guid,
-                        Name = s.Name
-                    } )
-                    .ToList()
-            };
-
-            return clonedOptions;
-        }
-
         #endregion
 
         #region Internal Methods
@@ -972,17 +909,56 @@ namespace Rock.CheckIn.v2
             var attendanceService = new AttendanceService( _rockContext );
             var todayDate = now.Date;
 
-            var attendances = attendanceService.Queryable()
+            if ( locationIds.Count == 0 )
+            {
+                return new Dictionary<Guid, HashSet<Guid>>();
+            }
+
+            var attendancesQry = attendanceService.Queryable()
                 .Where( a =>
                     a.Occurrence.OccurrenceDate == todayDate
                     && a.Occurrence.LocationId.HasValue
                     && a.Occurrence.GroupId.HasValue
                     && a.Occurrence.ScheduleId.HasValue
-                    && locationIds.Contains( a.Occurrence.LocationId.Value )
+                    //&& locationIds.Contains( a.Occurrence.LocationId.Value )
                     && a.PersonAliasId.HasValue
                     && a.DidAttend.HasValue
                     && a.DidAttend.Value
-                    && !a.EndDateTime.HasValue )
+                    && !a.EndDateTime.HasValue );
+
+            /*  02-12-2024 DSH
+
+              Build LINQ expression 'locationIds.Contains( a.Occurrence.LocationId.Value )'
+              manually. If EF sees a List<>.Contains() call then it won't re-use
+              the cache and has to re-create the SQL statement each time. This
+              costs about 15-20ms. Considering this query will otherwise take
+              only about 1-2ms, that is a lot of overhead.
+           */
+            Expression<Func<Attendance, bool>> predicate = null;
+            var aParameter = Expression.Parameter( typeof( Attendance ), "a" );
+
+            foreach ( var locationId in locationIds )
+            {
+                // Don't use LinqPredicateBuilder as that will cause a SQL
+                // parameter to be generated for each comparison. Since we
+                // are not in control of how many items are in the list we
+                // could run out of parameters. So build it with constant
+                // values instead. Too manyLINQ parameters and we hit a stack
+                // overflow crash.
+                var occurrenceProperty = Expression.Property( aParameter, nameof( Attendance.Occurrence ) );
+                var locationIdProperty = Expression.Property( occurrenceProperty, nameof( Attendance.Occurrence.LocationId ) );
+                var locationIdValueProperty = Expression.Property( locationIdProperty, nameof( Attendance.Occurrence.LocationId.Value ) );
+                var equalExpr = Expression.Equal( locationIdValueProperty, Expression.Constant( locationId ) );
+                var expression = Expression.Lambda<Func<Attendance, bool>>( equalExpr, aParameter );
+
+                predicate = predicate != null
+                    ? predicate.Or( expression )
+                    : expression;
+            }
+
+            attendancesQry = attendancesQry.Where( predicate );
+
+            var attendances = attendancesQry
                 .Select( a => new
                 {
                     LocationGuid = a.Occurrence.Location.Guid,
@@ -1247,7 +1223,8 @@ namespace Rock.CheckIn.v2
                 // parameter to be generated for each comparison. Since we
                 // are not in control of how many items are in the list we
                 // could run out of parameters. So build it with constant
-                // values instead.
+                // values instead. Too many LINQ parameters and we hit a stack
+                // overflow crash.
                 var propExpr = Expression.Property( gmParameter, nameof( GroupMember.GroupRoleId ) );
                 var equalExpr = Expression.Equal( propExpr, Expression.Constant( roleId ) );
                 var expression = Expression.Lambda<Func<GroupMember, bool>>( equalExpr, gmParameter );

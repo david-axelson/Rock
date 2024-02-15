@@ -15,7 +15,9 @@
 // </copyright>
 //
 
+using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Rock.CheckIn.v2
 {
@@ -26,6 +28,8 @@ namespace Rock.CheckIn.v2
     /// </summary>
     internal class CheckInOptions
     {
+        #region Properties
+
         /// <summary>
         /// Gets or sets the ability levels available to select from.
         /// </summary>
@@ -55,5 +59,72 @@ namespace Rock.CheckIn.v2
         /// </summary>
         /// <value>The list of schedules.</value>
         public List<CheckInScheduleItem> Schedules { get; set; }
+
+        #endregion
+
+        #region Methods
+
+        /// <summary>
+        /// Clones this instance. This creates an entirely new options instance
+        /// as well as new instances of every object it contains. The new options
+        /// can be modified at will without affecting the original. It seems
+        /// like we are doing a lot, but this is insanely fast, clocking in at
+        /// 6ns per call.
+        /// </summary>
+        /// <returns>A new instance of <see cref="CheckInOptions"/>.</returns>
+        public CheckInOptions Clone()
+        {
+            var clonedOptions = new CheckInOptions
+            {
+                AbilityLevels = AbilityLevels
+                    .Select( al => new CheckInAbilityLevelItem
+                    {
+                        Guid = al.Guid,
+                        Name = al.Name
+                    } )
+                    .ToList(),
+                Areas = Areas
+                    .Select( a => new CheckInAreaItem
+                    {
+                        Guid = a.Guid,
+                        Name = a.Name
+                    } )
+                    .ToList(),
+                Groups = Groups
+                    .Select( g => new CheckInGroupItem
+                    {
+                        Guid = g.Guid,
+                        Name = g.Name,
+                        AbilityLevelGuid = g.AbilityLevelGuid,
+                        AreaGuid = g.AreaGuid,
+                        CheckInData = g.CheckInData,
+                        CheckInAreaData = g.CheckInAreaData,
+                        LocationGuids = g.LocationGuids.ToList()
+                    } )
+                    .ToList(),
+                Locations = Locations
+                    .Select( l => new CheckInLocationItem
+                    {
+                        Guid = l.Guid,
+                        Name = l.Name,
+                        CurrentCount = l.CurrentCount,
+                        Capacity = l.Capacity,
+                        CurrentPersonGuids = new HashSet<Guid>( l.CurrentPersonGuids ),
+                        ScheduleGuids = l.ScheduleGuids.ToList().ToList()
+                    } )
+                    .ToList(),
+                Schedules = Schedules
+                    .Select( s => new CheckInScheduleItem
+                    {
+                        Guid = s.Guid,
+                        Name = s.Name
+                    } )
+                    .ToList()
+            };
+
+            return clonedOptions;
+        }
+
+        #endregion
     }
 }
