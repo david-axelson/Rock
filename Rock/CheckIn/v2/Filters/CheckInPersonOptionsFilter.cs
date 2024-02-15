@@ -15,35 +15,39 @@
 // </copyright>
 //
 
-using Rock.Data;
+using System;
+
+using Rock.Utility;
 using Rock.ViewModels.CheckIn;
 
 namespace Rock.CheckIn.v2.Filters
 {
     /// <summary>
-    /// A basic check-in filter that includes everything.
+    /// A basic check-in filter that includes the person being filtered for.
     /// </summary>
-    internal abstract class CheckInPersonOptionsFilter : ICheckInOptionsPersonFilter
+    internal abstract class CheckInPersonOptionsFilter : CheckInOptionsFilter, ICheckInPersonOptionsFilter
     {
         #region Properties
 
         /// <inheritdoc/>
-        public CheckInConfigurationData Configuration { get; set; }
-
-        /// <inheritdoc/>
-        public RockContext RockContext { get; set; }
-
-        /// <inheritdoc/>
         public FamilyMemberBag Person { get; set; }
+
+        /// <summary>
+        /// Gets the person identifier.
+        /// </summary>
+        /// <value>The person identifier.</value>
+        protected Lazy<int> PersonId { get; }
 
         #endregion
 
-        #region Methods
+        #region Constructors
 
-        /// <inheritdoc/>
-        public virtual bool IsGroupValid( CheckInGroupItem group )
+        /// <summary>
+        /// Initializes a new instance of the <see cref="CheckInPersonOptionsFilter"/> class.
+        /// </summary>
+        public CheckInPersonOptionsFilter()
         {
-            return true;
+            PersonId = new Lazy<int>( () => IdHasher.Instance.GetId( Person.IdKey ) ?? 0 );
         }
 
         #endregion

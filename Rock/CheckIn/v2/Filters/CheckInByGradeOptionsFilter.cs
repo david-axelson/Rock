@@ -20,12 +20,12 @@ namespace Rock.CheckIn.v2.Filters
     /// <summary>
     /// Performs filtering of check-in options based on the person's grade.
     /// </summary>
-    internal class CheckInByGradeOptionsFilter : CheckInPersonOptionsFilter
+    internal class CheckInByGradeOptionsFilter : CheckInPersonOptionsFilter, ICheckInOptionsGroupFilter
     {
         #region Methods
 
         /// <inheritdoc/>
-        public override bool IsGroupValid( CheckInGroupItem group )
+        public bool IsGroupValid( CheckInGroupItem group )
         {
             var gradeRangeMatch = CheckGradeMatches( Person.GradeOffset,
                 group.CheckInData.MinimumGradeOffset,

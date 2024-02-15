@@ -22,7 +22,7 @@ namespace Rock.CheckIn.v2.Filters
     /// <summary>
     /// Performs filtering of check-in options based on the person's age.
     /// </summary>
-    internal class CheckInByAgeOptionsFilter : CheckInPersonOptionsFilter
+    internal class CheckInByAgeOptionsFilter : CheckInPersonOptionsFilter, ICheckInOptionsGroupFilter
     {
         #region Properties
 
@@ -58,7 +58,7 @@ namespace Rock.CheckIn.v2.Filters
         #region Methods
 
         /// <inheritdoc/>
-        public override bool IsGroupValid( CheckInGroupItem group )
+        public bool IsGroupValid( CheckInGroupItem group )
         {
             var ageRangeMatch = CheckAgeMatches( PersonAge.Value,
                 group.CheckInData.MinimumAge,

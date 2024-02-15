@@ -15,25 +15,18 @@
 // </copyright>
 //
 
-using Rock.Data;
-
 namespace Rock.CheckIn.v2
 {
     /// <summary>
-    /// Provides functionality to filter check-in options.
+    /// Provides functionality to filter check-in groups.
     /// </summary>
-    internal interface ICheckInOptionsFilter
+    internal interface ICheckInOptionsGroupFilter
     {
         /// <summary>
-        /// Gets or sets the check-in configuration.
+        /// Determines whether the specified group is valid for check-in.
         /// </summary>
-        /// <value>The check-in configuration.</value>
-        CheckInConfigurationData Configuration { get; set; }
-
-        /// <summary>
-        /// Gets or sets the context to use if database access is needed.
-        /// </summary>
-        /// <value>The context to use if database access is needed.</value>
-        RockContext RockContext { get; set; }
+        /// <param name="group">The group.</param>
+        /// <returns><c>true</c> if the group is valid; otherwise, <c>false</c>.</returns>
+        bool IsGroupValid( CheckInGroupItem group );
     }
 }

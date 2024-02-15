@@ -36,7 +36,7 @@ namespace Rock.CheckIn.v2
     /// place to interface with check-in so that all logic is centralized
     /// and not duplicated.
     /// </summary>
-    internal sealed class CheckInDirector
+    internal class CheckInDirector
     {
         #region Fields
 
@@ -471,12 +471,12 @@ namespace Rock.CheckIn.v2
             {
                 var location = NamedLocationCache.Get( grp.Key, _rockContext );
                 var locationScheduleIds = new HashSet<int>( grp.SelectMany( gl => gl.ScheduleIds ).Distinct() );
-                var locationCount = locationCounts.GetValueOrDefault( location.Guid, 0 );
+                var attendeeGuids = locationCounts.GetValueOrDefault( location.Guid, new HashSet<Guid>() );
 
                 // Check if this room is at all valid. If it is over the firm
                 // threshold then not even an override is allowed.
                 var isThresholdExceeded = location.FirmRoomThreshold.HasValue
-                    && locationCount > location.FirmRoomThreshold.Value;
+                    && attendeeGuids.Count > location.FirmRoomThreshold.Value;
 
                 if ( isThresholdExceeded )
                 {
@@ -489,8 +489,9 @@ namespace Rock.CheckIn.v2
                 {
                     Guid = location.Guid,
                     Name = location.Name,
-                    CurrentCount = locationCount,
+                    CurrentCount = attendeeGuids.Count,
                     Capacity = location.SoftRoomThreshold,
+                    CurrentPersonGuids = attendeeGuids,
                     ScheduleGuids = activeSchedules.Where( s => locationScheduleIds.Contains( s.Id ) ).Select( s => s.Guid ).ToList()
                 } );
             }
@@ -536,54 +537,90 @@ namespace Rock.CheckIn.v2
         /// <param name="configuration">The check-inconfiguration.</param>
         public void FilterOptionsForPerson( CheckInOptions options, FamilyMemberBag person, CheckInConfigurationData configuration )
         {
-            var groupFilters = GetPersonOptionsFilters( person, configuration );
+            var groupFilters = GetGroupFilters( configuration, person );
 
             options.Groups = options.Groups
                 .Where( g => groupFilters.All( f => f.IsGroupValid( g ) ) )
                 .ToList();
 
+            var locationFilters = GetLocationFilters( configuration, person );
 
-            // Filter Locations:
-            //  1. Filter By Threshold (capacity)
+            options.Locations = options.Locations
+                .Where( l => locationFilters.All( f => f.IsLocationValid( l ) ) )
+                .ToList();
 
-            // Remove Empty Options
+            RemoveEmptyOptions( options, person, configuration );
         }
 
         /// <summary>
-        /// Gets the filters to use when filtering options for the specified
-        /// person.
+        /// Removes any option items that are "empty". Meaning, if a group has
+        /// no locations then it can't be available as a choice so it will be
+        /// removed.
         /// </summary>
-        /// <param name="person">The person to filter options for.</param>
+        /// <param name="options">The options to be cleaned up.</param>
+        /// <param name="person">The person involved in the check-in, may be <c>null</c>.</param>
         /// <param name="configuration">The check-in configuration.</param>
-        /// <returns>A list of <see cref="ICheckInOptionsFilter"/> objects that will perform filtering logic.</returns>
-        private List<ICheckInOptionsFilter> GetPersonOptionsFilters( FamilyMemberBag person, CheckInConfigurationData configuration )
+        protected virtual void RemoveEmptyOptions( CheckInOptions options, FamilyMemberBag person, CheckInConfigurationData configuration )
         {
-            return GetPersonOptionsFilterTypes( configuration )
-                .Where( t => typeof( ICheckInOptionsFilter ).IsAssignableFrom( t ) )
-                .Select( t =>
-                {
-                    var filter = ( ICheckInOptionsFilter ) Activator.CreateInstance( t );
+            // Start at the "bottom" and work our way up. So first remove all
+            // locations without schedules.
+            var allScheduleGuids = new HashSet<Guid>( options.Schedules.Select( s => s.Guid ) );
+            var allReferencedLocationGuids = new HashSet<Guid>( options.Groups.SelectMany( g => g.LocationGuids ) );
 
-                    filter.Configuration = configuration;
-                    filter.RockContext = _rockContext;
+            foreach ( var location in options.Locations )
+            {
+                location.ScheduleGuids = location.ScheduleGuids
+                    .Where( scheduleGuid => allScheduleGuids.Contains( scheduleGuid ) )
+                    .ToList();
+            }
 
-                    if ( filter is ICheckInOptionsPersonFilter personFilter )
-                    {
-                        personFilter.Person = person;
-                    }
+            options.Locations = options.Locations
+                .Where( l => l.ScheduleGuids.Count > 0
+                    && allReferencedLocationGuids.Contains( l.Guid ) )
+                .ToList();
 
-                    return filter;
-                } )
+            // Next remove all groups without locations.
+            var allLocationGuids = new HashSet<Guid>( options.Locations.Select( l => l.Guid ) );
+
+            foreach ( var group in options.Groups )
+            {
+                group.LocationGuids = group.LocationGuids
+                    .Where( locationGuid => allLocationGuids.Contains( locationGuid ) )
+                    .ToList();
+            }
+
+            options.Groups = options.Groups
+                .Where( g => g.LocationGuids.Count > 0 )
+                .ToList();
+
+            // Finally remove all areas without groups.
+            var allReferencedAreaGuids = new HashSet<Guid>( options.Groups.Select( g => g.AreaGuid ) );
+
+            options.Areas = options.Areas
+                .Where( a => allReferencedAreaGuids.Contains( a.Guid ) )
                 .ToList();
         }
 
         /// <summary>
+        /// Gets the filters to use when filtering options for a specific group.
+        /// </summary>
+        /// <param name="configuration">The check-in configuration.</param>
+        /// <param name="person">The person to filter options for.</param>
+        /// <returns>A list of <see cref="ICheckInOptionsFilter"/> objects that will perform filtering logic.</returns>
+        private List<ICheckInOptionsGroupFilter> GetGroupFilters( CheckInConfigurationData configuration, FamilyMemberBag person )
+        {
+            var types = GetGroupFilterTypes( configuration );
+
+            return GetOptionsFilters<ICheckInOptionsGroupFilter>( types, configuration, person );
+        }
+
+        /// <summary>
         /// Gets the filter type definitions to use when filtering options for
-        /// a specified person.
+        /// groups.
         /// </summary>
         /// <param name="configuration">The check-in configuration.</param>
         /// <returns>A collection of <see cref="Type"/> objects.</returns>
-        private IReadOnlyCollection<Type> GetPersonOptionsFilterTypes( CheckInConfigurationData configuration )
+        protected virtual IReadOnlyCollection<Type> GetGroupFilterTypes( CheckInConfigurationData configuration )
         {
             return new[]
             {
@@ -593,6 +630,68 @@ namespace Rock.CheckIn.v2
                 typeof( CheckInByMembershipOptionsFilter ),
                 typeof( CheckInByDataViewOptionsFilter )
             };
+        }
+
+        /// <summary>
+        /// Gets the filters to use when filtering options for a specific location.
+        /// </summary>
+        /// <param name="configuration">The check-in configuration.</param>
+        /// <param name="person">The person to filter options for.</param>
+        /// <returns>A list of <see cref="ICheckInOptionsFilter"/> objects that will perform filtering logic.</returns>
+        private List<ICheckInOptionsLocationFilter> GetLocationFilters( CheckInConfigurationData configuration, FamilyMemberBag person )
+        {
+            var types = GetLocationFilterTypes( configuration );
+
+            return GetOptionsFilters<ICheckInOptionsLocationFilter>( types, configuration, person );
+        }
+
+        /// <summary>
+        /// Gets the filter type definitions to use when filtering options for
+        /// locations.
+        /// </summary>
+        /// <param name="configuration">The check-in configuration.</param>
+        /// <returns>A collection of <see cref="Type"/> objects.</returns>
+        protected virtual IReadOnlyCollection<Type> GetLocationFilterTypes( CheckInConfigurationData configuration )
+        {
+            return new[]
+            {
+                typeof( CheckInThresholdOptionsFilter )
+            };
+        }
+
+        /// <summary>
+        /// Gets the options filters specified by the types. This filters will
+        /// be properly initialized before returning.
+        /// </summary>
+        /// <typeparam name="T">The expected type that the filters must conform to.</typeparam>
+        /// <param name="filterTypes">The filter types.</param>
+        /// <param name="configuration">The check-in configuration.</param>
+        /// <param name="person">The person to filter for.</param>
+        /// <returns>A collection of filter instances.</returns>
+        private List<T> GetOptionsFilters<T>( IReadOnlyCollection<Type> filterTypes, CheckInConfigurationData configuration, FamilyMemberBag person )
+        {
+            var expectedType = typeof( T );
+
+            return filterTypes
+                .Where( t => expectedType.IsAssignableFrom( t ) )
+                .Select( t =>
+                {
+                    var filter = ( T ) Activator.CreateInstance( t );
+
+                    if ( filter is ICheckInOptionsFilter optionsFilter )
+                    {
+                        optionsFilter.Configuration = configuration;
+                        optionsFilter.RockContext = _rockContext;
+                    }
+
+                    if ( filter is ICheckInPersonOptionsFilter personFilter )
+                    {
+                        personFilter.Person = person;
+                    }
+
+                    return filter;
+                } )
+                .ToList();
         }
 
         /// <summary>
@@ -632,7 +731,7 @@ namespace Rock.CheckIn.v2
                         AreaGuid = g.AreaGuid,
                         CheckInData = g.CheckInData,
                         CheckInAreaData = g.CheckInAreaData,
-                        LocationGuids = g.LocationGuids
+                        LocationGuids = g.LocationGuids.ToList()
                     } )
                     .ToList(),
                 Locations = options.Locations
@@ -642,7 +741,8 @@ namespace Rock.CheckIn.v2
                         Name = l.Name,
                         CurrentCount = l.CurrentCount,
                         Capacity = l.Capacity,
-                        ScheduleGuids = l.ScheduleGuids.ToList()
+                        CurrentPersonGuids = new HashSet<Guid>( l.CurrentPersonGuids ),
+                        ScheduleGuids = l.ScheduleGuids.ToList().ToList()
                     } )
                     .ToList(),
                 Schedules = options.Schedules
@@ -863,11 +963,11 @@ namespace Rock.CheckIn.v2
         /// <param name="locationIds">The location identifiers.</param>
         /// <param name="now">The current timestamp to use for attendance calculation.</param>
         /// <returns>
-        /// A dictionary of location unique identifier keys and the number of
-        /// active attendance records. No value will be available if there are
-        /// not any attendance records for the location.
+        /// A dictionary of location unique identifier keys and the unique
+        /// identifiers of the people in the location. No value will be available
+        /// if there are not any attendance records for the location.
         /// </returns>
-        internal Dictionary<Guid, int> GetCountsForLocations( IReadOnlyCollection<int> locationIds, DateTime now )
+        internal Dictionary<Guid, HashSet<Guid>> GetCountsForLocations( IReadOnlyCollection<int> locationIds, DateTime now )
         {
             var attendanceService = new AttendanceService( _rockContext );
             var todayDate = now.Date;
@@ -890,7 +990,7 @@ namespace Rock.CheckIn.v2
                     a.CampusId,
                     a.StartDateTime,
                     a.EndDateTime,
-                    a.PersonAlias.PersonId
+                    PersonGuid = a.PersonAlias.Person.Guid
                 } )
                 .ToList();
 
@@ -915,7 +1015,7 @@ namespace Rock.CheckIn.v2
 
             return activeAttendances
                 .GroupBy( a => a.LocationGuid )
-                .ToDictionary( grp => grp.Key, grp => grp.Select( a => a.PersonId ).Distinct().Count() );
+                .ToDictionary( grp => grp.Key, grp => new HashSet<Guid>( grp.Select( a => a.PersonGuid ) ) );
         }
 
         #endregion

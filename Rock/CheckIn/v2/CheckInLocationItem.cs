@@ -15,6 +15,9 @@
 // </copyright>
 //
 
+using System;
+using System.Collections.Generic;
+
 using Rock.ViewModels.CheckIn;
 
 namespace Rock.CheckIn.v2
@@ -22,12 +25,8 @@ namespace Rock.CheckIn.v2
     /// <summary>
     /// A representation of a single location that can be used for check-in.
     /// </summary>
-    /// <remarks>
-    /// This exists for future compatibility so if we need to add any
-    /// properties we don't need to create a new type and invalidate all
-    /// existing method signatures.
-    /// </remarks>
     internal class CheckInLocationItem : CheckInLocationItemBag
     {
+        public HashSet<Guid> CurrentPersonGuids { get; set; }
     }
 }

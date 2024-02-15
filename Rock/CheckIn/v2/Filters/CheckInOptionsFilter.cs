@@ -15,19 +15,23 @@
 // </copyright>
 //
 
-using Rock.ViewModels.CheckIn;
+using Rock.Data;
 
-namespace Rock.CheckIn.v2
+namespace Rock.CheckIn.v2.Filters
 {
     /// <summary>
-    /// Provides functionality to filter check-in options for a single person.
+    /// A basic check-in filter.
     /// </summary>
-    internal interface ICheckInOptionsPersonFilter : ICheckInOptionsFilter
+    internal abstract class CheckInOptionsFilter : ICheckInOptionsFilter
     {
-        /// <summary>
-        /// Gets or sets the person to filter the options for.
-        /// </summary>
-        /// <value>The person to filter the options for.</value>
-        FamilyMemberBag Person { get; set; }
+        #region Properties
+
+        /// <inheritdoc/>
+        public CheckInConfigurationData Configuration { get; set; }
+
+        /// <inheritdoc/>
+        public RockContext RockContext { get; set; }
+
+        #endregion
     }
 }

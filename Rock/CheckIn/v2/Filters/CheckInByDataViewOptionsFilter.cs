@@ -15,12 +15,10 @@
 // </copyright>
 //
 
-using System;
 using System.Linq;
 using System.Linq.Dynamic.Core;
 
 using Rock.Model;
-using Rock.Utility;
 
 namespace Rock.CheckIn.v2.Filters
 {
@@ -28,39 +26,19 @@ namespace Rock.CheckIn.v2.Filters
     /// Performs filtering of check-in options based on any data views that
     /// the person must be a member of.
     /// </summary>
-    internal class CheckInByDataViewOptionsFilter : CheckInPersonOptionsFilter
+    internal class CheckInByDataViewOptionsFilter : CheckInPersonOptionsFilter, ICheckInOptionsGroupFilter
     {
-        #region Properties
-
-        /// <summary>
-        /// Gets the person identifier.
-        /// </summary>
-        /// <value>The person identifier.</value>
-        private Lazy<int> PersonId { get; }
-
-        #endregion
-
-        #region Constructors
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="CheckInByDataViewOptionsFilter"/> class.
-        /// </summary>
-        public CheckInByDataViewOptionsFilter()
-        {
-            PersonId = new Lazy<int>( () => IdHasher.Instance.GetId( Person.IdKey ) ?? 0 );
-        }
-
-        #endregion
-
         #region Methods
 
         /// <inheritdoc/>
-        public override bool IsGroupValid( CheckInGroupItem group )
+        public bool IsGroupValid( CheckInGroupItem group )
         {
             if ( group.CheckInData.DataViewGuids.Count == 0 )
             {
                 return true;
             }
+            // TODO: Temporary so we can keep testing performance.
+            return false;
 
             var dataViewService = new DataViewService( RockContext );
 

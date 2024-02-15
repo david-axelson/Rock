@@ -15,25 +15,18 @@
 // </copyright>
 //
 
-using Rock.Data;
-
 namespace Rock.CheckIn.v2
 {
     /// <summary>
-    /// Provides functionality to filter check-in options.
+    /// Provides functionality to filter check-in locations.
     /// </summary>
-    internal interface ICheckInOptionsFilter
+    internal interface ICheckInOptionsLocationFilter
     {
         /// <summary>
-        /// Gets or sets the check-in configuration.
+        /// Determines whether the specified location is valid for check-in.
         /// </summary>
-        /// <value>The check-in configuration.</value>
-        CheckInConfigurationData Configuration { get; set; }
-
-        /// <summary>
-        /// Gets or sets the context to use if database access is needed.
-        /// </summary>
-        /// <value>The context to use if database access is needed.</value>
-        RockContext RockContext { get; set; }
+        /// <param name="location">The location.</param>
+        /// <returns><c>true</c> if the location is valid; otherwise, <c>false</c>.</returns>
+        bool IsLocationValid( CheckInLocationItem location );
     }
 }

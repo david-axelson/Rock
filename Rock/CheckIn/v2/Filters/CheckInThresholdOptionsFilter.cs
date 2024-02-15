@@ -20,19 +20,29 @@ namespace Rock.CheckIn.v2.Filters
     /// <summary>
     /// Performs filtering of check-in options based on the person's gender.
     /// </summary>
-    internal class CheckInByGenderOptionsFilter : CheckInPersonOptionsFilter, ICheckInOptionsGroupFilter
+    internal class CheckInThresholdOptionsFilter : CheckInPersonOptionsFilter, ICheckInOptionsLocationFilter
     {
         #region Methods
 
         /// <inheritdoc/>
-        public bool IsGroupValid( CheckInGroupItem group )
+        public bool IsLocationValid( CheckInLocationItem location )
         {
-            if ( !group.CheckInData.Gender.HasValue )
+            // If there are no limits, then always allow check-in.
+            if ( !location.Capacity.HasValue )
             {
                 return true;
             }
 
-            return group.CheckInData.Gender.Value == Person.Gender;
+            // If there are enough spots for an additional person, then
+            // allow check-in.
+            if ( location.CurrentCount < location.Capacity.Value )
+            {
+                return true;
+            }
+
+            // If we are over limit, but the person is already checked into
+            // the location, then allow check-in.
+            return location.CurrentPersonGuids.Contains( Person.Guid );
         }
 
         #endregion
