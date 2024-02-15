@@ -361,7 +361,7 @@ namespace Rock.CheckIn.v2
         /// <param name="locations">The list of locations to use.</param>
         /// <returns>An instance of <see cref="CheckInOptions"/> that describes the available options.</returns>
         /// <exception cref="System.ArgumentNullException">kiosk - Kiosk must be specified unless locations are specified.</exception>
-        public CheckInOptions GetAllCheckInOptions( IReadOnlyList<GroupTypeCache> possibleAreas, DeviceCache kiosk, IReadOnlyList<NamedLocationCache> locations )
+        public CheckInOptions GetAllCheckInOptions( IReadOnlyCollection<GroupTypeCache> possibleAreas, DeviceCache kiosk, IReadOnlyCollection<NamedLocationCache> locations )
         {
             if ( kiosk == null && locations == null )
             {
@@ -427,6 +427,14 @@ namespace Rock.CheckIn.v2
                 .Where( gl => gl.ScheduleIds.Any( sid => activeScheduleIds.Contains( sid ) ) )
                 .ToList();
 
+            // Load all the counts for any locations that are still up for
+            // consideration.
+            var locationIdsForCount = activeGroupLocations
+                .Select( gl => gl.LocationId )
+                .Distinct()
+                .ToList();
+            var locationCounts = GetCountsForLocations( locationIdsForCount, now );
+
             // Construct the initial options bag.
             var options = new CheckInOptions
             {
@@ -456,8 +464,42 @@ namespace Rock.CheckIn.v2
                     .ToList()
             };
 
+            var locationIdsOverCapacity = new HashSet<int>();
+
+            // Add in all the locations to the options bag.
+            foreach ( var grp in activeGroupLocations.GroupBy( gl => gl.LocationId ) )
+            {
+                var location = NamedLocationCache.Get( grp.Key, _rockContext );
+                var locationScheduleIds = new HashSet<int>( grp.SelectMany( gl => gl.ScheduleIds ).Distinct() );
+                var locationCount = locationCounts.GetValueOrDefault( location.Guid, 0 );
+
+                // Check if this room is at all valid. If it is over the firm
+                // threshold then not even an override is allowed.
+                var isThresholdExceeded = location.FirmRoomThreshold.HasValue
+                    && locationCount > location.FirmRoomThreshold.Value;
+
+                if ( isThresholdExceeded )
+                {
+                    locationIdsOverCapacity.Add( location.Id );
+
+                    continue;
+                }
+
+                options.Locations.Add( new CheckInLocationItem
+                {
+                    Guid = location.Guid,
+                    Name = location.Name,
+                    CurrentCount = locationCount,
+                    Capacity = location.SoftRoomThreshold,
+                    ScheduleGuids = activeSchedules.Where( s => locationScheduleIds.Contains( s.Id ) ).Select( s => s.Guid ).ToList()
+                } );
+            }
+
             // Add in all the Groups to the options bag.
-            foreach ( var grp in activeGroupLocations.GroupBy( gl => gl.GroupId ) )
+            var activeGroupLocationsUnderCapacity = activeGroupLocations
+                .Where( gl => !locationIdsOverCapacity.Contains( gl.LocationId ) );
+
+            foreach ( var grp in activeGroupLocationsUnderCapacity.GroupBy( gl => gl.GroupId ) )
             {
                 var group = GroupCache.Get( grp.Key, _rockContext );
                 var groupType = group?.GroupType;
@@ -474,24 +516,12 @@ namespace Rock.CheckIn.v2
                     AbilityLevelGuid = null,
                     AreaGuid = groupType.Guid,
                     CheckInData = group.GetCheckInData( _rockContext ),
-                    CheckInAreaData = groupType.GetCheckInAreaData( _rockContext )
-                } );
-            }
-
-            // Add in all the locations to the options bag.
-            foreach ( var grp in activeGroupLocations.GroupBy( gl => gl.LocationId ) )
-            {
-                var location = NamedLocationCache.Get( grp.Key, _rockContext );
-                var locationScheduleIds = new HashSet<int>( grp.SelectMany( gl => gl.ScheduleIds ).Distinct() );
-
-                options.Locations.Add( new CheckInLocationItem
-                {
-                    Guid = location.Guid,
-                    Name = location.Name,
-                    Available = null,
-                    Capacity = null,
-                    GroupGuids = grp.Select( gl => GroupCache.Get( gl.GroupId, _rockContext )?.Guid ).Where( g => g.HasValue ).Select( g => g.Value ).ToList(),
-                    ScheduleGuids = activeSchedules.Where( s => locationScheduleIds.Contains( s.Id ) ).Select( s => s.Guid ).ToList()
+                    CheckInAreaData = groupType.GetCheckInAreaData( _rockContext ),
+                    LocationGuids = grp.OrderBy( gl => gl.Order )
+                        .Select( gl => NamedLocationCache.Get( gl.LocationId ) )
+                        .Where( l => l != null )
+                        .Select( l => l.Guid )
+                        .ToList()
                 } );
             }
 
@@ -601,7 +631,8 @@ namespace Rock.CheckIn.v2
                         AbilityLevelGuid = g.AbilityLevelGuid,
                         AreaGuid = g.AreaGuid,
                         CheckInData = g.CheckInData,
-                        CheckInAreaData = g.CheckInAreaData
+                        CheckInAreaData = g.CheckInAreaData,
+                        LocationGuids = g.LocationGuids
                     } )
                     .ToList(),
                 Locations = options.Locations
@@ -609,9 +640,8 @@ namespace Rock.CheckIn.v2
                     {
                         Guid = l.Guid,
                         Name = l.Name,
-                        Available = l.Available,
+                        CurrentCount = l.CurrentCount,
                         Capacity = l.Capacity,
-                        GroupGuids = l.GroupGuids.ToList(),
                         ScheduleGuids = l.ScheduleGuids.ToList()
                     } )
                     .ToList(),
@@ -690,7 +720,7 @@ namespace Rock.CheckIn.v2
         /// <returns>A queryable of <see cref="GroupMember"/> objects.</returns>
         /// <exception cref="Exception">Family group type was not found in the database, please check your installation.</exception>
         /// <exception cref="Exception">Person record type was not found in the database, please check your installation.</exception>
-        private IQueryable<GroupMember> GetFamilyGroupMemberQuery()
+        internal IQueryable<GroupMember> GetFamilyGroupMemberQuery()
         {
             var familyGroupTypeId = GroupTypeCache.Get( Rock.SystemGuid.GroupType.GROUPTYPE_FAMILY.AsGuid(), _rockContext )?.Id;
             var personRecordTypeId = DefinedValueCache.Get( Rock.SystemGuid.DefinedValue.PERSON_RECORD_TYPE_PERSON.AsGuid(), _rockContext )?.Id;
@@ -718,7 +748,7 @@ namespace Rock.CheckIn.v2
         /// </summary>
         /// <param name="searchTerm">The family name to search for.</param>
         /// <returns>A queryable of family <see cref="Group"/> objects.</returns>
-        private IQueryable<Group> SearchForFamiliesByName( string searchTerm )
+        internal IQueryable<Group> SearchForFamiliesByName( string searchTerm )
         {
             var personIdQry = new PersonService( _rockContext )
                 .GetByFullName( searchTerm, false )
@@ -737,7 +767,7 @@ namespace Rock.CheckIn.v2
         /// <param name="searchTerm">The phone number to search for.</param>
         /// <param name="configuration">The check-in configuration data for this search.</param>
         /// <returns>A queryable of family <see cref="Group"/> objects.</returns>
-        private IQueryable<Group> SearchForFamiliesByPhoneNumber( string searchTerm, CheckInConfigurationData configuration )
+        internal IQueryable<Group> SearchForFamiliesByPhoneNumber( string searchTerm, CheckInConfigurationData configuration )
         {
             var personRecordTypeId = DefinedValueCache.Get( Rock.SystemGuid.DefinedValue.PERSON_RECORD_TYPE_PERSON.AsGuid(), _rockContext )?.Id;
             var numericSearchTerm = searchTerm.AsNumeric();
@@ -790,7 +820,7 @@ namespace Rock.CheckIn.v2
         /// </summary>
         /// <param name="searchTerm">The scanned identifier to search for.</param>
         /// <returns>A queryable of family <see cref="Group"/> objects.</returns>
-        private IQueryable<Group> SearchForFamiliesByScannedId( string searchTerm )
+        internal IQueryable<Group> SearchForFamiliesByScannedId( string searchTerm )
         {
             var alternateIdValueId = DefinedValueCache.Get( SystemGuid.DefinedValue.PERSON_SEARCH_KEYS_ALTERNATE_ID.AsGuid(), _rockContext )?.Id;
 
@@ -817,7 +847,7 @@ namespace Rock.CheckIn.v2
         /// </summary>
         /// <param name="searchTerm">The family identifer to search for as a delimited list of integer identifiers.</param>
         /// <returns>A queryable of family <see cref="Group"/> objects.</returns>
-        private IQueryable<Group> SearchForFamiliesByFamilyId( string searchTerm )
+        internal IQueryable<Group> SearchForFamiliesByFamilyId( string searchTerm )
         {
             var searchFamilyIds = searchTerm.SplitDelimitedValues().AsIntegerList();
 
@@ -825,6 +855,67 @@ namespace Rock.CheckIn.v2
                 .Where( gm => searchFamilyIds.Contains( gm.GroupId ) )
                 .Select( gm => gm.Group )
                 .Distinct();
+        }
+
+        /// <summary>
+        /// Gets the counts for all the locations in one query.
+        /// </summary>
+        /// <param name="locationIds">The location identifiers.</param>
+        /// <param name="now">The current timestamp to use for attendance calculation.</param>
+        /// <returns>
+        /// A dictionary of location unique identifier keys and the number of
+        /// active attendance records. No value will be available if there are
+        /// not any attendance records for the location.
+        /// </returns>
+        internal Dictionary<Guid, int> GetCountsForLocations( IReadOnlyCollection<int> locationIds, DateTime now )
+        {
+            var attendanceService = new AttendanceService( _rockContext );
+            var todayDate = now.Date;
+
+            var attendances = attendanceService.Queryable()
+                .Where( a =>
+                    a.Occurrence.OccurrenceDate == todayDate
+                    && a.Occurrence.LocationId.HasValue
+                    && a.Occurrence.GroupId.HasValue
+                    && a.Occurrence.ScheduleId.HasValue
+                    && locationIds.Contains( a.Occurrence.LocationId.Value )
+                    && a.PersonAliasId.HasValue
+                    && a.DidAttend.HasValue
+                    && a.DidAttend.Value
+                    && !a.EndDateTime.HasValue )
+                .Select( a => new
+                {
+                    LocationGuid = a.Occurrence.Location.Guid,
+                    ScheduleId = a.Occurrence.ScheduleId.Value,
+                    a.CampusId,
+                    a.StartDateTime,
+                    a.EndDateTime,
+                    a.PersonAlias.PersonId
+                } )
+                .ToList();
+
+            // We now have all the attendance records for these locations that
+            // have check-in today but not yet checked out. Now we need to
+            // filter out any that have schedules where check-in is no longer
+            // active.
+
+            var activeAttendances = attendances
+                .GroupBy( a => new { a.ScheduleId, a.CampusId } )
+                .SelectMany( grp =>
+                {
+                    // The vast majority of attendance records for a single
+                    // location should have the same schedule and campus.
+                    var scheduleCache = NamedScheduleCache.Get( grp.Key.ScheduleId, _rockContext );
+                    var campusCache = grp.Key.CampusId.HasValue
+                        ? CampusCache.Get( grp.Key.CampusId.Value, _rockContext )
+                        : null;
+
+                    return grp.Where( a => Attendance.CalculateIsCurrentlyCheckedIn( a.StartDateTime, a.EndDateTime, campusCache, scheduleCache ) );
+                } );
+
+            return activeAttendances
+                .GroupBy( a => a.LocationGuid )
+                .ToDictionary( grp => grp.Key, grp => grp.Select( a => a.PersonId ).Distinct().Count() );
         }
 
         #endregion

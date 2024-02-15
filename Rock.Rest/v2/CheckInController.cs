@@ -185,15 +185,16 @@ namespace Rock.Rest.v2.Controllers
                 var checkInOptions = director.GetAllCheckInOptions( areas, kiosk, null );
                 var configData = configuration.GetCheckInConfiguration( _rockContext );
 
+                var familyMember = familyMembers.FirstOrDefault( fm => fm.NickName == "Noah" ) ?? familyMembers[0];
                 var sw = System.Diagnostics.Stopwatch.StartNew();
                 for ( int i = 0; i < 100; i++ )
                 {
                     var clonedOptions = director.CloneOptions( checkInOptions );
-                    director.FilterOptionsForPerson( clonedOptions, familyMembers[0], configData );
+                    director.FilterOptionsForPerson( clonedOptions, familyMember, configData );
                 }
                 sw.Stop();
 
-                director.FilterOptionsForPerson( checkInOptions, familyMembers[0], configData );
+                director.FilterOptionsForPerson( checkInOptions, familyMember, configData );
 
                 return Ok( new
                 {

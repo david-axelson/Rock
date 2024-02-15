@@ -31,10 +31,10 @@ namespace Rock.ViewModels.CheckIn
         public int? Capacity { get; set; }
 
         /// <summary>
-        /// Gets or sets the number of available spots in the location.
+        /// Gets or sets the number of spots currently filled in the location.
         /// </summary>
-        /// <value>The number of available spots; or <c>null</c> if not available.</value>
-        public int? Available { get; set; }
+        /// <value>The number of spots filled.</value>
+        public int CurrentCount { get; set; }
 
         /// <summary>
         /// Gets or sets the schedule unique identifiers that this location
@@ -42,12 +42,5 @@ namespace Rock.ViewModels.CheckIn
         /// </summary>
         /// <value>The schedule unique identifiers.</value>
         public List<Guid> ScheduleGuids { get; set; }
-
-        /// <summary>
-        /// Gets or sets the group unique identifiers that this location
-        /// is valid for.
-        /// </summary>
-        /// <value>The group unique identifiers.</value>
-        public List<Guid> GroupGuids { get; set; }
     }
 }

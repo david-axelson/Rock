@@ -15,6 +15,7 @@
 // </copyright>
 //
 using System;
+using System.Collections.Generic;
 
 namespace Rock.ViewModels.CheckIn
 {
@@ -35,5 +36,12 @@ namespace Rock.ViewModels.CheckIn
         /// </summary>
         /// <value>The required ability level unique identifier; or <c>null</c> if not required.</value>
         public Guid? AbilityLevelGuid { get; set; }
+
+        /// <summary>
+        /// Gets or sets the location unique identifiers. These are in proper
+        /// order of location priority.
+        /// </summary>
+        /// <value>The location unique identifiers.</value>
+        public List<Guid> LocationGuids { get; set; }
     }
 }
