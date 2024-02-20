@@ -110,7 +110,7 @@ namespace Rock.CheckIn.v2
                         CurrentCount = l.CurrentCount,
                         Capacity = l.Capacity,
                         CurrentPersonGuids = new HashSet<Guid>( l.CurrentPersonGuids ),
-                        ScheduleGuids = l.ScheduleGuids.ToList().ToList()
+                        ScheduleGuids = l.ScheduleGuids.ToList()
                     } )
                     .ToList(),
                 Schedules = Schedules

@@ -45,6 +45,26 @@ namespace Rock.CheckIn.v2
         /// </summary>
         private readonly RockContext _rockContext;
 
+        /// <summary>
+        /// The default group filter types.
+        /// </summary>
+        private static readonly List<Type> _defaultGroupFilterTypes = new List<Type>
+        {
+            typeof( CheckInByAgeOptionsFilter ),
+            typeof( CheckInByGradeOptionsFilter ),
+            typeof( CheckInByGenderOptionsFilter ),
+            typeof( CheckInByMembershipOptionsFilter ),
+            typeof( CheckInByDataViewOptionsFilter )
+        };
+
+        /// <summary>
+        /// The default location filter types.
+        /// </summary>
+        private static readonly List<Type> _defaultLocationFilterTypes = new List<Type>
+        {
+            typeof( CheckInThresholdOptionsFilter )
+        };
+
         #endregion
 
         #region Constructors
@@ -288,7 +308,7 @@ namespace Rock.CheckIn.v2
         /// <param name="familyGuid">The primary family unique identifier, this is used to resolve duplicates where a family member is also marked as can check-in.</param>
         /// <param name="groupMembers">The <see cref="GroupMember"/> objects to be converted to bags.</param>
         /// <returns>A collection of <see cref="FamilyMemberBag"/> objects.</returns>
-        public List<FamilyMemberBag> GetFamilyMemberBags( Guid familyGuid, IQueryable<GroupMember> groupMembers )
+        public List<FamilyMemberBag> GetFamilyMemberBags( Guid familyGuid, IEnumerable<GroupMember> groupMembers )
         {
             var familyMembers = new List<FamilyMemberBag>();
 
@@ -297,16 +317,27 @@ namespace Rock.CheckIn.v2
             // any duplicates (non family members) can be skipped. This ensures
             // that a family member has precedence over the same person record
             // that is also flagged as "can check-in".
-            var members = groupMembers
-                .Select( gm => new
-                {
-                    GroupGuid = gm.Person.PrimaryFamily != null ? gm.Person.PrimaryFamily.Guid : familyGuid,
-                    RoleOrder = gm.GroupRole.Order,
-                    gm.Person
-                } )
-                .ToList()
-                .OrderByDescending( gm => gm.GroupGuid == familyGuid )
-                .ThenBy( gm => gm.RoleOrder );
+            var members = groupMembers is IQueryable<GroupMember> groupMembersQry
+                ? groupMembersQry
+                    .Select( gm => new
+                    {
+                        GroupGuid = gm.Person.PrimaryFamily != null ? gm.Person.PrimaryFamily.Guid : familyGuid,
+                        RoleOrder = gm.GroupRole.Order,
+                        gm.Person
+                    } )
+                    .ToList()
+                    .OrderByDescending( gm => gm.GroupGuid == familyGuid )
+                    .ThenBy( gm => gm.RoleOrder )
+                : groupMembers
+                    .Select( gm => new
+                    {
+                        GroupGuid = gm.Person.PrimaryFamily != null ? gm.Person.PrimaryFamily.Guid : familyGuid,
+                        RoleOrder = gm.GroupRole.Order,
+                        gm.Person
+                    } )
+                    .ToList()
+                    .OrderByDescending( gm => gm.GroupGuid == familyGuid )
+                    .ThenBy( gm => gm.RoleOrder );
 
             foreach ( var member in members )
             {
@@ -319,7 +350,7 @@ namespace Rock.CheckIn.v2
                 var familyMember = new FamilyMemberBag
                 {
                     Guid = member.Person.Guid,
-                    IdKey = IdHasher.Instance.GetHash( member.Person.Id ),
+                    IdKey = member.Person.IdKey,
                     FamilyGuid = member.GroupGuid,
                     FirstName = member.Person.FirstName,
                     NickName = member.Person.NickName,
@@ -539,15 +570,21 @@ namespace Rock.CheckIn.v2
         {
             var groupFilters = GetGroupFilters( configuration, person );
 
-            options.Groups = options.Groups
-                .Where( g => groupFilters.All( f => f.IsGroupValid( g ) ) )
-                .ToList();
+            if ( groupFilters.Count > 0 )
+            {
+                options.Groups = options.Groups
+                    .Where( g => groupFilters.All( f => f.IsGroupValid( g ) ) )
+                    .ToList();
+            }
 
             var locationFilters = GetLocationFilters( configuration, person );
 
-            options.Locations = options.Locations
-                .Where( l => locationFilters.All( f => f.IsLocationValid( l ) ) )
-                .ToList();
+            if ( locationFilters.Count > 0 )
+            {
+                options.Locations = options.Locations
+                    .Where( l => locationFilters.All( f => f.IsLocationValid( l ) ) )
+                    .ToList();
+            }
 
             RemoveEmptyOptions( options, person, configuration );
         }
@@ -622,14 +659,7 @@ namespace Rock.CheckIn.v2
         /// <returns>A collection of <see cref="Type"/> objects.</returns>
         protected virtual IReadOnlyCollection<Type> GetGroupFilterTypes( CheckInConfigurationData configuration )
         {
-            return new[]
-            {
-                typeof( CheckInByAgeOptionsFilter ),
-                typeof( CheckInByGradeOptionsFilter ),
-                typeof( CheckInByGenderOptionsFilter ),
-                typeof( CheckInByMembershipOptionsFilter ),
-                typeof( CheckInByDataViewOptionsFilter )
-            };
+            return _defaultGroupFilterTypes;
         }
 
         /// <summary>
@@ -653,10 +683,7 @@ namespace Rock.CheckIn.v2
         /// <returns>A collection of <see cref="Type"/> objects.</returns>
         protected virtual IReadOnlyCollection<Type> GetLocationFilterTypes( CheckInConfigurationData configuration )
         {
-            return new[]
-            {
-                typeof( CheckInThresholdOptionsFilter )
-            };
+            return _defaultLocationFilterTypes;
         }
 
         /// <summary>
