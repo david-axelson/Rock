@@ -41,7 +41,7 @@ namespace Rock.DownhillCss
         private static CssUtilitiesInternal Instance { get; set; }
 
         /// <summary>
-        /// Builds the Downhill CSS framework.
+        /// Builds the Downhill CSS framework.\
         /// </summary>
         /// <param name="settings"></param>
         /// <returns></returns>
@@ -137,16 +137,10 @@ namespace Rock.DownhillCss
                     _cssBuilder.Append( baseStylesWeb );
                 }
 
-                // Typography
                 BuildTypographyUtilities();
-
-                // Colors
                 BuildColorUtilities();
-
-                // Spacings
                 BuildSpacingUtilities();
-
-                // Border Widths
+                BuildSizeUtilities();
                 BuildBorderWidthUtilities();
 
                 if ( !string.IsNullOrWhiteSpace( _additionalCss ) )
@@ -333,7 +327,6 @@ namespace Rock.DownhillCss
                         } );
 
                         // Border Color
-
                         var borderClass = string.IsNullOrWhiteSpace( prefix ) ? "border" : $"{prefix} .border";
                         AddUtilityClass( borderClass, colorName, new Dictionary<string, string>
                         {
@@ -499,6 +492,26 @@ namespace Rock.DownhillCss
             }
 
             /// <summary>
+            /// Adds utility classes for all of the size values.
+            /// Such as h-{value} and w-{value}.
+            /// </summary>
+            private void BuildSizeUtilities()
+            {
+                foreach( var size in Settings.SpacingValues )
+                {
+                    AddUtilityClass( "h", size.Key.ToString(), new Dictionary<string, string>
+                    {
+                        [ "height" ] = size.Value
+                    } );
+
+                    AddUtilityClass( "w", size.Key.ToString(), new Dictionary<string, string>
+                    {
+                        [ "width" ] = size.Value
+                    } );
+                }
+            }
+
+            /// <summary>
             /// Adds a utility class to the specified CSS.
             /// </summary>
             /// <param name="classPrefix">The class prefix, essentially whatever comes before the utility name. For ex: "bg" would be used here for a class like '.bg-blue'.</param>
@@ -543,6 +556,15 @@ namespace Rock.DownhillCss
                     DangerSoft = colors.DangerStrong,
                     DangerStrong = colors.DangerSoft,
 
+                    PrimaryStrong = colors.PrimarySoft,
+                    PrimarySoft = colors.PrimaryStrong,
+
+                    InfoStrong = colors.InfoSoft,
+                    InfoSoft = colors.InfoStrong,
+
+                    SecondarySoft = colors.SecondaryStrong,
+                    SecondaryStrong = colors.SecondarySoft,
+
                     // Strongest = Softest etc.
                     InterfaceStrongest = colors.InterfaceSoftest,
                     InterfaceStronger = colors.InterfaceSofter,
@@ -580,8 +602,6 @@ Resets
 
 ^editor {
     background-color: transparent;
-    color: ?color-text;
-    margin: -5, -10;
 }
 
 ^frame {
@@ -592,21 +612,29 @@ Resets
     background-color: transparent;
 }
 
+^border {
+    background-color: transparent;
+}
+
 ^Page {
     -rock-status-bar-text: light;
 }
 
-^contentpage {
-    background-color: ?color-background;
+^ContentPage {
+    background-color: ?color-interface-softer;
+}
+
+.dark-mode ^ContentPage {
+    background-color: ?color-interface-stronger;
 }
 
 ^label {
     font-size: ?font-size-default;
-    color: ?color-text;
+    color: ?color-interface-medium;
 }
 
 icon {
-    color: ?color-text;
+    color: ?color-interface-medium;
 }
 
 /*
@@ -655,7 +683,7 @@ icon {
 }
 
 .link{
-    color: ?color-primary;
+    color: ?color-primary-strong;
 }
 
 /* Class for styling code that matches Gitbook */
@@ -691,7 +719,7 @@ icon {
 /* Text Named Sizes */
 .text {
     font-size: ?font-size-default;
-    color: ?color-text;
+    color: ?color-interface-medium;
 }
 
 .text-xs {
@@ -712,7 +740,7 @@ icon {
 
 .text-title {
     font-size: title;
-    color: ?color-text;
+    color: ?color-interface-medium;
 }
 
 .text-subtitle {
@@ -743,21 +771,21 @@ icon {
 
 .paragraph-sm {
     font-size: small;
-    color: ?color-text;
+    color: ?color-interface-medium;
     line-height: 1.25;
     margin-bottom: 12;
 }
 
 .paragraph-xs {
     font-size: micro;
-    color: ?color-text;
+    color: ?color-interface-medium;
     line-height: 1.25;
     margin-bottom: 8;
 }
 
 .paragraph-lg {
     font-size: large;
-    color: ?color-text;
+    color: ?color-interface-medium;
     line-height: 1;
     margin-bottom: 16;
 }
@@ -847,11 +875,11 @@ icon {
 }
 
 .text-right {
-    text-align: right;
+    text-align: end;
 }
 
 .text-left {
-    text-align: left;
+    text-align: start;
 }
 
 .text-start {
@@ -883,6 +911,64 @@ icon {
     border-radius: 1000;
 }
 
+ /* Fields */
+fieldgroupheader .required-indicator {
+    margin-top: 2;    
+}
+
+.required-indicator {
+    color: transparent;
+    width: 6;
+    height: 6;
+    border-radius: 3;
+}
+
+fieldgroupheader.required .required-indicator,
+formfield.required .required-indicator,
+.unlabeled.required {
+    color: ?color-danger-strong;
+}
+
+.dark-mode fieldgroupheader.required .required-indicator,
+.dark-mode formfield.required .required-indicator  {
+    color: ?color-danger-soft;
+}
+
+^picker,
+^datepicker {
+    -rock-picker-placeholder-color: ?color-interface-medium;
+    rock-placeholder-text-color: ?color-interface-medium;
+}
+
+^borderlessentry,
+^datepicker,
+^picker,
+^entry, 
+^editor {
+    color: ?color-interface-strong;
+    rock-placeholder-text-color: ?color-interface-medium;
+}
+
+.dark-mode ^borderlessentry,
+.dark-mode ^picker,
+.dark-mode ^editor,
+.dark-mode ^datepicker,
+.dark-mode ^entry {
+    color: ?color-interface-soft;
+}
+
+^FieldStack {
+    border-color: ?color-interface-medium;
+}
+
+formfield, .unlabeled {
+    padding: 8 12;    
+}
+
+^Button {
+    font-style: bold;
+}
+
 /*
     Control CSS
     -----------------------------------------------------------
@@ -892,7 +978,7 @@ icon {
 /* Flyout Styling */
 
 .flyout-menu ^listview {
-    background-color: ?color-brand;
+    background-color: ?color-brand-strong;
 }
 
 .flyout-menu ^boxview {
@@ -988,7 +1074,7 @@ icon {
 
 /* Divider */
 .divider {
-    background-color: ?color-interface-softer;
+    background-color: ?color-interface-medium;
     height: 1;
 }
 
@@ -1004,181 +1090,515 @@ icon {
     height: 8;
 }
 
-/* Buttons */
-.btn {
-    border-radius: ?radius-base;
-    padding: 14 16;
+/*** Alerts ***/
+
+/* Info */
+.alert-info {
+    background-color: ?color-info-soft;
 }
 
+.alert-info .alert-message, .alert-info .alert-heading {
+    color: ?color-info-strong;
+}
+
+.dark-mode .alert-info {
+    background-color: ?color-info-strong;
+}
+
+.dark-mode .alert-info .alert-message, .dark-mode .alert-info .alert-heading {
+    color: ?color-info-soft;
+}
+
+/* Success */
+.alert-success {
+    background-color: ?color-success-soft;
+}
+
+.alert-success .alert-message, .alert-success .alert-heading {
+    color: ?color-success-strong;
+}
+
+.dark-mode .alert-success {
+    background-color: ?color-success-strong;
+}
+
+.dark-mode .alert-success .alert-message, .dark-mode .alert-success .alert-heading {
+    color: ?color-success-soft;
+}
+
+/*  Warning */
+.alert-warning {
+    background-color: ?color-warning-soft;
+}
+
+.alert-warning .alert-message, .alert-warning .alert-heading {
+    color: ?color-warning-strong;
+}
+
+.dark-mode .alert-warning {
+    background-color: ?color-warning-strong;
+}
+
+.dark-mode .alert-warning .alert-message, .dark-mode .alert-warning .alert-heading {
+    color: ?color-warning-soft;
+}
+
+/* Primary */
+.alert-primary {
+    background-color: ?color-primary-soft;
+}
+
+.alert-primary .alert-message, .alert-primary .alert-heading {
+    color: ?color-primary-strong;
+}
+
+.dark-mode .alert-primary {
+    background-color: ?color-primary-strong;
+}
+
+.dark-mode .alert-primary .alert-message, .dark-mode .alert-primary .alert-heading {
+    color: ?color-primary-soft;
+}
+
+/* Secondary */
+.alert-secondary {
+    background-color: ?color-secondary-soft;
+}
+
+.alert-secondary .alert-message, .alert-secondary .alert-heading {
+    color: ?color-secondary-strong;
+}
+
+.dark-mode .alert-secondary {
+    background-color: ?color-secondary-strong;
+}
+
+.dark-mode .alert-secondary .alert-message, .dark-mode .alert-secondary .alert-heading{
+    color: ?color-secondary-soft;
+}
+
+/* Error */
+.alert-danger {
+    background-color: ?color-danger-soft;
+}
+
+.alert-danger .alert-message, .alert-danger .alert-heading {
+    color: ?color-danger-strong;
+}
+
+.dark-mode .alert-danger {
+    background-color: ?color-danger-strong;
+}
+
+.dark-mode .alert-danger .alert-message, .dark-mode .alert-danger .alert-heading {
+    color: ?color-danger-soft;
+}
+
+/* Dark Alert */
+.alert-dark {
+    background-color: ?color-interface-strong;
+}
+
+.alert-dark .alert-message, .alert-dark .alert-heading {
+    color: ?color-interface-soft;
+}
+
+.dark-mode .alert-dark {
+    background-color: ?color-interface-soft;
+}
+
+.dark-mode .alert-dark .alert-message, .dark-mode .alert-dark .alert-heading {
+    color: ?color-interface-strong;
+}
+
+/* Light Alert */
+.alert-light {
+    background-color: ?color-interface-soft;
+}
+
+.alert-light .alert-message, .alert-light .alert-heading {
+    color: ?color-interface-strong;
+}
+
+.dark-mode .alert-light {
+    background-color: ?color-interface-strong;
+}
+
+.dark-mode .alert-light .alert-message, .dark-mode .alert-light .alert-heading {
+    color: ?color-interface-soft;
+}
+
+/*** Buttons ***/
+
+/* Primary */
 .btn.btn-primary {
-    background-color: ?color-primary;
-    color: #ffffff;
+    background-color: ?color-primary-strong;
+    color: ?color-interface-softest;
 }
 
+.dark-mode .btn.btn-primary {
+    background-color: ?color-primary-soft;
+    color: ?color-primary-strong;
+}
+
+/* Success */
 .btn.btn-success {
-    background-color: ?color-success;
-    color: #ffffff;
+    background-color: ?color-success-strong;
+    color: ?color-success-soft;
 }
 
+.dark-mode .btn.btn-success {
+    background-color: ?color-success-soft;
+    color: ?color-success-strong;
+}
+
+/* Info */
 .btn.btn-info {
-    background-color: ?color-info;
-    color: #ffffff;
+    background-color: ?color-info-strong;
+    color: ?color-info-soft;
 }
 
+.dark-mode .btn.btn-info {
+    background-color: ?color-info-soft;
+    color: ?color-info-strong;
+}
+
+/* Warning */
 .btn.btn-warning {
-    background-color: ?color-warning;
-    color: #ffffff;
+    background-color: ?color-warning-strong;
+    color: ?color-warning-soft;
 }
 
+.dark-mode .btn.btn-warning {
+    background-color: ?color-warning-soft;
+    color: ?color-warning-strong;
+}
+
+/* Danger */
 .btn.btn-danger {
-    background-color: ?color-danger;
-    color: #ffffff;
+    background-color: ?color-danger-strong;
+    color: ?color-danger-soft;
 }
 
+.dark-mode .btn.btn-danger {
+    background-color: ?color-danger-soft;
+    color: ?color-danger-strong;
+}
+
+/* Dark */
 .btn.btn-dark {
-    color: #ffffff;
-    background-color: ?color-dark;
+    color: ?color-interface-soft;
+    background-color: ?color-interface-strong;
 }
 
+.dark-mode .btn.btn-dark {
+    color: ?color-interface-strong;
+    background-color: ?color-interface-soft;
+}
+
+/* Light */
 .btn.btn-light {
-    color: ?color-text;
-    background-color: ?color-light;
+    color: ?color-interface-strong;
+    background-color: ?color-interface-soft;
 }
 
+.dark-mode .btn.btn-light {
+    color: ?color-interface-soft;
+    background-color: ?color-interface-strong;
+}
+
+/* Secondary */
 .btn.btn-secondary {
-    color: #ffffff;
-    background-color: ?color-secondary;
+    color: ?color-secondary-soft;
+    background-color: ?color-secondary-strong;
 }
 
+.dark-mode .btn.btn-secondary {
+    color: ?color-secondary-strong;
+    background-color: ?color-secondary-soft;
+}
+
+/* Brand */
 .btn.btn-brand {
-    color: #ffffff;
-    background-color: ?color-brand;
+    color: ?color-brand-soft;
+    background-color: ?color-brand-strong;
 }
 
+.dark-mode .btn.btn-brand {
+    color: ?color-brand-strong;
+    background-color: ?color-brand-soft;
+}
+
+/* Default */
 .btn.btn-default {
-    color: ?color-primary;
-    border-color: ?color-primary;
+    color: ?color-primary-strong;
+    border-color: ?color-primary-strong;
     border-width: 1;
     background-color: transparent;
 }
 
+.dark-mode .btn.btn-default {
+    color: ?color-primary-soft;
+    border-color: ?color-primary-soft;
+    border-width: 1;
+    background-color: transparent;
+}
+
+/* Link Buttons */
+
+/* Link primary */
 .btn.btn-link {
-    color: ?color-primary;
+    color: ?color-primary-strong;
     border-width: 0;
     background-color: transparent;
 }
 
+.dark-mode .btn.btn-link {
+    color: ?color-primary-soft;
+    border-width: 0;
+    background-color: transparent;
+}
+
+/* Link secondary */
 .btn.btn-link-secondary {
-    color: ?color-secondary;
+    color: ?color-secondary-strong;
     border-width: 0;
     background-color: transparent;
 }
 
+.dark-mode .btn.btn-link-secondary {
+    color: ?color-secondary-soft;
+    border-width: 0;
+    background-color: transparent;
+}
+
+/* Link success */
 .btn.btn-link-success {
-    color: ?color-success;
+    color: ?color-success-strong;
     border-width: 0;
     background-color: transparent;
 }
 
+.dark-mode .btn.btn-link-success {
+    color: ?color-success-soft;
+    border-width: 0;
+    background-color: transparent;
+}
+
+/* Link danger */
 .btn.btn-link-danger {
-    color: ?color-danger;
+    color: ?color-danger-strong;
     border-width: 0;
     background-color: transparent;
 }
 
+.dark-mode .btn.btn-link-danger {
+    color: ?color-danger-soft;
+    border-width: 0;
+    background-color: transparent;
+}
+
+/* Link warning */
 .btn.btn-link-warning {
-    color: ?color-warning;
+    color: ?color-warning-strong;
     border-width: 0;
     background-color: transparent;
 }
 
+.dark-mode .btn.btn-link-warning {
+    color: ?color-warning-soft;
+    border-width: 0;
+    background-color: transparent;
+}
+
+/* Link info */
 .btn.btn-link-info {
-    color: ?color-info;
+    color: ?color-info-strong;
     border-width: 0;
     background-color: transparent;
 }
 
+.dark-mode .btn.btn-link-info {
+    color: ?color-info-soft;
+    border-width: 0;
+    background-color: transparent;
+}
+
+/* Link light */
 .btn.btn-link-light {
-    color: ?color-text;
+    color: ?color-interface-soft;
     border-width: 0;
     background-color: transparent;
 }
 
+.dark-mode .btn.btn-link-light {
+    color: ?color-interface-strong;
+    border-width: 0;
+    background-color: transparent;
+}
+
+/* Link dark */
 .btn.btn-link-dark {
-    color: ?color-dark;
+    color: ?color-interface-strong;
     border-width: 0;
     background-color: transparent;
 }
 
+.dark-mode .btn.btn-link-dark {
+    color: ?color-interface-soft;
+    border-width: 0;
+    background-color: transparent;
+}
+
+/* Link brand */
 .btn.btn-link-brand {
-    color: ?color-brand;
+    color: ?color-brand-strong;
     border-width: 0;
     background-color: transparent;
 }
 
+.dark-mode .btn.btn-link-brand {
+    color: ?color-brand-soft;
+    border-width: 0;
+    background-color: transparent;
+}
+
+/* Outline Buttons */
+
+/* Outline primary */
 .btn.btn-outline-primary {
-    color: ?color-primary;
-    border-color: ?color-primary;
+    color: ?color-primary-strong;
+    border-color: ?color-primary-strong;
     border-width: 1;
     background-color: transparent;
 }
 
+.dark-mode .btn.btn-outline-primary {
+    color: ?color-primary-soft;
+    border-color: ?color-primary-soft;
+    border-width: 1;
+    background-color: transparent;
+}
+
+/* Outline secondary */
 .btn.btn-outline-secondary {
-    color: ?color-secondary;
-    border-color: ?color-secondary;
+    color: ?color-secondary-strong;
+    border-color: ?color-secondary-strong;
     border-width: 1;
     background-color: transparent;
 }
 
+.dark-mode .btn.btn-outline-secondary {
+    color: ?color-secondary-soft;
+    border-color: ?color-secondary-soft;
+    border-width: 1;
+    background-color: transparent;
+}
+
+/* Outline success */
 .btn.btn-outline-success {
-    color: ?color-success;
-    border-color: ?color-success;
+    color: ?color-success-strong;
+    border-color: ?color-success-strong;
     border-width: 1;
     background-color: transparent;
 }
 
+.dark-mode .btn.btn-outline-success {
+    color: ?color-success-soft;
+    border-color: ?color-success-soft;
+    border-width: 1;
+    background-color: transparent;
+}
+
+/* Outline danger */
 .btn.btn-outline-danger {
-    color: ?color-danger;
-    border-color: ?color-danger;
+    color: ?color-danger-strong;
+    border-color: ?color-danger-strong;
     border-width: 1;
     background-color: transparent;
 }
 
+.dark-mode .btn.btn-outline-danger {
+    color: ?color-danger-soft;
+    border-color: ?color-danger-soft;
+    border-width: 1;
+    background-color: transparent;
+}
+
+/* Outline warning */
 .btn.btn-outline-warning {
-    color: ?color-warning;
-    border-color: ?color-warning;
+    color: ?color-warning-strong;
+    border-color: ?color-warning-strong;
     border-width: 1;
     background-color: transparent;
 }
 
+.dark-mode .btn.btn-outline-warning {
+    color: ?color-warning-soft;
+    border-color: ?color-warning-soft;
+    border-width: 1;
+    background-color: transparent;
+}
+
+/* Outline info */
 .btn.btn-outline-info {
-    color: ?color-info;
-    border-color: ?color-info;
+    color: ?color-info-strong;
+    border-color: ?color-info-strong;
     border-width: 1;
     background-color: transparent;
 }
 
+.dark-mode .btn.btn-outline-info {
+    color: ?color-info-soft;
+    border-color: ?color-info-soft;
+    border-width: 1;
+    background-color: transparent;
+}
+
+/* Outline light */
 .btn.btn-outline-light {
-    color: ?color-text;
-    border-color: ?color-light;
+    color: ?color-interface-medium;
+    border-color: ?color-interface-soft;
     border-width: 1;
     background-color: transparent;
 }
 
+.dark-mode .btn.btn-outline-light {
+    color: ?color-interface-medium;
+    border-color: ?color-interface-strong;
+    border-width: 1;
+    background-color: transparent;
+}
+
+/* Outline dark */
 .btn.btn-outline-dark {
-    color: ?color-dark;
-    border-color: ?color-dark;
+    color: ?color-interface-strong;
+    border-color: ?color-interface-strong;
     border-width: 1;
     background-color: transparent;
 }
 
+.dark-mode .btn.btn-outline-dark {
+    color: ?color-interface-soft;
+    border-color: ?color-interface-soft;
+    border-width: 1;
+    background-color: transparent;
+}
+
+/* Outline brand */
 .btn.btn-outline-brand {
-    color: ?color-brand;
-    border-color: ?color-brand;
+    color: ?color-brand-strong;
+    border-color: ?color-brand-strong;
     border-width: 1;
     background-color: transparent;
 }
 
+.dark-mode .btn.btn-outline-brand {
+    color: ?color-brand-soft;
+    border-color: ?color-brand-soft;
+    border-width: 1;
+    background-color: transparent;
+}
 
 /* Button Sizes */
 .btn.btn-lg {
@@ -1195,41 +1615,41 @@ icon {
 /* Toggle Button CSS */
 .toggle-button {
     border-radius: 0;
-    border-color: ?color-primary;
+    border-color: ?color-primary-strong;
     background-color: transparent;
     padding: 9 12 12 12;
 }
 
 .toggle-button .title {
-    color: ?color-primary;
+    color: ?color-primary-strong;
     font-size: large;
 }
 
 .toggle-button .append-text {
-    color: ?color-primary;
+    color: ?color-primary-strong;
     font-size: small;
 }
 
 .toggle-button .icon {
     margin: 3 0 0 0;
-    color: ?color-primary;
+    color: ?color-primary-strong;
     font-size: large;
 }
 
 .toggle-button.checked {
-    background-color: ?color-primary;
+    background-color: ?color-primary-strong;
 }
 
 .toggle-button.checked .title {
-    color: white;
+    color: ?color-interface-softest;
 }
 
 .toggle-button.checked .append-text {
-    color: white;
+    color: ?color-interface-softest;
 }
 
 .toggle-button.checked .icon {
-    color: white;
+    color: ?color-interface-softest;
 }
 
 /*
@@ -1526,100 +1946,6 @@ icon {
     padding-right: 0;
 }
 
-/* Forms Styles */
-
-.form-group {
-    margin: 0 0 12 0;
-}
-
-.form-group .form-group-title {
-    margin: 0 0 5 0;
-    color: ?color-primary;
-    font-size: 12;
-}
-
-.form-field {
-    padding: 12;
-    color: #282828;
-}
-^borderlessentry,
-^datepicker,
-^checkbox, 
-^picker,
-^entry, 
-^switch,
-^editor {
-    color: ?color-text;
-    font-size: ?font-size-default;
-}
-
-^literal {
-    line-height: 1.15;
-    margin-bottom: 16;
-}
-
-^editor {
-    margin: -5, -10;
-}
-
-/* Field Titles */
-fieldgroupheader {
-   
-}
-
-fieldgroupheader .title,
-formfield .title {
-    color: ?color-text;
-    font-style: bold;
-    font-size: ?font-size-default;
-}
-
-fieldgroupheader.error .title,
-formfield.error .title {
-    color: ?color-danger;
-}
-
-formfield .title {
-    margin-right: 12;
-    line-height: 1;
-}
-
-/* Required Indicator */
-fieldgroupheader .required-indicator,
-formfield .required-indicator {
-    color: transparent;
-    width: 4;
-    height: 4;
-    border-radius: 2;
-}
-
-fieldgroupheader.required .required-indicator,
-formfield.required .required-indicator {
-    color: ?color-danger;
-}
-
-/* Field Stacks */
-^fieldstack {
-    border-radius: 0;
-    border-color: ?color-secondary;
-    border-width: 1;
-    margin-top: 4;
-    margin-bottom: 12;
-}
-
-/* Form Fields  */
-formfield {
-    padding: 12 12 12 6;
-}
-
-fieldcontainer > .no-fieldstack {
-    margin-bottom: 12;
-}
-
-formfield .required-indicator {
-    margin-right: 4;
-}
-
 /* Cards */
 .card {
     margin-bottom: 24;
@@ -1799,9 +2125,6 @@ formfield .required-indicator {
     font-style: bold;
 }
 
-
-
-
 /*** Connection Opportunity List block ***/
 .connection-opportunity-list-layout .connection-opportunities {
     margin: 0, 12, 0, 0;
@@ -1836,7 +2159,6 @@ formfield .required-indicator {
     background-color: #007acc;
     color: #fff;
 }
-
 
 /*** Connection Request List block ***/
 .connection-request-list-layout .connection-requests {
@@ -2599,8 +2921,8 @@ formfield .required-indicator {
   padding: 0;
 }
 
-.block-personprofile .block-panel .items-frame .item-flex-layout,
-.block-attributevalues .block-panel .items-frame .item-flex-layout {
+.block-personprofile .block-panel .items-frame .item-layout,
+.block-attributevalues .block-panel .items-frame .item-layout {
   padding: 0, 8;
 }
 
