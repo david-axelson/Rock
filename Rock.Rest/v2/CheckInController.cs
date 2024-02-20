@@ -15,12 +15,16 @@
 // </copyright>
 //
 
+using System.Collections.Generic;
+using System.Data.Entity;
 using System.Linq;
 using System.Net;
 
 using Rock.CheckIn.v2;
 using Rock.Data;
+using Rock.Model;
 using Rock.Rest.Filters;
+using Rock.ViewModels.CheckIn;
 using Rock.ViewModels.Rest.CheckIn;
 using Rock.Web.Cache;
 
@@ -186,20 +190,10 @@ namespace Rock.Rest.v2.Controllers
                 var configData = configuration.GetCheckInConfiguration( _rockContext );
 
                 var familyMember = familyMembers.FirstOrDefault( fm => fm.NickName == "Noah" ) ?? familyMembers[0];
-                var sw = System.Diagnostics.Stopwatch.StartNew();
-                for ( int i = 0; i < 100; i++ )
-                {
-                    var clonedOptions = checkInOptions.Clone();
-                    director.FilterOptionsForPerson( clonedOptions, familyMember, configData );
-                }
-                sw.Stop();
-
                 director.FilterOptionsForPerson( checkInOptions, familyMember, configData );
 
                 return Ok( new
                 {
-                    TotalTime = sw.Elapsed.TotalMilliseconds,
-                    PerTime = sw.Elapsed.TotalMilliseconds / 100,
                     Members = familyMembers,
                     Options = checkInOptions
                 } );
@@ -209,5 +203,202 @@ namespace Rock.Rest.v2.Controllers
                 return BadRequest( ex.Message );
             }
         }
+
+        #region Temporary Benchmark
+
+        /// <summary>
+        /// Performs a set of benchmark runs to determine timings.
+        /// </summary>
+        /// <returns>The results of the benchmarks.</returns>
+        [HttpPost]
+        [Authenticate]
+        [Route( "Benchmark" )]
+        [ProducesResponseType( HttpStatusCode.OK, Type = typeof( object ) )]
+        [SystemGuid.RestActionGuid( "1eb635a9-6a6a-4445-a0a2-bb59a5a08982" )]
+        public IActionResult PostBenchmark( [FromBody] BenchmarkOptionsBag options )
+        {
+            var configuration = GroupTypeCache.Get( options.ConfigurationGuid, _rockContext );
+            var kiosk = DeviceCache.Get( options.KioskGuid, _rockContext );
+            var areas = options.AreaGuids.Select( guid => GroupTypeCache.Get( guid, _rockContext ) ).ToList();
+            var bench = new Rock.Utility.Performance.MicroBench();
+            var validBenchmarks = new List<string> { "empty", "familySearch", "getFamilyMembers", "getFamilyMemberBags", "getAllCheckInOptions", "cloneOptions", "filterOptions" };
+
+            bench.RepititionMode = Rock.Utility.Performance.RepititionMode.Fast;
+
+            if ( configuration == null )
+            {
+                return BadRequest( "Configuration was not found." );
+            }
+
+            if ( kiosk == null )
+            {
+                return BadRequest( "Kiosk was not found." );
+            }
+
+            if ( options.Benchmarks.Count == 1 && options.Benchmarks[0] == "all" )
+            {
+                options.Benchmarks = validBenchmarks;
+            }
+
+            if ( options.Benchmarks.Any( b => !validBenchmarks.Contains( b ) ) )
+            {
+                return BadRequest( "Invalid benchmark specified." );
+            }
+
+            var results = new Dictionary<string, object>();
+
+            foreach ( var benchmark in options.Benchmarks )
+            {
+                if ( benchmark == "empty" )
+                {
+                    var result = bench.Benchmark( () =>
+                    {
+                        using ( var rockContext = new RockContext() )
+                        {
+                            var director = new CheckInDirector( rockContext );
+                        }
+                    } );
+
+                    results.Add( benchmark, result.NormalizedStatistics.ToString() );
+                }
+                else if ( benchmark == "familySearch" )
+                {
+                    var result = bench.Benchmark( () =>
+                    {
+                        using ( var rockContext = new RockContext() )
+                        {
+                            var director = new CheckInDirector( rockContext );
+
+                            var families = director.SearchForFamilies( "5553322",
+                                Enums.CheckIn.FamilySearchMode.PhoneNumber,
+                                configuration,
+                                null );
+                        }
+                    } );
+
+                    results.Add( benchmark, result.NormalizedStatistics.ToString() );
+                }
+                else if ( benchmark == "getFamilyMembers" )
+                {
+                    var result = bench.Benchmark( () =>
+                    {
+                        using ( var rockContext = new RockContext() )
+                        {
+                            var director = new CheckInDirector( rockContext );
+                            var familyMembersQry = director.GetFamilyMembersForCheckInQuery( options.FamilyGuid, configuration );
+                        }
+                    } );
+
+                    results.Add( benchmark, result.NormalizedStatistics.ToString() );
+                }
+                else if ( benchmark == "getFamilyMemberBags" )
+                {
+                    IEnumerable<GroupMember> familyMembers;
+                    FamilyMemberBag familyMemberBag;
+
+                    using ( var rockContext = new RockContext() )
+                    {
+                        var director = new CheckInDirector( rockContext );
+                        var familyMembersQry = director.GetFamilyMembersForCheckInQuery( options.FamilyGuid, configuration );
+
+                        familyMembers = familyMembersQry
+                            .Include( fm => fm.Person )
+                            .Include( fm => fm.Person.PrimaryFamily )
+                            .Include( fm => fm.GroupRole )
+                            .ToList();
+
+                        familyMemberBag = director.GetFamilyMemberBags( options.FamilyGuid, familyMembers ).First( fm => fm.FirstName == "Noah" );
+                    }
+
+                    var result = bench.Benchmark( () =>
+                    {
+                        using ( var rockContext = new RockContext() )
+                        {
+                            var director = new CheckInDirector( rockContext );
+
+                            var bags = director.GetFamilyMemberBags( options.FamilyGuid, familyMembers );
+                        }
+                    } );
+
+                    results.Add( benchmark, result.NormalizedStatistics.ToString() );
+                }
+                else if ( benchmark == "getAllCheckInOptions" )
+                {
+                    var result = bench.Benchmark( () =>
+                    {
+                        using ( var rockContext = new RockContext() )
+                        {
+                            var director = new CheckInDirector( rockContext );
+
+                            var checkInOptions = director.GetAllCheckInOptions( areas, kiosk, null );
+                        }
+                    } );
+
+                    results.Add( benchmark, result.NormalizedStatistics.ToString() );
+                }
+                else if ( benchmark == "cloneOptions" )
+                {
+                    CheckInOptions mainCheckInOptions;
+
+                    using ( var rockContext = new RockContext() )
+                    {
+                        var director = new CheckInDirector( rockContext );
+
+                        mainCheckInOptions = director.GetAllCheckInOptions( areas, kiosk, null );
+                    }
+
+                    var result = bench.Benchmark( () =>
+                    {
+                        var clonedOptions = mainCheckInOptions.Clone();
+                    } );
+
+                    results.Add( benchmark, result.NormalizedStatistics.ToString() );
+                }
+                else if ( benchmark == "filterOptions" )
+                {
+                    CheckInOptions mainCheckInOptions;
+                    var configData = configuration.GetCheckInConfiguration( _rockContext );
+                    FamilyMemberBag familyMemberBag;
+
+                    using ( var rockContext = new RockContext() )
+                    {
+                        var director = new CheckInDirector( rockContext );
+                        var familyMembersQry = director.GetFamilyMembersForCheckInQuery( options.FamilyGuid, configuration );
+
+                        familyMemberBag = director.GetFamilyMemberBags( options.FamilyGuid, familyMembersQry ).First( fm => fm.FirstName == "Noah" );
+                        mainCheckInOptions = director.GetAllCheckInOptions( areas, kiosk, null );
+                    }
+
+                    var result = bench.Benchmark( () =>
+                    {
+                        using ( var rockContext = new RockContext() )
+                        {
+                            var director = new CheckInDirector( rockContext );
+
+                            var clonedOptions = mainCheckInOptions.Clone();
+                            director.FilterOptionsForPerson( clonedOptions, familyMemberBag, configData );
+                        }
+                    } );
+
+                    results.Add( benchmark, result.NormalizedStatistics.ToString() );
+                }
+            }
+
+            return Ok( results );
+        }
+
+        /// <summary>
+        /// Temporary, used by benchmark action.
+        /// </summary>
+        public class BenchmarkOptionsBag : ListFamilyMembersOptionsBag
+        {
+            /// <summary>
+            /// Gets or sets the benchmarks.
+            /// </summary>
+            /// <value>The benchmarks.</value>
+            public List<string> Benchmarks { get; set; }
+        }
+
+        #endregion
     }
 }

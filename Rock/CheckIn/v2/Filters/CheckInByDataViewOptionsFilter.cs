@@ -37,8 +37,6 @@ namespace Rock.CheckIn.v2.Filters
             {
                 return true;
             }
-            // TODO: Temporary so we can keep testing performance.
-            return false;
 
             var dataViewService = new DataViewService( RockContext );
 
