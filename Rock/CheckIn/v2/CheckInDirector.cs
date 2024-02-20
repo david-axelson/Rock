@@ -476,7 +476,7 @@ namespace Rock.CheckIn.v2
                         Guid = dv.Guid,
                         Name = dv.Value
                     } )
-                    .ToList(),
+                    .ToList() ?? new List<CheckInAbilityLevelItem>(),
                 Areas = activeAreas
                     .Select( a => new CheckInAreaItem
                     {
