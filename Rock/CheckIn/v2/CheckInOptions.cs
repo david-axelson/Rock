@@ -18,6 +18,12 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
+
+using Rock.Data;
+using Rock.Model;
+using Rock.ViewModels.CheckIn;
+using Rock.Web.Cache;
 
 namespace Rock.CheckIn.v2
 {
@@ -63,6 +69,192 @@ namespace Rock.CheckIn.v2
         #endregion
 
         #region Methods
+
+        /// <summary>
+        /// <para>
+        /// Creates the the check-in options that represents all possible values
+        /// for the kiosk or locations. 
+        /// </para>
+        /// <para>
+        /// If you provide an array of locations they will be used, otherwise
+        /// the locations of the kiosk will be used. If you provide a kiosk
+        /// then it will be used to determine the current timestamp when
+        /// checking if locations are open or not.
+        /// </para>
+        /// </summary>
+        /// <param name="possibleAreas">The possible areas that are to be considered when generating the options.</param>
+        /// <param name="kiosk">The optional kiosk to use.</param>
+        /// <param name="locations">The list of locations to use.</param>
+        /// <param name="rockContext">The context to use when accessing the database.</param>
+        /// <returns>An instance of <see cref="CheckInOptions"/> that describes the available options.</returns>
+        /// <exception cref="System.ArgumentNullException">kiosk - Kiosk must be specified unless locations are specified.</exception>
+        internal static CheckInOptions Create( IReadOnlyCollection<GroupTypeCache> possibleAreas, DeviceCache kiosk, IReadOnlyCollection<NamedLocationCache> locations, RockContext rockContext )
+        {
+            if ( kiosk == null && locations == null )
+            {
+                throw new ArgumentNullException( nameof( kiosk ), "Kiosk must be specified unless locations are specified." );
+            }
+
+            // Get the primary campus for this kiosk.
+            var kioskCampusId = kiosk?.GetCampusId();
+            var kioskCampus = kioskCampusId.HasValue ? CampusCache.Get( kioskCampusId.Value, rockContext ) : null;
+
+            // Get the current timestamp as well as today's date for filtering
+            // in later logic.
+            var now = kioskCampus?.CurrentDateTime ?? RockDateTime.Now;
+            var today = now.Date;
+
+            // Get all areas that don't have exclusions for today.
+            var activeAreas = possibleAreas
+                .Where( a => !a.GroupScheduleExclusions.Any( e => today >= e.Start && today <= e.End ) )
+                .ToList();
+
+            // Get all area identifiers as a HashSet for faster lookups.
+            var activeAreaIds = new HashSet<int>( activeAreas.Select( a => a.Id ) );
+
+            // Get the active locations to work with.
+            if ( locations != null )
+            {
+                locations = locations
+                    .Where( nlc => nlc.IsActive )
+                    .ToList();
+            }
+            else
+            {
+                // Get all locations for the kiosk that are active.
+                locations = kiosk.GetAllLocationIds()
+                    .Select( id => NamedLocationCache.Get( id ) )
+                    .Where( nlc => nlc != null && nlc.IsActive )
+                    .ToList();
+            }
+
+            // Get all the group locations for these locations. This also
+            // filters down to only groups in an active area.
+            var groupLocations = locations
+                .SelectMany( l => GroupLocationCache.AllForLocationId( l.Id ) )
+                .DistinctBy( glc => glc.Id )
+                .Where( glc => activeAreaIds.Contains( GroupCache.Get( glc.GroupId, rockContext )?.GroupTypeId ?? 0 ) )
+                .ToList();
+
+            // Get all the schedules that are active.
+            var activeSchedules = groupLocations
+                .SelectMany( gl => gl.ScheduleIds )
+                .Distinct()
+                .Select( id => NamedScheduleCache.Get( id, rockContext ) )
+                .Where( s => s != null
+                    && s.IsActive
+                    && s.WasCheckInActive( now ) )
+                .ToList();
+
+            // Get just the schedule identifiers in a hash set for faster lookups.
+            var activeScheduleIds = new HashSet<int>( activeSchedules.Select( s => s.Id ) );
+
+            // Get just the group locations with active schedules.
+            var activeGroupLocations = groupLocations
+                .Where( gl => gl.ScheduleIds.Any( sid => activeScheduleIds.Contains( sid ) ) )
+                .ToList();
+
+            // Load all the counts for any locations that are still up for
+            // consideration.
+            var locationIdsForCount = activeGroupLocations
+                .Select( gl => gl.LocationId )
+                .Distinct()
+                .ToList();
+            var locationCounts = GetCountsForLocations( locationIdsForCount, now, rockContext );
+
+            // Construct the initial options bag.
+            var options = new CheckInOptions
+            {
+                AbilityLevels = DefinedTypeCache.Get( SystemGuid.DefinedType.PERSON_ABILITY_LEVEL_TYPE.AsGuid(), rockContext )
+                    ?.DefinedValues
+                    .Select( dv => new CheckInAbilityLevelItem
+                    {
+                        Guid = dv.Guid,
+                        Name = dv.Value
+                    } )
+                    .ToList() ?? new List<CheckInAbilityLevelItem>(),
+                Areas = activeAreas
+                    .Select( a => new CheckInAreaItem
+                    {
+                        Guid = a.Guid,
+                        Name = a.Name
+                    } )
+                    .ToList(),
+                Groups = new List<CheckInGroupItem>(),
+                Locations = new List<CheckInLocationItem>(),
+                Schedules = activeSchedules
+                    .Select( s => new CheckInScheduleItem
+                    {
+                        Guid = s.Guid,
+                        Name = s.Name
+                    } )
+                    .ToList()
+            };
+
+            var locationIdsOverCapacity = new HashSet<int>();
+
+            // Add in all the locations to the options bag.
+            foreach ( var grp in activeGroupLocations.GroupBy( gl => gl.LocationId ) )
+            {
+                var location = NamedLocationCache.Get( grp.Key, rockContext );
+                var locationScheduleIds = new HashSet<int>( grp.SelectMany( gl => gl.ScheduleIds ).Distinct() );
+                var attendeeGuids = locationCounts.GetValueOrDefault( location.Guid, new HashSet<Guid>() );
+
+                // Check if this room is at all valid. If it is over the firm
+                // threshold then not even an override is allowed.
+                var isThresholdExceeded = location.FirmRoomThreshold.HasValue
+                    && attendeeGuids.Count > location.FirmRoomThreshold.Value;
+
+                if ( isThresholdExceeded )
+                {
+                    locationIdsOverCapacity.Add( location.Id );
+
+                    continue;
+                }
+
+                options.Locations.Add( new CheckInLocationItem
+                {
+                    Guid = location.Guid,
+                    Name = location.Name,
+                    CurrentCount = attendeeGuids.Count,
+                    Capacity = location.SoftRoomThreshold,
+                    CurrentPersonGuids = attendeeGuids,
+                    ScheduleGuids = activeSchedules.Where( s => locationScheduleIds.Contains( s.Id ) ).Select( s => s.Guid ).ToList()
+                } );
+            }
+
+            // Add in all the Groups to the options bag.
+            var activeGroupLocationsUnderCapacity = activeGroupLocations
+                .Where( gl => !locationIdsOverCapacity.Contains( gl.LocationId ) );
+
+            foreach ( var grp in activeGroupLocationsUnderCapacity.GroupBy( gl => gl.GroupId ) )
+            {
+                var group = GroupCache.Get( grp.Key, rockContext );
+                var groupType = group?.GroupType;
+
+                if ( groupType == null )
+                {
+                    continue;
+                }
+
+                options.Groups.Add( new CheckInGroupItem
+                {
+                    Guid = group.Guid,
+                    Name = group.Name,
+                    AbilityLevelGuid = null,
+                    AreaGuid = groupType.Guid,
+                    CheckInData = group.GetCheckInData( rockContext ),
+                    CheckInAreaData = groupType.GetCheckInAreaData( rockContext ),
+                    LocationGuids = grp.OrderBy( gl => gl.Order )
+                        .Select( gl => NamedLocationCache.Get( gl.LocationId ) )
+                        .Where( l => l != null )
+                        .Select( l => l.Guid )
+                        .ToList()
+                } );
+            }
+
+            return options;
+        }
 
         /// <summary>
         /// Clones this instance. This creates an entirely new options instance
@@ -123,6 +315,150 @@ namespace Rock.CheckIn.v2
             };
 
             return clonedOptions;
+        }
+
+        /// <summary>
+        /// Removes any option items that are "empty". Meaning, if a group has
+        /// no locations then it can't be available as a choice so it will be
+        /// removed.
+        /// </summary>
+        public void RemoveEmptyOptions()
+        {
+            // We use .RemoveAll() instead of Where().ToList() because this is
+            // a hot path in check-in. RemoveAll() is about 30% faster and it
+            // also causes 0 allocations unlike Where().ToList().
+            //
+            // This is why you must call Clone() before calling this method if
+            // you plan to use the original options again.
+
+            // Start at the "bottom" and work our way up. So first remove all
+            // locations without schedules.
+            var allScheduleGuids = new HashSet<Guid>( Schedules.Select( s => s.Guid ) );
+            var allReferencedLocationGuids = new HashSet<Guid>( Groups.SelectMany( g => g.LocationGuids ) );
+
+            foreach ( var location in Locations )
+            {
+                location.ScheduleGuids.RemoveAll( scheduleGuid => !allScheduleGuids.Contains( scheduleGuid ) );
+            }
+
+            Locations.RemoveAll( l => l.ScheduleGuids.Count == 0
+                || !allReferencedLocationGuids.Contains( l.Guid ) );
+
+            // Next remove all groups without locations.
+            var allLocationGuids = new HashSet<Guid>( Locations.Select( l => l.Guid ) );
+
+            foreach ( var group in Groups )
+            {
+                group.LocationGuids.RemoveAll( locationGuid => !allLocationGuids.Contains( locationGuid ) );
+            }
+
+            Groups.RemoveAll( g => g.LocationGuids.Count == 0 );
+
+            // Finally remove all areas without groups.
+            var allReferencedAreaGuids = new HashSet<Guid>( Groups.Select( g => g.AreaGuid ) );
+
+            Areas.RemoveAll( a => !allReferencedAreaGuids.Contains( a.Guid ) );
+        }
+
+        /// <summary>
+        /// Gets the counts for all the locations in one query.
+        /// </summary>
+        /// <param name="locationIds">The location identifiers.</param>
+        /// <param name="now">The current timestamp to use for attendance calculation.</param>
+        /// <param name="rockContext">The context to use when accessing the database.</param>
+        /// <returns>
+        /// A dictionary of location unique identifier keys and the unique
+        /// identifiers of the people in the location. No value will be available
+        /// if there are not any attendance records for the location.
+        /// </returns>
+        private static Dictionary<Guid, HashSet<Guid>> GetCountsForLocations( IReadOnlyCollection<int> locationIds, DateTime now, RockContext rockContext )
+        {
+            var attendanceService = new AttendanceService( rockContext );
+            var todayDate = now.Date;
+
+            if ( locationIds.Count == 0 )
+            {
+                return new Dictionary<Guid, HashSet<Guid>>();
+            }
+
+            var attendancesQry = attendanceService.Queryable()
+                .Where( a =>
+                    a.Occurrence.OccurrenceDate == todayDate
+                    && a.Occurrence.LocationId.HasValue
+                    && a.Occurrence.GroupId.HasValue
+                    && a.Occurrence.ScheduleId.HasValue
+                    && a.PersonAliasId.HasValue
+                    && a.DidAttend.HasValue
+                    && a.DidAttend.Value
+                    && !a.EndDateTime.HasValue );
+
+            /*
+                02-12-2024 DSH
+
+                Build LINQ expression 'locationIds.Contains( a.Occurrence.LocationId.Value )'
+                manually. If EF sees a List<>.Contains() call then it won't re-use
+                the cache and has to re-create the SQL statement each time. This
+                costs about 15-20ms. Considering this query will otherwise take
+                only about 1-2ms, that is a lot of overhead.
+           */
+            Expression<Func<Attendance, bool>> predicate = null;
+            var aParameter = Expression.Parameter( typeof( Attendance ), "a" );
+
+            foreach ( var locationId in locationIds )
+            {
+                // Don't use LinqPredicateBuilder as that will cause a SQL
+                // parameter to be generated for each comparison. Since we
+                // are not in control of how many items are in the list we
+                // could run out of parameters. So build it with constant
+                // values instead. Too many LINQ parameters and we hit a stack
+                // overflow crash.
+                var occurrenceProperty = Expression.Property( aParameter, nameof( Attendance.Occurrence ) );
+                var locationIdProperty = Expression.Property( occurrenceProperty, nameof( Attendance.Occurrence.LocationId ) );
+                var locationIdValueProperty = Expression.Property( locationIdProperty, nameof( Attendance.Occurrence.LocationId.Value ) );
+                var equalExpr = Expression.Equal( locationIdValueProperty, Expression.Constant( locationId ) );
+                var expression = Expression.Lambda<Func<Attendance, bool>>( equalExpr, aParameter );
+
+                predicate = predicate != null
+                    ? predicate.Or( expression )
+                    : expression;
+            }
+
+            attendancesQry = attendancesQry.Where( predicate );
+
+            var attendances = attendancesQry
+                .Select( a => new
+                {
+                    LocationGuid = a.Occurrence.Location.Guid,
+                    ScheduleId = a.Occurrence.ScheduleId.Value,
+                    a.CampusId,
+                    a.StartDateTime,
+                    a.EndDateTime,
+                    PersonGuid = a.PersonAlias.Person.Guid
+                } )
+                .ToList();
+
+            // We now have all the attendance records for these locations that
+            // have check-in today but not yet checked out. Now we need to
+            // filter out any that have schedules where check-in is no longer
+            // active.
+
+            var activeAttendances = attendances
+                .GroupBy( a => new { a.ScheduleId, a.CampusId } )
+                .SelectMany( grp =>
+                {
+                    // The vast majority of attendance records for a single
+                    // location should have the same schedule and campus.
+                    var scheduleCache = NamedScheduleCache.Get( grp.Key.ScheduleId, rockContext );
+                    var campusCache = grp.Key.CampusId.HasValue
+                        ? CampusCache.Get( grp.Key.CampusId.Value, rockContext )
+                        : null;
+
+                    return grp.Where( a => Attendance.CalculateIsCurrentlyCheckedIn( a.StartDateTime, a.EndDateTime, campusCache, scheduleCache ) );
+                } );
+
+            return activeAttendances
+                .GroupBy( a => a.LocationGuid )
+                .ToDictionary( grp => grp.Key, grp => new HashSet<Guid>( grp.Select( a => a.PersonGuid ) ) );
         }
 
         #endregion

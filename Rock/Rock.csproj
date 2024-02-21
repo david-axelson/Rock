@@ -808,6 +808,7 @@
     <Compile Include="CheckIn\v2\CheckInAreaItem.cs" />
     <Compile Include="CheckIn\v2\CheckInConfigurationData.cs" />
     <Compile Include="CheckIn\v2\CheckInDirector.cs" />
+    <Compile Include="CheckIn\v2\CheckInFamilySearch.cs" />
     <Compile Include="CheckIn\v2\CheckInGroupData.cs" />
     <Compile Include="CheckIn\v2\CheckInGroupItem.cs" />
     <Compile Include="CheckIn\v2\CheckInLocationItem.cs" />
