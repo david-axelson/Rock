@@ -8,6 +8,7 @@
           stickyHeader
           liveUpdates
           gridSettings
+          :showLaunchWorkflow="false"
           :gridSettingsActive="hasSettingsFilters"
           @gridSettingsClick="onGridSettingsClick"
           :onAddItem="config.isAddEnabled ? onAddItem : undefined"

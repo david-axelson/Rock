@@ -75,7 +75,7 @@ namespace Rock.Blocks.Engagement
         /// If true only active streak types are included in the result.
         /// </summary>
         /// <value>
-        /// The active status of the streak type..
+        /// The active status filter.
         /// </value>
         protected string FilterActiveStatus => GetBlockPersonPreferences()
             .GetValue( PreferenceKey.FilterActiveStatus );
@@ -90,8 +90,9 @@ namespace Rock.Blocks.Engagement
             var box = new ListBlockBox<StreakTypeListOptionsBag>();
             var builder = GetGridBuilder();
 
-            box.IsAddEnabled = GetIsAddEnabled();
-            box.IsDeleteEnabled = BlockCache.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson );
+            var isAddDeleteEnabled = GetIsAddDeleteEnabled();
+            box.IsAddEnabled = isAddDeleteEnabled;
+            box.IsDeleteEnabled = isAddDeleteEnabled;
             box.ExpectedRowCount = null;
             box.NavigationUrls = GetBoxNavigationUrls();
             box.Options = GetBoxOptions();
@@ -115,7 +116,7 @@ namespace Rock.Blocks.Engagement
         /// Determines if the add button should be enabled in the grid.
         /// <summary>
         /// <returns>A boolean value that indicates if the add button should be enabled.</returns>
-        private bool GetIsAddEnabled()
+        private bool GetIsAddDeleteEnabled()
         {
             return BlockCache.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson );
         }
@@ -145,7 +146,7 @@ namespace Rock.Blocks.Engagement
                 case "Active":
                     return queryable.Where( s => s.IsActive );
                 case "Inactive":
-                    return queryable.Where( a => !a.IsActive );
+                    return queryable.Where( s => !s.IsActive );
                 default:
                     return queryable;
 
@@ -155,7 +156,7 @@ namespace Rock.Blocks.Engagement
         /// <inheritdoc/>
         protected override IQueryable<StreakType> GetOrderedListQueryable( IQueryable<StreakType> queryable, RockContext rockContext )
         {
-            return queryable.OrderBy( vm => vm.Id );
+            return queryable.OrderBy( s => s.Id );
         }
 
         /// <inheritdoc/>
