@@ -16,12 +16,12 @@
 //
 using System;
 using System.Collections.Generic;
+using System.Data.Entity;
 using System.Diagnostics;
 using System.Linq;
 using System.Linq.Expressions;
 
 using Rock.Data;
-using Rock.Logging;
 using Rock.Reporting;
 using Rock.Security;
 using Rock.Web.Cache;
@@ -31,8 +31,24 @@ namespace Rock.Model
     /// <summary>
     /// Represents a filterable DataView in Rock.
     /// </summary>
-    public partial class DataView : Model<DataView>, ICategorized
+    public partial class DataView : Model<DataView>, ICategorized, ICacheable
     {
+        #region ICacheable
+
+        /// <inheritdoc/>
+        public void UpdateCache( EntityState entityState, Data.DbContext dbContext )
+        {
+            DataViewCache.UpdateCachedEntity( Id, entityState );
+        }
+
+        /// <inheritdoc/>
+        public IEntityCache GetCacheObject()
+        {
+            return DataViewCache.Get( Id );
+        }
+
+        #endregion ICacheable
+
         /// <summary>
         /// Gets the parent security authority for the DataView which is its Category
         /// </summary>

@@ -19,6 +19,7 @@ using System.Linq;
 using System.Linq.Dynamic.Core;
 
 using Rock.Model;
+using Rock.Web.Cache;
 
 namespace Rock.CheckIn.v2.Filters
 {
@@ -38,57 +39,22 @@ namespace Rock.CheckIn.v2.Filters
                 return true;
             }
 
-            var dataViewService = new DataViewService( RockContext );
-
             foreach ( var dataViewGuid in group.CheckInData.DataViewGuids )
             {
-                var dataView = dataViewService.Get( dataViewGuid );
+                var dataView = DataViewCache.Get( dataViewGuid, RockContext );
 
                 if ( dataView == null )
                 {
                     continue;
                 }
 
-                if ( !IsPersonInDataView( dataView ) )
+                if ( !dataView.GetEntityIds().Contains( PersonId.Value ) )
                 {
                     return false;
                 }
             }
 
             return true;
-        }
-
-        /// <summary>
-        /// Determines whether the filtered person is in the <see cref="DataView"/>.
-        /// </summary>
-        /// <param name="dataView">The data view to query.</param>
-        /// <returns><c>true</c> if the person is in the data view; otherwise, <c>false</c>.</returns>
-        private bool IsPersonInDataView( DataView dataView )
-        {
-            if ( dataView.IsPersisted() && dataView.PersistedLastRefreshDateTime.HasValue )
-            {
-                return RockContext.Set<DataViewPersistedValue>()
-                    .Any( pv => pv.DataViewId == dataView.Id
-                        && pv.EntityId == PersonId.Value );
-            }
-            else
-            {
-                var getQueryArgs = new DataViewGetQueryArgs
-                {
-                    DatabaseTimeoutSeconds = 30,
-                    DbContext = RockContext
-                };
-
-                var dataViewQry = dataView.GetQuery( getQueryArgs );
-
-                // If the data view isn't working, then assume they are in it.
-                if ( dataViewQry == null )
-                {
-                    return true;
-                }
-
-                return dataViewQry.Any( a => a.Id == PersonId.Value );
-            }
         }
 
         #endregion
