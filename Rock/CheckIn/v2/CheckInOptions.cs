@@ -397,38 +397,7 @@ namespace Rock.CheckIn.v2
                     && a.DidAttend.Value
                     && !a.EndDateTime.HasValue );
 
-            /*
-                02-12-2024 DSH
-
-                Build LINQ expression 'locationIds.Contains( a.Occurrence.LocationId.Value )'
-                manually. If EF sees a List<>.Contains() call then it won't re-use
-                the cache and has to re-create the SQL statement each time. This
-                costs about 15-20ms. Considering this query will otherwise take
-                only about 1-2ms, that is a lot of overhead.
-           */
-            Expression<Func<Attendance, bool>> predicate = null;
-            var aParameter = Expression.Parameter( typeof( Attendance ), "a" );
-
-            foreach ( var locationId in locationIds )
-            {
-                // Don't use LinqPredicateBuilder as that will cause a SQL
-                // parameter to be generated for each comparison. Since we
-                // are not in control of how many items are in the list we
-                // could run out of parameters. So build it with constant
-                // values instead. Too many LINQ parameters and we hit a stack
-                // overflow crash.
-                var occurrenceProperty = Expression.Property( aParameter, nameof( Attendance.Occurrence ) );
-                var locationIdProperty = Expression.Property( occurrenceProperty, nameof( Attendance.Occurrence.LocationId ) );
-                var locationIdValueProperty = Expression.Property( locationIdProperty, nameof( Attendance.Occurrence.LocationId.Value ) );
-                var equalExpr = Expression.Equal( locationIdValueProperty, Expression.Constant( locationId ) );
-                var expression = Expression.Lambda<Func<Attendance, bool>>( equalExpr, aParameter );
-
-                predicate = predicate != null
-                    ? predicate.Or( expression )
-                    : expression;
-            }
-
-            attendancesQry = attendancesQry.Where( predicate );
+            attendancesQry = CheckInDirector.WhereContains( attendancesQry, locationIds, a => a.Occurrence.LocationId.Value );
 
             var attendances = attendancesQry
                 .Select( a => new

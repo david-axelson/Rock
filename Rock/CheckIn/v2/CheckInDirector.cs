@@ -501,6 +501,56 @@ namespace Rock.CheckIn.v2
                 .ToList();
         }
 
+        /// <summary>
+        /// <para>
+        /// Adds a where clause that can replicates a Contains() call on the
+        /// values. If your LINQ statement has a real Contains() call then it
+        /// will not be cached by EF - meaning EF will generate the SQL each
+        /// time instead of using a cached SQL statement. This is very costly at
+        /// about 15-20ms or more each time this happens.
+        /// </para>
+        /// <para>
+        /// This method will do the same but generate individual x == 1 OR x == 2
+        /// statements - which do get translated to an IN statement in SQL.
+        /// </para>
+        /// <para>
+        /// Because the EF cache will be no good if any of the values in the
+        /// clause change, this method is only helpful if <paramref name="values"/>
+        /// is fairly consistent. If it is going to change with nearly every
+        /// query then this does not provide any performance improvement.
+        /// </para>
+        /// </summary>
+        /// <typeparam name="T">The type of queryable.</typeparam>
+        /// <typeparam name="V">The type of the value to be checked.</typeparam>
+        /// <param name="source">The source queryable.</param>
+        /// <param name="values">The values that <paramref name="expression"/> must match one of.</param>
+        /// <param name="expression">The expression to the property.</param>
+        /// <returns>A new queryable with the updated where clause.</returns>
+        internal static IQueryable<T> WhereContains<T, V>( IQueryable<T> source, IEnumerable<V> values, Expression<Func<T, V>> expression )
+        {
+            Expression<Func<T, bool>> predicate = null;
+            var parameter = expression.Parameters[0];
+
+            foreach ( var value in values )
+            {
+                var equalExpr = Expression.Equal( expression.Body, Expression.Constant( value ) );
+                var lambdaExpr = Expression.Lambda<Func<T, bool>>( equalExpr, parameter );
+
+                predicate = predicate != null
+                    ? predicate.Or( lambdaExpr )
+                    : lambdaExpr;
+            }
+
+            if ( predicate != null )
+            {
+                return source.Where( predicate );
+            }
+            else
+            {
+                return source.Where( a => false );
+            }
+        }
+
         #endregion
 
         #region Private Methods
@@ -726,38 +776,7 @@ namespace Rock.CheckIn.v2
                 .AsNoTracking()
                 .Where( gm => relationshipGroupIdQry.Contains( gm.GroupId ) );
 
-            /*  02-12-2024 DSH
-
-              Build LINQ expression 'canCheckInRoleIds.Contains( gm.GroupRoleId )'
-              manually. If EF sees a List<>.Contains() call then it won't re-use
-              the cache and has to re-create the SQL statement each time. This
-              costs about 15-20ms. Considering this query will otherwise take
-              only about 2-3ms, that is a lot of overhead.
-           */
-            Expression<Func<GroupMember, bool>> predicate = null;
-            var gmParameter = Expression.Parameter( typeof( GroupMember ), "gm" );
-            foreach ( var roleId in canCheckInRoleIds )
-            {
-                // Don't use LinqPredicateBuilder as that will cause a SQL
-                // parameter to be generated for each comparison. Since we
-                // are not in control of how many items are in the list we
-                // could run out of parameters. So build it with constant
-                // values instead. Too many LINQ parameters and we hit a stack
-                // overflow crash.
-                var propExpr = Expression.Property( gmParameter, nameof( GroupMember.GroupRoleId ) );
-                var equalExpr = Expression.Equal( propExpr, Expression.Constant( roleId ) );
-                var expression = Expression.Lambda<Func<GroupMember, bool>>( equalExpr, gmParameter );
-
-                predicate = predicate != null
-                    ? predicate.Or( expression )
-                    : expression;
-            }
-
-            // If we had any canCheckInRoleIds then append the predicate.
-            if ( predicate != null )
-            {
-                canCheckInFamilyMemberQry = canCheckInFamilyMemberQry.Where( predicate );
-            }
+            canCheckInFamilyMemberQry = WhereContains( canCheckInFamilyMemberQry, canCheckInRoleIds, gm => gm.GroupRoleId );
 
             // If check-in does not allow inactive people then add that
             // check now.
