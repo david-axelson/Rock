@@ -396,6 +396,43 @@ namespace Rock.CheckIn.v2
             }
         }
 
+        /// <summary>
+        /// Sets the default selections for the specified people. This will
+        /// mark a person as pre-selected if they have recent attendance and
+        /// it will also set the current selections if the check-in template
+        /// is configured that way.
+        /// </summary>
+        /// <param name="people">The people to be checked in.</param>
+        /// <param name="configuration">The check-in configuration.</param>
+        public void SetDefaultSelectionsForPeople( IReadOnlyCollection<CheckInFamilyMemberItem> people, CheckInConfigurationData configuration )
+        {
+            using ( var activity = ObservabilityHelper.StartActivity( "Get Default Selections" ) )
+            {
+                var preSelectCutoff = RockDateTime.Today.AddDays( Math.Min( -1, 0 - configuration.AutoSelectDaysBack ) );
+                var recentAttendance = GetRecentAttendance( preSelectCutoff, people.Select( p => p.Person.Guid ) );
+                var optionsSelector = CreateDefaultOptionsSelector( configuration );
+
+                foreach ( var person in people )
+                {
+                    var attendanceForPerson = recentAttendance
+                        .Where( a => a.PersonGuid == person.Person.Guid )
+                        .ToList();
+
+                    if ( configuration.AutoSelect == AutoSelectMode.PeopleAndAreaGroupLocation )
+                    {
+                        using ( var personActivity = ObservabilityHelper.StartActivity( $"Get Selected Options For {person.Person.NickName}" ) )
+                        {
+                            person.SelectedOptions = optionsSelector.GetDefaultSelectionForPerson( person, attendanceForPerson );
+                        }
+                    }
+
+                    person.IsPreSelected = configuration.AutoSelectDaysBack > 0 && attendanceForPerson.Count > 0;
+
+                    // TODO: Look for people to check out.
+                }
+            }
+        }
+
         #endregion
 
         #region Protected Methods
@@ -408,6 +445,18 @@ namespace Rock.CheckIn.v2
         protected virtual CheckInFamilySearch CreateFamilySearch( CheckInConfigurationData configuration )
         {
             return new CheckInFamilySearch( _rockContext, configuration );
+        }
+
+        /// <summary>
+        /// Creates the object that will handle making default selections for
+        /// people. This is used when check-in is configured for full auto
+        /// mode (AutoBack mode is set to select group/location/schedule).
+        /// </summary>
+        /// <param name="configuration">The check-in configuration.</param>
+        /// <returns>An instance of <see cref="DefaultOptionsSelector"/>.</returns>
+        protected virtual DefaultOptionsSelector CreateDefaultOptionsSelector( CheckInConfigurationData configuration )
+        {
+            return new DefaultOptionsSelector();
         }
 
         /// <summary>
@@ -787,6 +836,45 @@ namespace Rock.CheckIn.v2
             }
 
             return canCheckInFamilyMemberQry;
+        }
+
+        /// <summary>
+        /// Gets the recent attendance for a set of people.
+        /// </summary>
+        /// <param name="cutoffDateTime">Attendance records must start on or after this date and time.</param>
+        /// <param name="personGuids">The person unique identifiers to query the database for.</param>
+        /// <returns>A collection of <see cref="RecentAttendanceSummary"/> records.</returns>
+        private List<RecentAttendanceSummary> GetRecentAttendance( DateTime cutoffDateTime, IEnumerable<Guid> personGuids )
+        {
+            var attendanceService = new AttendanceService( _rockContext );
+
+            var personAttendanceQuery = attendanceService
+                .Queryable().AsNoTracking()
+                .Where( a => a.PersonAlias != null
+                    && a.Occurrence.Group != null
+                    && a.Occurrence.Schedule != null
+                    && a.StartDateTime >= cutoffDateTime
+                    && a.DidAttend.HasValue
+                    && a.DidAttend.Value == true );
+
+            // TODO: This should probably be changed to a raw SQL query for performance.
+            // Because the list of personGuids will be changing constantly it
+            // will still not be cached by EF.
+            personAttendanceQuery = WhereContains( personAttendanceQuery, personGuids, aa => aa.PersonAlias.Person.Guid );
+
+            return personAttendanceQuery
+                .Select( a => new RecentAttendanceSummary
+                {
+                    AttendanceId = a.Id,
+                    StartDateTime = a.StartDateTime,
+                    EndDateTime = a.EndDateTime,
+                    PersonGuid = a.PersonAlias.Person.Guid,
+                    GroupTypeGuid = a.Occurrence.Group.GroupType.Guid,
+                    GroupGuid = a.Occurrence.Group.Guid,
+                    LocationGuid = a.Occurrence.Location.Guid,
+                    ScheduleGuid = a.Occurrence.Schedule.Guid
+                } )
+                .ToList();
         }
 
         #endregion

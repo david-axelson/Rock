@@ -808,12 +808,14 @@
     <Compile Include="CheckIn\v2\CheckInAreaItem.cs" />
     <Compile Include="CheckIn\v2\CheckInConfigurationData.cs" />
     <Compile Include="CheckIn\v2\CheckInDirector.cs" />
+    <Compile Include="CheckIn\v2\CheckInFamilyMemberItem.cs" />
     <Compile Include="CheckIn\v2\CheckInFamilySearch.cs" />
     <Compile Include="CheckIn\v2\CheckInGroupData.cs" />
     <Compile Include="CheckIn\v2\CheckInGroupItem.cs" />
     <Compile Include="CheckIn\v2\CheckInLocationItem.cs" />
     <Compile Include="CheckIn\v2\CheckInMessageException.cs" />
     <Compile Include="CheckIn\v2\CheckInOptions.cs" />
+    <Compile Include="CheckIn\v2\DefaultOptionsSelector.cs" />
     <Compile Include="CheckIn\v2\Filters\CheckInByAgeOptionsFilter.cs" />
     <Compile Include="CheckIn\v2\Filters\CheckInByDataViewOptionsFilter.cs" />
     <Compile Include="CheckIn\v2\Filters\CheckInByGenderOptionsFilter.cs" />
@@ -827,6 +829,8 @@
     <Compile Include="CheckIn\v2\ICheckInOptionsGroupFilter.cs" />
     <Compile Include="CheckIn\v2\ICheckInOptionsLocationFilter.cs" />
     <Compile Include="CheckIn\v2\ICheckInPersonOptionsFilter.cs" />
+    <Compile Include="CheckIn\v2\RecentAttendanceSummary.cs" />
+    <Compile Include="CheckIn\v2\SelectedOptions.cs" />
     <Compile Include="ClientService\ClientServiceBase.cs" />
     <Compile Include="ClientService\Connection\ConnectionOpportunity\ConnectionOpportunityClientService.cs" />
     <Compile Include="ClientService\Connection\ConnectionType\ConnectionTypeClientService.cs" />

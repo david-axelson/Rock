@@ -23,6 +23,7 @@ using System.Net;
 using Rock.CheckIn.v2;
 using Rock.Data;
 using Rock.Model;
+using Rock.Observability;
 using Rock.Rest.Filters;
 using Rock.ViewModels.CheckIn;
 using Rock.ViewModels.Rest.CheckIn;
@@ -184,18 +185,32 @@ namespace Rock.Rest.v2.Controllers
             try
             {
                 var areas = options.AreaGuids.Select( guid => GroupTypeCache.Get( guid, _rockContext ) ).ToList();
+                var configData = configuration.GetCheckInConfiguration( _rockContext );
+
                 var familyMembersQry = director.GetFamilyMembersForCheckInQuery( options.FamilyGuid, configuration );
                 var familyMembers = director.GetFamilyMemberBags( options.FamilyGuid, familyMembersQry );
                 var checkInOptions = director.GetAllCheckInOptions( areas, kiosk, null );
-                var configData = configuration.GetCheckInConfiguration( _rockContext );
 
-                var familyMember = familyMembers.FirstOrDefault( fm => fm.NickName == "Noah" ) ?? familyMembers[0];
-                director.FilterOptionsForPerson( checkInOptions, familyMember, configData );
+                var people = familyMembers
+                    .Select( fm =>
+                    {
+                        var personOptions = checkInOptions.Clone();
+
+                        director.FilterOptionsForPerson( personOptions, fm, configData );
+
+                        return new CheckInFamilyMemberItem
+                        {
+                            Person = fm,
+                            Options = personOptions
+                        };
+                    } )
+                    .ToList();
+
+                director.SetDefaultSelectionsForPeople( people, configData );
 
                 return Ok( new
                 {
-                    Members = familyMembers,
-                    Options = checkInOptions
+                    People = people
                 } );
             }
             catch ( CheckInMessageException ex )
