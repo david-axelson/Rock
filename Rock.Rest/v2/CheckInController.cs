@@ -23,7 +23,6 @@ using System.Net;
 using Rock.CheckIn.v2;
 using Rock.Data;
 using Rock.Model;
-using Rock.Observability;
 using Rock.Rest.Filters;
 using Rock.ViewModels.CheckIn;
 using Rock.ViewModels.Rest.CheckIn;
@@ -194,15 +193,15 @@ namespace Rock.Rest.v2.Controllers
                 var people = familyMembers
                     .Select( fm =>
                     {
-                        var personOptions = checkInOptions.Clone();
-
-                        director.FilterOptionsForPerson( personOptions, fm, configData );
-
-                        return new CheckInFamilyMemberItem
+                        var person = new CheckInFamilyMemberItem
                         {
                             Person = fm,
-                            Options = personOptions
+                            Options = checkInOptions.Clone()
                         };
+
+                        director.FilterPersonOptions( person, configData );
+
+                        return person;
                     } )
                     .ToList();
 
@@ -390,8 +389,13 @@ namespace Rock.Rest.v2.Controllers
                         {
                             var director = new CheckInDirector( rockContext );
 
-                            var clonedOptions = mainCheckInOptions.Clone();
-                            director.FilterOptionsForPerson( clonedOptions, familyMemberBag, configData );
+                            var person = new CheckInFamilyMemberItem
+                            {
+                                Person = familyMemberBag,
+                                Options = mainCheckInOptions.Clone()
+                            };
+
+                            director.FilterPersonOptions( person, configData );
                         }
                     } );
 

@@ -822,13 +822,9 @@
     <Compile Include="CheckIn\v2\Filters\CheckInByGradeOptionsFilter.cs" />
     <Compile Include="CheckIn\v2\Filters\CheckInByMembershipOptionsFilter.cs" />
     <Compile Include="CheckIn\v2\Filters\CheckInOptionsFilter.cs" />
-    <Compile Include="CheckIn\v2\Filters\CheckInPersonOptionsFilter.cs" />
     <Compile Include="CheckIn\v2\CheckInScheduleItem.cs" />
     <Compile Include="CheckIn\v2\Filters\CheckInThresholdOptionsFilter.cs" />
     <Compile Include="CheckIn\v2\ICheckInOptionsFilter.cs" />
-    <Compile Include="CheckIn\v2\ICheckInOptionsGroupFilter.cs" />
-    <Compile Include="CheckIn\v2\ICheckInOptionsLocationFilter.cs" />
-    <Compile Include="CheckIn\v2\ICheckInPersonOptionsFilter.cs" />
     <Compile Include="CheckIn\v2\RecentAttendanceSummary.cs" />
     <Compile Include="CheckIn\v2\SelectedOptions.cs" />
     <Compile Include="ClientService\ClientServiceBase.cs" />

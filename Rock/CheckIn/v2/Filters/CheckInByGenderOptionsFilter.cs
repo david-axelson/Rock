@@ -20,19 +20,19 @@ namespace Rock.CheckIn.v2.Filters
     /// <summary>
     /// Performs filtering of check-in options based on the person's gender.
     /// </summary>
-    internal class CheckInByGenderOptionsFilter : CheckInPersonOptionsFilter, ICheckInOptionsGroupFilter
+    internal class CheckInByGenderOptionsFilter : CheckInOptionsFilter
     {
         #region Methods
 
         /// <inheritdoc/>
-        public bool IsGroupValid( CheckInGroupItem group )
+        public override bool IsGroupValid( CheckInGroupItem group )
         {
             if ( !group.CheckInData.Gender.HasValue )
             {
                 return true;
             }
 
-            return group.CheckInData.Gender.Value == Person.Gender;
+            return group.CheckInData.Gender.Value == Person.Person.Gender;
         }
 
         #endregion

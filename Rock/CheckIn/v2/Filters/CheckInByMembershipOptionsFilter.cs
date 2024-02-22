@@ -27,7 +27,7 @@ namespace Rock.CheckIn.v2.Filters
     /// Performs filtering of check-in options based on the person's membership
     /// in the group.
     /// </summary>
-    internal class CheckInByMembershipOptionsFilter : CheckInPersonOptionsFilter, ICheckInOptionsGroupFilter
+    internal class CheckInByMembershipOptionsFilter : CheckInOptionsFilter
     {
         #region Properties
 
@@ -54,7 +54,7 @@ namespace Rock.CheckIn.v2.Filters
             {
                 var groupGuidQry = new GroupMemberService( RockContext )
                     .Queryable()
-                    .Where( m => m.GroupMemberStatus == GroupMemberStatus.Active && m.Person.Guid == Person.Guid )
+                    .Where( m => m.GroupMemberStatus == GroupMemberStatus.Active && m.Person.Guid == Person.Person.Guid )
                     .Select( m => m.Group.Guid );
 
                 return new HashSet<Guid>( groupGuidQry );
@@ -66,7 +66,7 @@ namespace Rock.CheckIn.v2.Filters
         #region Methods
 
         /// <inheritdoc/>
-        public bool IsGroupValid( CheckInGroupItem group )
+        public override bool IsGroupValid( CheckInGroupItem group )
         {
             if ( group.CheckInAreaData.AttendanceRule == AttendanceRule.AlreadyBelongs )
             {

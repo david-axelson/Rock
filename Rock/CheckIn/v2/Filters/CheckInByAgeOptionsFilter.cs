@@ -22,7 +22,7 @@ namespace Rock.CheckIn.v2.Filters
     /// <summary>
     /// Performs filtering of check-in options based on the person's age.
     /// </summary>
-    internal class CheckInByAgeOptionsFilter : CheckInPersonOptionsFilter, ICheckInOptionsGroupFilter
+    internal class CheckInByAgeOptionsFilter : CheckInOptionsFilter
     {
         #region Properties
 
@@ -47,8 +47,8 @@ namespace Rock.CheckIn.v2.Filters
             // run time of this filter so we only do the conversion once now.
             PersonAge = new Lazy<decimal?>( () =>
             {
-                return Person.AgePrecise.HasValue
-                    ? Convert.ToDecimal( Person.AgePrecise.Value )
+                return Person.Person.AgePrecise.HasValue
+                    ? Convert.ToDecimal( Person.Person.AgePrecise.Value )
                     : ( decimal? ) null;
             } );
         }
@@ -58,7 +58,7 @@ namespace Rock.CheckIn.v2.Filters
         #region Methods
 
         /// <inheritdoc/>
-        public bool IsGroupValid( CheckInGroupItem group )
+        public override bool IsGroupValid( CheckInGroupItem group )
         {
             var ageRangeMatch = CheckAgeMatches( PersonAge.Value,
                 group.CheckInData.MinimumAge,
@@ -70,7 +70,7 @@ namespace Rock.CheckIn.v2.Filters
                 return true;
             }
 
-            var birthdateRangeMatch = CheckBirthdateMatches( Person.BirthDate?.DateTime,
+            var birthdateRangeMatch = CheckBirthdateMatches( Person.Person.BirthDate?.DateTime,
                 group.CheckInData.MinimumBirthdate,
                 group.CheckInData.MaximumBirthdate,
                 Configuration.IsAgeRequired );

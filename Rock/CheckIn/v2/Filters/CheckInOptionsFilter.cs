@@ -15,7 +15,10 @@
 // </copyright>
 //
 
+using System;
+
 using Rock.Data;
+using Rock.Utility;
 
 namespace Rock.CheckIn.v2.Filters
 {
@@ -31,6 +34,49 @@ namespace Rock.CheckIn.v2.Filters
 
         /// <inheritdoc/>
         public RockContext RockContext { get; set; }
+
+        /// <inheritdoc/>
+        public CheckInFamilyMemberItem Person { get; set; }
+
+        /// <summary>
+        /// Gets the person identifier.
+        /// </summary>
+        /// <value>The person identifier.</value>
+        protected Lazy<int> PersonId { get; }
+
+        #endregion
+
+        #region Constructors
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="CheckInOptionsFilter"/> class.
+        /// </summary>
+        public CheckInOptionsFilter()
+        {
+            PersonId = new Lazy<int>( () => IdHasher.Instance.GetId( Person.Person.IdKey ) ?? 0 );
+        }
+
+        #endregion
+
+        #region Methods
+
+        /// <inheritdoc/>
+        public virtual bool IsGroupValid( CheckInGroupItem group )
+        {
+            return true;
+        }
+
+        /// <inheritdoc/>
+        public virtual bool IsLocationValid( CheckInLocationItem location )
+        {
+            return true;
+        }
+
+        /// <inheritdoc/>
+        public virtual bool IsScheduleValid( CheckInScheduleItem schedule )
+        {
+            return true;
+        }
 
         #endregion
     }

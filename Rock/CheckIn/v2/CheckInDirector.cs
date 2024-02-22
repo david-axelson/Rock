@@ -367,29 +367,26 @@ namespace Rock.CheckIn.v2
         /// <summary>
         /// Filters the check-in options for a single person.
         /// </summary>
-        /// <param name="options">The options to be filtered.</param>
         /// <param name="person">The person to use when filtering options.</param>
         /// <param name="configuration">The check-inconfiguration.</param>
-        public void FilterOptionsForPerson( CheckInOptions options, FamilyMemberBag person, CheckInConfigurationData configuration )
+        public void FilterPersonOptions( CheckInFamilyMemberItem person, CheckInConfigurationData configuration )
         {
-            using ( var activity = ObservabilityHelper.StartActivity( $"Get Options For {person.NickName}" ) )
+            using ( var activity = ObservabilityHelper.StartActivity( $"Get Options For {person.Person.NickName}" ) )
             {
                 var groupFilters = GetGroupFilters( configuration, person );
 
                 if ( groupFilters.Count > 0 )
                 {
-                    options.Groups = options.Groups
-                        .Where( g => groupFilters.All( f => f.IsGroupValid( g ) ) )
-                        .ToList();
+                    person.Options.Groups
+                        .RemoveAll( g => groupFilters.Any( f => !f.IsGroupValid( g ) ) );
                 }
 
                 var locationFilters = GetLocationFilters( configuration, person );
 
                 if ( locationFilters.Count > 0 )
                 {
-                    options.Locations = options.Locations
-                        .Where( l => locationFilters.All( f => f.IsLocationValid( l ) ) )
-                        .ToList();
+                    person.Options.Locations
+                        .RemoveAll( l => locationFilters.Any( f => !f.IsLocationValid( l ) ) );
                 }
 
                 RemoveEmptyOptions( options, person, configuration );
@@ -464,12 +461,11 @@ namespace Rock.CheckIn.v2
         /// no locations then it can't be available as a choice so it will be
         /// removed.
         /// </summary>
-        /// <param name="options">The options to be cleaned up.</param>
-        /// <param name="person">The person involved in the check-in, may be <c>null</c>.</param>
+        /// <param name="person">The person whose options should be cleaned up.</param>
         /// <param name="configuration">The check-in configuration.</param>
-        protected virtual void RemoveEmptyOptions( CheckInOptions options, FamilyMemberBag person, CheckInConfigurationData configuration )
+        protected virtual void RemoveEmptyOptions( CheckInFamilyMemberItem person, CheckInConfigurationData configuration )
         {
-            options.RemoveEmptyOptions();
+            person.Options.RemoveEmptyOptions();
         }
 
         /// <summary>
@@ -679,11 +675,11 @@ namespace Rock.CheckIn.v2
         /// <param name="configuration">The check-in configuration.</param>
         /// <param name="person">The person to filter options for.</param>
         /// <returns>A list of <see cref="ICheckInOptionsFilter"/> objects that will perform filtering logic.</returns>
-        private List<ICheckInOptionsGroupFilter> GetGroupFilters( CheckInConfigurationData configuration, FamilyMemberBag person )
+        private List<ICheckInOptionsFilter> GetGroupFilters( CheckInConfigurationData configuration, CheckInFamilyMemberItem person )
         {
             var types = GetGroupFilterTypes( configuration );
 
-            return GetOptionsFilters<ICheckInOptionsGroupFilter>( types, configuration, person );
+            return CreateOptionsFilters( types, configuration, person );
         }
 
         /// <summary>
@@ -692,11 +688,11 @@ namespace Rock.CheckIn.v2
         /// <param name="configuration">The check-in configuration.</param>
         /// <param name="person">The person to filter options for.</param>
         /// <returns>A list of <see cref="ICheckInOptionsFilter"/> objects that will perform filtering logic.</returns>
-        private List<ICheckInOptionsLocationFilter> GetLocationFilters( CheckInConfigurationData configuration, FamilyMemberBag person )
+        private List<ICheckInOptionsFilter> GetLocationFilters( CheckInConfigurationData configuration, CheckInFamilyMemberItem person )
         {
             var types = GetLocationFilterTypes( configuration );
 
-            return GetOptionsFilters<ICheckInOptionsLocationFilter>( types, configuration, person );
+            return CreateOptionsFilters( types, configuration, person );
         }
 
         /// <summary>
@@ -708,26 +704,19 @@ namespace Rock.CheckIn.v2
         /// <param name="configuration">The check-in configuration.</param>
         /// <param name="person">The person to filter for.</param>
         /// <returns>A collection of filter instances.</returns>
-        private List<T> GetOptionsFilters<T>( IReadOnlyCollection<Type> filterTypes, CheckInConfigurationData configuration, FamilyMemberBag person )
+        private List<ICheckInOptionsFilter> CreateOptionsFilters( IReadOnlyCollection<Type> filterTypes, CheckInConfigurationData configuration, CheckInFamilyMemberItem person )
         {
-            var expectedType = typeof( T );
+            var expectedType = typeof( ICheckInOptionsFilter );
 
             return filterTypes
                 .Where( t => expectedType.IsAssignableFrom( t ) )
                 .Select( t =>
                 {
-                    var filter = ( T ) Activator.CreateInstance( t );
+                    var filter = ( ICheckInOptionsFilter ) Activator.CreateInstance( t );
 
-                    if ( filter is ICheckInOptionsFilter optionsFilter )
-                    {
-                        optionsFilter.Configuration = configuration;
-                        optionsFilter.RockContext = _rockContext;
-                    }
-
-                    if ( filter is ICheckInPersonOptionsFilter personFilter )
-                    {
-                        personFilter.Person = person;
-                    }
+                    filter.Configuration = configuration;
+                    filter.RockContext = _rockContext;
+                    filter.Person = person;
 
                     return filter;
                 } )

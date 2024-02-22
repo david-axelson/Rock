@@ -24,6 +24,8 @@ namespace Rock.CheckIn.v2
     /// </summary>
     internal interface ICheckInOptionsFilter
     {
+        #region Properties
+
         /// <summary>
         /// Gets or sets the check-in configuration.
         /// </summary>
@@ -35,5 +37,38 @@ namespace Rock.CheckIn.v2
         /// </summary>
         /// <value>The context to use if database access is needed.</value>
         RockContext RockContext { get; set; }
+
+        /// <summary>
+        /// Gets or sets the person to filter the options for.
+        /// </summary>
+        /// <value>The person to filter the options for.</value>
+        CheckInFamilyMemberItem Person { get; set; }
+
+        #endregion
+
+        #region Methods
+
+        /// <summary>
+        /// Determines whether the specified group is valid for check-in.
+        /// </summary>
+        /// <param name="group">The group.</param>
+        /// <returns><c>true</c> if the group is valid; otherwise, <c>false</c>.</returns>
+        bool IsGroupValid( CheckInGroupItem group );
+
+        /// <summary>
+        /// Determines whether the specified location is valid for check-in.
+        /// </summary>
+        /// <param name="location">The location.</param>
+        /// <returns><c>true</c> if the location is valid; otherwise, <c>false</c>.</returns>
+        bool IsLocationValid( CheckInLocationItem location );
+
+        /// <summary>
+        /// Determines whether the specified schedule is valid for check-in.
+        /// </summary>
+        /// <param name="schedule">The schedule.</param>
+        /// <returns><c>true</c> if the schedule is valid; otherwise, <c>false</c>.</returns>
+        bool IsScheduleValid( CheckInScheduleItem schedule );
+
+        #endregion
     }
 }

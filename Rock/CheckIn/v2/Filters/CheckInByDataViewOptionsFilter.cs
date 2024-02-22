@@ -16,9 +16,7 @@
 //
 
 using System.Linq;
-using System.Linq.Dynamic.Core;
 
-using Rock.Model;
 using Rock.Web.Cache;
 
 namespace Rock.CheckIn.v2.Filters
@@ -27,12 +25,12 @@ namespace Rock.CheckIn.v2.Filters
     /// Performs filtering of check-in options based on any data views that
     /// the person must be a member of.
     /// </summary>
-    internal class CheckInByDataViewOptionsFilter : CheckInPersonOptionsFilter, ICheckInOptionsGroupFilter
+    internal class CheckInByDataViewOptionsFilter : CheckInOptionsFilter
     {
         #region Methods
 
         /// <inheritdoc/>
-        public bool IsGroupValid( CheckInGroupItem group )
+        public override bool IsGroupValid( CheckInGroupItem group )
         {
             if ( group.CheckInData.DataViewGuids.Count == 0 )
             {
