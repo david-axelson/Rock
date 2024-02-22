@@ -66,6 +66,14 @@ namespace Rock.CheckIn.v2
             typeof( CheckInThresholdOptionsFilter )
         };
 
+        /// <summary>
+        /// The default schedule filter types.
+        /// </summary>
+        private static readonly List<Type> _defaultScheduleFilterTypes = new List<Type>
+        {
+            typeof( CheckInOptionsDuplicateCheckInFilter )
+        };
+
         #endregion
 
         #region Constructors
@@ -329,6 +337,37 @@ namespace Rock.CheckIn.v2
         }
 
         /// <summary>
+        /// Gets the attendee item information for the family members. This also
+        /// gathers all required information to later perform filtering on the
+        /// attendees.
+        /// </summary>
+        /// <param name="familyMembers">The <see cref="FamilyMemberBag"/> to be used when constructing the <see cref="CheckInAttendeeItem"/> that willw rap it.</param>
+        /// <param name="baseOptions">The <see cref="GroupMember"/> objects to be converted to bags.</param>
+        /// <param name="configuration">The check-in configuration.</param>
+        /// <returns>A collection of <see cref="CheckInAttendeeItem"/> objects.</returns>
+        public List<CheckInAttendeeItem> GetAttendeeItems( IReadOnlyCollection<FamilyMemberBag> familyMembers, CheckInOptions baseOptions, CheckInConfigurationData configuration )
+        {
+            var preSelectCutoff = RockDateTime.Today.AddDays( Math.Min( -1, 0 - configuration.AutoSelectDaysBack ) );
+            var recentAttendance = GetRecentAttendance( preSelectCutoff, familyMembers.Select( fm => fm.Guid ) );
+
+            return familyMembers
+                .Select( fm =>
+                {
+                    var attendeeAttendances = recentAttendance
+                        .Where( a => a.PersonGuid == fm.Guid )
+                        .ToList();
+
+                    return new CheckInAttendeeItem
+                    {
+                        Person = fm,
+                        RecentAttendances = attendeeAttendances,
+                        Options = baseOptions.Clone()
+                    };
+                } )
+                .ToList();
+        }
+
+        /// <summary>
         /// <para>
         /// Gets all the check-in options that are possible for the kiosk or
         /// locations. 
@@ -369,7 +408,7 @@ namespace Rock.CheckIn.v2
         /// </summary>
         /// <param name="person">The person to use when filtering options.</param>
         /// <param name="configuration">The check-inconfiguration.</param>
-        public void FilterPersonOptions( CheckInFamilyMemberItem person, CheckInConfigurationData configuration )
+        public void FilterPersonOptions( CheckInAttendeeItem person, CheckInConfigurationData configuration )
         {
             using ( var activity = ObservabilityHelper.StartActivity( $"Get Options For {person.Person.NickName}" ) )
             {
@@ -389,44 +428,42 @@ namespace Rock.CheckIn.v2
                         .RemoveAll( l => locationFilters.Any( f => !f.IsLocationValid( l ) ) );
                 }
 
-                RemoveEmptyOptions( options, person, configuration );
+                var scheduleFilters = GetScheduleFilters( configuration, person );
+
+                if ( scheduleFilters.Count > 0 )
+                {
+                    person.Options.Schedules
+                        .RemoveAll( l => scheduleFilters.Any( f => !f.IsScheduleValid( l ) ) );
+
+                    // TODO: Need to filter out any schedules the person is already
+                    // checked into. The RemoveEmptyOptions() would then remove the
+                    // groups and locations that depend on that schedule.
+                }
+
+                RemoveEmptyOptions( person, configuration );
             }
         }
 
         /// <summary>
-        /// Sets the default selections for the specified people. This will
+        /// Sets the default selections for the specified attendee. This will
         /// mark a person as pre-selected if they have recent attendance and
         /// it will also set the current selections if the check-in template
         /// is configured that way.
         /// </summary>
-        /// <param name="people">The people to be checked in.</param>
+        /// <param name="attendee">The attendee to be checked in.</param>
         /// <param name="configuration">The check-in configuration.</param>
-        public void SetDefaultSelectionsForPeople( IReadOnlyCollection<CheckInFamilyMemberItem> people, CheckInConfigurationData configuration )
+        public void SetDefaultSelectionsForAttendee( CheckInAttendeeItem attendee, CheckInConfigurationData configuration )
         {
-            using ( var activity = ObservabilityHelper.StartActivity( "Get Default Selections" ) )
+            using ( var activity = ObservabilityHelper.StartActivity( $"Set Defaults for {attendee.Person.NickName}" ) )
             {
-                var preSelectCutoff = RockDateTime.Today.AddDays( Math.Min( -1, 0 - configuration.AutoSelectDaysBack ) );
-                var recentAttendance = GetRecentAttendance( preSelectCutoff, people.Select( p => p.Person.Guid ) );
-                var optionsSelector = CreateDefaultOptionsSelector( configuration );
-
-                foreach ( var person in people )
+                if ( configuration.AutoSelect == AutoSelectMode.PeopleAndAreaGroupLocation )
                 {
-                    var attendanceForPerson = recentAttendance
-                        .Where( a => a.PersonGuid == person.Person.Guid )
-                        .ToList();
+                    var optionsSelector = CreateDefaultOptionsSelector( configuration );
 
-                    if ( configuration.AutoSelect == AutoSelectMode.PeopleAndAreaGroupLocation )
-                    {
-                        using ( var personActivity = ObservabilityHelper.StartActivity( $"Get Selected Options For {person.Person.NickName}" ) )
-                        {
-                            person.SelectedOptions = optionsSelector.GetDefaultSelectionForPerson( person, attendanceForPerson );
-                        }
-                    }
-
-                    person.IsPreSelected = configuration.AutoSelectDaysBack > 0 && attendanceForPerson.Count > 0;
-
-                    // TODO: Look for people to check out.
+                    attendee.SelectedOptions = optionsSelector.GetDefaultSelectionForPerson( attendee );
                 }
+
+                attendee.IsPreSelected = configuration.AutoSelectDaysBack > 0 && attendee.RecentAttendances.Count > 0;
             }
         }
 
@@ -463,7 +500,7 @@ namespace Rock.CheckIn.v2
         /// </summary>
         /// <param name="person">The person whose options should be cleaned up.</param>
         /// <param name="configuration">The check-in configuration.</param>
-        protected virtual void RemoveEmptyOptions( CheckInFamilyMemberItem person, CheckInConfigurationData configuration )
+        protected virtual void RemoveEmptyOptions( CheckInAttendeeItem person, CheckInConfigurationData configuration )
         {
             person.Options.RemoveEmptyOptions();
         }
@@ -488,6 +525,17 @@ namespace Rock.CheckIn.v2
         protected virtual IReadOnlyCollection<Type> GetLocationFilterTypes( CheckInConfigurationData configuration )
         {
             return _defaultLocationFilterTypes;
+        }
+
+        /// <summary>
+        /// Gets the filter type definitions to use when filtering options for
+        /// schedules.
+        /// </summary>
+        /// <param name="configuration">The check-in configuration.</param>
+        /// <returns>A collection of <see cref="Type"/> objects.</returns>
+        protected virtual IReadOnlyCollection<Type> GetScheduleFilterTypes( CheckInConfigurationData configuration )
+        {
+            return _defaultScheduleFilterTypes;
         }
 
         #endregion
@@ -675,7 +723,7 @@ namespace Rock.CheckIn.v2
         /// <param name="configuration">The check-in configuration.</param>
         /// <param name="person">The person to filter options for.</param>
         /// <returns>A list of <see cref="ICheckInOptionsFilter"/> objects that will perform filtering logic.</returns>
-        private List<ICheckInOptionsFilter> GetGroupFilters( CheckInConfigurationData configuration, CheckInFamilyMemberItem person )
+        private List<ICheckInOptionsFilter> GetGroupFilters( CheckInConfigurationData configuration, CheckInAttendeeItem person )
         {
             var types = GetGroupFilterTypes( configuration );
 
@@ -688,7 +736,7 @@ namespace Rock.CheckIn.v2
         /// <param name="configuration">The check-in configuration.</param>
         /// <param name="person">The person to filter options for.</param>
         /// <returns>A list of <see cref="ICheckInOptionsFilter"/> objects that will perform filtering logic.</returns>
-        private List<ICheckInOptionsFilter> GetLocationFilters( CheckInConfigurationData configuration, CheckInFamilyMemberItem person )
+        private List<ICheckInOptionsFilter> GetLocationFilters( CheckInConfigurationData configuration, CheckInAttendeeItem person )
         {
             var types = GetLocationFilterTypes( configuration );
 
@@ -696,15 +744,28 @@ namespace Rock.CheckIn.v2
         }
 
         /// <summary>
-        /// Gets the options filters specified by the types. This filters will
+        /// Gets the filters to use when filtering options for a specific
+        /// schedule.
+        /// </summary>
+        /// <param name="configuration">The check-in configuration.</param>
+        /// <param name="person">The person to filter options for.</param>
+        /// <returns>A list of <see cref="ICheckInOptionsFilter"/> objects that will perform filtering logic.</returns>
+        private List<ICheckInOptionsFilter> GetScheduleFilters( CheckInConfigurationData configuration, CheckInAttendeeItem person )
+        {
+            var types = GetScheduleFilterTypes( configuration );
+
+            return CreateOptionsFilters( types, configuration, person );
+        }
+
+        /// <summary>
+        /// Creates the options filters specified by the types. This filters will
         /// be properly initialized before returning.
         /// </summary>
-        /// <typeparam name="T">The expected type that the filters must conform to.</typeparam>
         /// <param name="filterTypes">The filter types.</param>
         /// <param name="configuration">The check-in configuration.</param>
         /// <param name="person">The person to filter for.</param>
         /// <returns>A collection of filter instances.</returns>
-        private List<ICheckInOptionsFilter> CreateOptionsFilters( IReadOnlyCollection<Type> filterTypes, CheckInConfigurationData configuration, CheckInFamilyMemberItem person )
+        private List<ICheckInOptionsFilter> CreateOptionsFilters( IReadOnlyCollection<Type> filterTypes, CheckInConfigurationData configuration, CheckInAttendeeItem person )
         {
             var expectedType = typeof( ICheckInOptionsFilter );
 

@@ -16,6 +16,7 @@
 //
 
 using System;
+using System.Collections.Generic;
 
 using Rock.ViewModels.CheckIn;
 
@@ -25,13 +26,21 @@ namespace Rock.CheckIn.v2
     /// Represents a person and all the check-in related values that will be
     /// used during the check-in process.
     /// </summary>
-    internal class CheckInFamilyMemberItem
+    internal class CheckInAttendeeItem
     {
         /// <summary>
         /// Gets or sets the person.
         /// </summary>
         /// <value>The person.</value>
         public FamilyMemberBag Person { get; set; }
+
+        /// <summary>
+        /// Gets or sets the recent attendances for this individual. This will
+        /// always include todays attendance and may include attendance records
+        /// as far back as the AutoSelect feature is configured for.
+        /// </summary>
+        /// <value>The recent attendances for this individual.</value>
+        public List<RecentAttendanceSummary> RecentAttendances { get; set; }
 
         /// <summary>
         /// Gets or sets the options that are available to be selected from.

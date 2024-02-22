@@ -42,7 +42,7 @@ namespace Rock.CheckIn.v2
         /// Gets or sets the person to filter the options for.
         /// </summary>
         /// <value>The person to filter the options for.</value>
-        CheckInFamilyMemberItem Person { get; set; }
+        CheckInAttendeeItem Person { get; set; }
 
         #endregion
 

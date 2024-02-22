@@ -808,7 +808,7 @@
     <Compile Include="CheckIn\v2\CheckInAreaItem.cs" />
     <Compile Include="CheckIn\v2\CheckInConfigurationData.cs" />
     <Compile Include="CheckIn\v2\CheckInDirector.cs" />
-    <Compile Include="CheckIn\v2\CheckInFamilyMemberItem.cs" />
+    <Compile Include="CheckIn\v2\CheckInAttendeeItem.cs" />
     <Compile Include="CheckIn\v2\CheckInFamilySearch.cs" />
     <Compile Include="CheckIn\v2\CheckInGroupData.cs" />
     <Compile Include="CheckIn\v2\CheckInGroupItem.cs" />
@@ -821,6 +821,7 @@
     <Compile Include="CheckIn\v2\Filters\CheckInByGenderOptionsFilter.cs" />
     <Compile Include="CheckIn\v2\Filters\CheckInByGradeOptionsFilter.cs" />
     <Compile Include="CheckIn\v2\Filters\CheckInByMembershipOptionsFilter.cs" />
+    <Compile Include="CheckIn\v2\Filters\CheckInOptionsDuplicateCheckInFilter.cs" />
     <Compile Include="CheckIn\v2\Filters\CheckInOptionsFilter.cs" />
     <Compile Include="CheckIn\v2\CheckInScheduleItem.cs" />
     <Compile Include="CheckIn\v2\Filters\CheckInThresholdOptionsFilter.cs" />

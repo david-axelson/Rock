@@ -39,13 +39,12 @@ namespace Rock.CheckIn.v2
         /// available.
         /// </summary>
         /// <param name="person">The person to get the default selection for.</param>
-        /// <param name="recentAttendance">The collection of recent attendance records.</param>
         /// <returns>A new instance of <see cref="SelectedOptions"/> or <c>null</c> if no defaults could be determined.</returns>
-        public virtual SelectedOptions GetDefaultSelectionForPerson( CheckInFamilyMemberItem person, IReadOnlyCollection<RecentAttendanceSummary> recentAttendance )
+        public virtual SelectedOptions GetDefaultSelectionForPerson( CheckInAttendeeItem person )
         {
-            person.LastCheckIn = recentAttendance.Max( a => ( DateTime? ) a.StartDateTime );
+            person.LastCheckIn = person.RecentAttendances.Max( a => ( DateTime? ) a.StartDateTime );
 
-            var orderedRecentAttendance = recentAttendance
+            var orderedRecentAttendance = person.RecentAttendances
                 .Where( a => a.StartDateTime.Date == person.LastCheckIn.Value.Date )
                 .OrderBy( a => NamedScheduleCache.Get( a.ScheduleGuid )?.StartTimeOfDay )
                 .ThenByDescending( a => a.StartDateTime );
@@ -93,7 +92,7 @@ namespace Rock.CheckIn.v2
         /// <param name="previousCheckIns">The previous check-in records.</param>
         /// <param name="selectedOptions">On return contains an instance of <see cref="SelectedOptions"/> or <c>null</c>.</param>
         /// <returns><c>true</c> if a match was found and <paramref name="selectedOptions"/> is valid, <c>false</c> otherwise.</returns>
-        protected virtual bool TryGetExactMatch( CheckInFamilyMemberItem person, List<RecentAttendanceSummary> previousCheckIns, out SelectedOptions selectedOptions )
+        protected virtual bool TryGetExactMatch( CheckInAttendeeItem person, List<RecentAttendanceSummary> previousCheckIns, out SelectedOptions selectedOptions )
         {
             foreach ( var previousCheckIn in previousCheckIns )
             {
@@ -148,7 +147,7 @@ namespace Rock.CheckIn.v2
         /// <param name="previousCheckIns">The previous check-in records.</param>
         /// <param name="selectedOptions">On return contains an instance of <see cref="SelectedOptions"/> or <c>null</c>.</param>
         /// <returns><c>true</c> if a match was found and <paramref name="selectedOptions"/> is valid, <c>false</c> otherwise.</returns>
-        protected virtual bool TryGetBestMatchingGroup( CheckInFamilyMemberItem person, List<RecentAttendanceSummary> previousCheckIns, out SelectedOptions selectedOptions )
+        protected virtual bool TryGetBestMatchingGroup( CheckInAttendeeItem person, List<RecentAttendanceSummary> previousCheckIns, out SelectedOptions selectedOptions )
         {
             foreach ( var previousCheckIn in previousCheckIns )
             {
@@ -186,7 +185,7 @@ namespace Rock.CheckIn.v2
         /// <param name="person">The person to be checked in.</param>
         /// <param name="selectedOptions">On return contains an instance of <see cref="SelectedOptions"/> or <c>null</c>.</param>
         /// <returns><c>true</c> if a match was found and <paramref name="selectedOptions"/> is valid, <c>false</c> otherwise.</returns>
-        protected virtual bool TryGetAnyValidSelection( CheckInFamilyMemberItem person, out SelectedOptions selectedOptions )
+        protected virtual bool TryGetAnyValidSelection( CheckInAttendeeItem person, out SelectedOptions selectedOptions )
         {
             foreach ( var group in person.Options.Groups )
             {
@@ -218,7 +217,7 @@ namespace Rock.CheckIn.v2
         /// <param name="person">The person to be checked in.</param>
         /// <param name="selectedOptions">On return contains an instance of <see cref="SelectedOptions"/> or <c>null</c>.</param>
         /// <returns><c>true</c> if a match was found and <paramref name="selectedOptions"/> is valid, <c>false</c> otherwise.</returns>
-        protected virtual bool TryGetFirstValidSelectionForGroup( CheckInAreaItem area, CheckInGroupItem group, CheckInFamilyMemberItem person, out SelectedOptions selectedOptions )
+        protected virtual bool TryGetFirstValidSelectionForGroup( CheckInAreaItem area, CheckInGroupItem group, CheckInAttendeeItem person, out SelectedOptions selectedOptions )
         {
             foreach ( var locationGuid in group.LocationGuids )
             {

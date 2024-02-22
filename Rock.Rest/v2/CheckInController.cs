@@ -190,22 +190,13 @@ namespace Rock.Rest.v2.Controllers
                 var familyMembers = director.GetFamilyMemberBags( options.FamilyGuid, familyMembersQry );
                 var checkInOptions = director.GetAllCheckInOptions( areas, kiosk, null );
 
-                var people = familyMembers
-                    .Select( fm =>
-                    {
-                        var person = new CheckInFamilyMemberItem
-                        {
-                            Person = fm,
-                            Options = checkInOptions.Clone()
-                        };
+                var people = director.GetAttendeeItems( familyMembers, checkInOptions, configData );
 
-                        director.FilterPersonOptions( person, configData );
-
-                        return person;
-                    } )
-                    .ToList();
-
-                director.SetDefaultSelectionsForPeople( people, configData );
+                foreach ( var person in people )
+                {
+                    director.FilterPersonOptions( person, configData );
+                    director.SetDefaultSelectionsForAttendee( person, configData );
+                }
 
                 return Ok( new
                 {
@@ -389,7 +380,7 @@ namespace Rock.Rest.v2.Controllers
                         {
                             var director = new CheckInDirector( rockContext );
 
-                            var person = new CheckInFamilyMemberItem
+                            var person = new CheckInAttendeeItem
                             {
                                 Person = familyMemberBag,
                                 Options = mainCheckInOptions.Clone()

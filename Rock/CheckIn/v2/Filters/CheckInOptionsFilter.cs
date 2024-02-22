@@ -36,7 +36,7 @@ namespace Rock.CheckIn.v2.Filters
         public RockContext RockContext { get; set; }
 
         /// <inheritdoc/>
-        public CheckInFamilyMemberItem Person { get; set; }
+        public CheckInAttendeeItem Person { get; set; }
 
         /// <summary>
         /// Gets the person identifier.
