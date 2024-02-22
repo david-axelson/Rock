@@ -160,7 +160,7 @@ namespace Rock.CheckIn.v2
                 .Select( gl => gl.LocationId )
                 .Distinct()
                 .ToList();
-            var locationCounts = GetCountsForLocations( locationIdsForCount, now, rockContext );
+            var locationCounts = GetCurrentCountsForLocations( locationIdsForCount, now, rockContext );
 
             // Construct the initial options bag.
             var options = new CheckInOptions
@@ -344,6 +344,11 @@ namespace Rock.CheckIn.v2
             Locations.RemoveAll( l => l.ScheduleGuids.Count == 0
                 || !allReferencedLocationGuids.Contains( l.Guid ) );
 
+            // Next remove all schedules without locations.
+            var allReferencedScheduleGuids = new HashSet<Guid>( Locations.SelectMany( l => l.ScheduleGuids ) );
+
+            Schedules.RemoveAll( s => !allReferencedScheduleGuids.Contains( s.Guid ) );
+
             // Next remove all groups without locations.
             var allLocationGuids = new HashSet<Guid>( Locations.Select( l => l.Guid ) );
 
@@ -371,7 +376,7 @@ namespace Rock.CheckIn.v2
         /// identifiers of the people in the location. No value will be available
         /// if there are not any attendance records for the location.
         /// </returns>
-        private static Dictionary<Guid, HashSet<Guid>> GetCountsForLocations( IReadOnlyCollection<int> locationIds, DateTime now, RockContext rockContext )
+        private static Dictionary<Guid, HashSet<Guid>> GetCurrentCountsForLocations( IReadOnlyCollection<int> locationIds, DateTime now, RockContext rockContext )
         {
             var attendanceService = new AttendanceService( rockContext );
             var todayDate = now.Date;
