@@ -25,6 +25,7 @@ using Rock.CheckIn.v2.Filters;
 using Rock.Data;
 using Rock.Enums.CheckIn;
 using Rock.Model;
+using Rock.Observability;
 using Rock.Utility;
 using Rock.ViewModels.CheckIn;
 using Rock.Web.Cache;
@@ -230,17 +231,20 @@ namespace Rock.CheckIn.v2
         /// <exception cref="ArgumentOutOfRangeException">Check-in configuration data is not valid.</exception>
         public IQueryable<GroupMember> GetFamilyMembersForCheckInQuery( Guid familyGuid, GroupTypeCache checkinConfiguration )
         {
-            var configuration = checkinConfiguration?.GetCheckInConfiguration( _rockContext );
-
-            if ( configuration == null )
+            using ( var activity = ObservabilityHelper.StartActivity( "Get Family Members Query" ) )
             {
-                throw new ArgumentOutOfRangeException( nameof( checkinConfiguration ), "Check-in configuration data is not valid." );
+                var configuration = checkinConfiguration?.GetCheckInConfiguration( _rockContext );
+
+                if ( configuration == null )
+                {
+                    throw new ArgumentOutOfRangeException( nameof( checkinConfiguration ), "Check-in configuration data is not valid." );
+                }
+
+                var familyMemberQry = GetImmediateFamilyMembersQuery( familyGuid, configuration );
+                var canCheckInFamilyMemberQry = GetCanCheckInFamilyMembersQuery( familyGuid, configuration );
+
+                return familyMemberQry.Union( canCheckInFamilyMemberQry );
             }
-
-            var familyMemberQry = GetImmediateFamilyMembersQuery( familyGuid, configuration );
-            var canCheckInFamilyMemberQry = GetCanCheckInFamilyMembersQuery( familyGuid, configuration );
-
-            return familyMemberQry.Union( canCheckInFamilyMemberQry );
         }
 
         /// <summary>
@@ -252,73 +256,76 @@ namespace Rock.CheckIn.v2
         /// <returns>A collection of <see cref="FamilyMemberBag"/> objects.</returns>
         public List<FamilyMemberBag> GetFamilyMemberBags( Guid familyGuid, IEnumerable<GroupMember> groupMembers )
         {
-            var familyMembers = new List<FamilyMemberBag>();
-
-            // Get the group members along with the person record in memory.
-            // Then sort by those that match the correct family first so that
-            // any duplicates (non family members) can be skipped. This ensures
-            // that a family member has precedence over the same person record
-            // that is also flagged as "can check-in".
-            //
-            // Even though the logic between the two cases below is the same,
-            // casting it to an IQueryable first will make sure the select
-            // happens at the SQL level instead of in C# code.
-            var members = groupMembers is IQueryable<GroupMember> groupMembersQry
-                ? groupMembersQry
-                    .Select( gm => new
-                    {
-                        GroupGuid = gm.Person.PrimaryFamily != null ? gm.Person.PrimaryFamily.Guid : familyGuid,
-                        RoleOrder = gm.GroupRole.Order,
-                        gm.Person
-                    } )
-                    .ToList()
-                    .OrderByDescending( gm => gm.GroupGuid == familyGuid )
-                    .ThenBy( gm => gm.RoleOrder )
-                : groupMembers
-                    .Select( gm => new
-                    {
-                        GroupGuid = gm.Person.PrimaryFamily != null ? gm.Person.PrimaryFamily.Guid : familyGuid,
-                        RoleOrder = gm.GroupRole.Order,
-                        gm.Person
-                    } )
-                    .ToList()
-                    .OrderByDescending( gm => gm.GroupGuid == familyGuid )
-                    .ThenBy( gm => gm.RoleOrder );
-
-            foreach ( var member in members )
+            using ( var activity = ObservabilityHelper.StartActivity( "Get Family Member Bags" ) )
             {
-                // Skip any duplicates.
-                if ( familyMembers.Any( fm => fm.Guid == member.Person.Guid ) )
+                var familyMembers = new List<FamilyMemberBag>();
+
+                // Get the group members along with the person record in memory.
+                // Then sort by those that match the correct family first so that
+                // any duplicates (non family members) can be skipped. This ensures
+                // that a family member has precedence over the same person record
+                // that is also flagged as "can check-in".
+                //
+                // Even though the logic between the two cases below is the same,
+                // casting it to an IQueryable first will make sure the select
+                // happens at the SQL level instead of in C# code.
+                var members = groupMembers is IQueryable<GroupMember> groupMembersQry
+                    ? groupMembersQry
+                        .Select( gm => new
+                        {
+                            GroupGuid = gm.Person.PrimaryFamily != null ? gm.Person.PrimaryFamily.Guid : familyGuid,
+                            RoleOrder = gm.GroupRole.Order,
+                            gm.Person
+                        } )
+                        .ToList()
+                        .OrderByDescending( gm => gm.GroupGuid == familyGuid )
+                        .ThenBy( gm => gm.RoleOrder )
+                    : groupMembers
+                        .Select( gm => new
+                        {
+                            GroupGuid = gm.Person.PrimaryFamily != null ? gm.Person.PrimaryFamily.Guid : familyGuid,
+                            RoleOrder = gm.GroupRole.Order,
+                            gm.Person
+                        } )
+                        .ToList()
+                        .OrderByDescending( gm => gm.GroupGuid == familyGuid )
+                        .ThenBy( gm => gm.RoleOrder );
+
+                foreach ( var member in members )
                 {
-                    continue;
+                    // Skip any duplicates.
+                    if ( familyMembers.Any( fm => fm.Guid == member.Person.Guid ) )
+                    {
+                        continue;
+                    }
+
+                    var familyMember = new FamilyMemberBag
+                    {
+                        Guid = member.Person.Guid,
+                        IdKey = member.Person.IdKey,
+                        FamilyGuid = member.GroupGuid,
+                        FirstName = member.Person.FirstName,
+                        NickName = member.Person.NickName,
+                        LastName = member.Person.LastName,
+                        FullName = member.Person.FullName,
+                        PhotoUrl = member.Person.PhotoUrl,
+                        BirthYear = member.Person.BirthYear,
+                        BirthMonth = member.Person.BirthMonth,
+                        BirthDay = member.Person.BirthDay,
+                        BirthDate = member.Person.BirthYear.HasValue ? member.Person.BirthDate : null,
+                        Age = member.Person.Age,
+                        AgePrecise = member.Person.AgePrecise,
+                        GradeOffset = member.Person.GradeOffset,
+                        GradeFormatted = member.Person.GradeFormatted,
+                        Gender = member.Person.Gender,
+                        RoleOrder = member.RoleOrder
+                    };
+
+                    familyMembers.Add( familyMember );
                 }
 
-                var familyMember = new FamilyMemberBag
-                {
-                    Guid = member.Person.Guid,
-                    IdKey = member.Person.IdKey,
-                    FamilyGuid = member.GroupGuid,
-                    FirstName = member.Person.FirstName,
-                    NickName = member.Person.NickName,
-                    LastName = member.Person.LastName,
-                    FullName = member.Person.FullName,
-                    PhotoUrl = member.Person.PhotoUrl,
-                    BirthYear = member.Person.BirthYear,
-                    BirthMonth = member.Person.BirthMonth,
-                    BirthDay = member.Person.BirthDay,
-                    BirthDate = member.Person.BirthYear.HasValue ? member.Person.BirthDate : null,
-                    Age = member.Person.Age,
-                    AgePrecise = member.Person.AgePrecise,
-                    GradeOffset = member.Person.GradeOffset,
-                    GradeFormatted = member.Person.GradeFormatted,
-                    Gender = member.Person.Gender,
-                    RoleOrder = member.RoleOrder
-                };
-
-                familyMembers.Add( familyMember );
+                return familyMembers;
             }
-
-            return familyMembers;
         }
 
         /// <summary>
@@ -341,17 +348,20 @@ namespace Rock.CheckIn.v2
         /// <exception cref="System.ArgumentNullException">kiosk - Kiosk must be specified unless locations are specified.</exception>
         public CheckInOptions GetAllCheckInOptions( IReadOnlyCollection<GroupTypeCache> possibleAreas, DeviceCache kiosk, IReadOnlyCollection<NamedLocationCache> locations )
         {
-            if ( kiosk == null && locations == null )
+            using ( var activity = ObservabilityHelper.StartActivity( "Get All Options" ) )
             {
-                throw new ArgumentNullException( nameof( kiosk ), "Kiosk must be specified unless locations are specified." );
-            }
+                if ( kiosk == null && locations == null )
+                {
+                    throw new ArgumentNullException( nameof( kiosk ), "Kiosk must be specified unless locations are specified." );
+                }
 
-            if ( possibleAreas == null )
-            {
-                throw new ArgumentNullException( nameof( possibleAreas ) );
-            }
+                if ( possibleAreas == null )
+                {
+                    throw new ArgumentNullException( nameof( possibleAreas ) );
+                }
 
-            return CheckInOptions.Create( possibleAreas, kiosk, locations, _rockContext );
+                return CheckInOptions.Create( possibleAreas, kiosk, locations, _rockContext );
+            }
         }
 
         /// <summary>
@@ -362,25 +372,28 @@ namespace Rock.CheckIn.v2
         /// <param name="configuration">The check-inconfiguration.</param>
         public void FilterOptionsForPerson( CheckInOptions options, FamilyMemberBag person, CheckInConfigurationData configuration )
         {
-            var groupFilters = GetGroupFilters( configuration, person );
-
-            if ( groupFilters.Count > 0 )
+            using ( var activity = ObservabilityHelper.StartActivity( $"Get Options For {person.NickName}" ) )
             {
-                options.Groups = options.Groups
-                    .Where( g => groupFilters.All( f => f.IsGroupValid( g ) ) )
-                    .ToList();
+                var groupFilters = GetGroupFilters( configuration, person );
+
+                if ( groupFilters.Count > 0 )
+                {
+                    options.Groups = options.Groups
+                        .Where( g => groupFilters.All( f => f.IsGroupValid( g ) ) )
+                        .ToList();
+                }
+
+                var locationFilters = GetLocationFilters( configuration, person );
+
+                if ( locationFilters.Count > 0 )
+                {
+                    options.Locations = options.Locations
+                        .Where( l => locationFilters.All( f => f.IsLocationValid( l ) ) )
+                        .ToList();
+                }
+
+                RemoveEmptyOptions( options, person, configuration );
             }
-
-            var locationFilters = GetLocationFilters( configuration, person );
-
-            if ( locationFilters.Count > 0 )
-            {
-                options.Locations = options.Locations
-                    .Where( l => locationFilters.All( f => f.IsLocationValid( l ) ) )
-                    .ToList();
-            }
-
-            RemoveEmptyOptions( options, person, configuration );
         }
 
         #endregion
