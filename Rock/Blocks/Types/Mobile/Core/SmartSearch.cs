@@ -1,9 +1,10 @@
 ﻿using Rock.Attribute;
-using Rock.Common.Mobile.Blocks.Core.SearchV2;
+using Rock.Common.Mobile.Blocks.Core.SmartSearch;
 using Rock.Data;
 using Rock.Mobile;
 using Rock.Model;
 using Rock.Search;
+using Rock.ViewModels.Blocks.Cms.SiteDetail;
 using Rock.Web.Cache;
 
 using System;
@@ -18,12 +19,12 @@ namespace Rock.Blocks.Types.Mobile.Core
     /// </summary>
     /// <remarks>
     ///     <para>This block only supports some search components. It heavily relies on templates stored on the mobile shell.</para>
-    ///     <para>Supported person entity search components: <see cref="SearchV2Constants.SupportedPersonSearchComponents"/></para>
-    ///     <para>Supported group entity search components: <see cref="SearchV2Constants.SupportedGroupSearchComponents"/></para>
+    ///     <para>Supported person entity search components: <see cref="SmartSearchConstants.SupportedPersonSearchComponents"/></para>
+    ///     <para>Supported group entity search components: <see cref="SmartSearchConstants.SupportedGroupSearchComponents"/></para>
     /// </remarks>
     /// <seealso cref="Rock.Blocks.RockBlockType" />
 
-    [DisplayName( "Search (V2)" )]
+    [DisplayName( "Smart Search" )]
     [Category( "Mobile > Core" )]
     [Description( "Performs a search using the configured search components and displays the results." )]
     [IconCssClass( "fa fa-search" )]
@@ -115,6 +116,16 @@ namespace Rock.Blocks.Types.Mobile.Core
         Category = AttributeCategory.PersonSearch,
         Order = 9 )]
 
+    [DataViewsField(
+        "Person Highlight Indicators",
+        Key = AttributeKey.PersonDataViewIcons,
+        Category = AttributeCategory.PersonSearch,
+        Description = "Select one or more Data Views for Person search result icons. Note: More selections increase processing time.",
+        EntityTypeName = "Rock.Model.Person",
+        DisplayPersistedOnly = true,
+        IsRequired = false,
+        Order = 10 )]
+
     //
     // Group-specific attributes
     //
@@ -125,11 +136,11 @@ namespace Rock.Blocks.Types.Mobile.Core
         IsRequired = false,
         Key = AttributeKey.GroupDetailPage,
         Category = AttributeCategory.GroupSearch,
-        Order = 10 )]
+        Order = 11 )]
 
     #endregion
 
-    public class SearchV2 : RockBlockType
+    public class SmartSearch : RockBlockType
     {
         #region Properties
 
@@ -177,6 +188,11 @@ namespace Rock.Blocks.Types.Mobile.Core
         /// Gets whether or not the person's age should be displayed in the search results for a Person search.
         /// </summary>
         protected bool ShowAge => GetAttributeValue( AttributeKey.ShowAge ).AsBoolean();
+
+        /// <summary>
+        /// The data views to use for person search result icons.
+        /// </summary>
+        protected List<Guid> DataViewIcons => GetAttributeValue( AttributeKey.PersonDataViewIcons )?.SplitDelimitedValues().AsGuidList();
 
         #endregion
 
@@ -254,7 +270,12 @@ namespace Rock.Blocks.Types.Mobile.Core
             public const string PersonDetailPage = "PersonDetailPage";
 
             /// <summary>
-            /// The group detail page attribute key.
+            /// The person data view icons attribute key.
+            /// </summary>
+            public const string PersonDataViewIcons = "PersonDataViewIcons";
+
+            /// <summary>
+            /// The group detail page attribute key.=
             /// </summary>
             public const string GroupDetailPage = "GroupDetailPage";
         }
@@ -282,7 +303,7 @@ namespace Rock.Blocks.Types.Mobile.Core
         /// <inheritdoc />
         public override object GetMobileConfigurationValues()
         {
-            return new Rock.Common.Mobile.Blocks.Core.SearchV2.Configuration
+            return new Rock.Common.Mobile.Blocks.Core.SmartSearch.Configuration
             {
                 HeaderContent = HeaderContent,
                 FooterContent = FooterContent,
@@ -292,6 +313,8 @@ namespace Rock.Blocks.Types.Mobile.Core
                 StoppedTypingBehaviorThreshold = StoppedTypingBehaviorThreshold,
                 ShowBirthdate = ShowBirthdate,
                 ShowAge = ShowAge,
+                PersonDetailPage = GetAttributeValue( AttributeKey.PersonDetailPage ).AsGuidOrNull(),
+                GroupDetailPage = GetAttributeValue( AttributeKey.GroupDetailPage ).AsGuidOrNull(),
                 SearchComponents = GetComponents()
             };
         }
@@ -352,11 +375,11 @@ namespace Rock.Blocks.Types.Mobile.Core
         {
             var templateKey = string.Empty;
 
-            if ( SearchV2Constants.SupportedPersonSearchComponents.Contains( guid ) )
+            if ( SmartSearchConstants.SupportedPersonSearchComponents.Contains( guid ) )
             {
                 templateKey = TemplateKey.PersonSearchResultItem;
             }
-            else if ( SearchV2Constants.SupportedGroupSearchComponents.Contains( guid ) )
+            else if ( SmartSearchConstants.SupportedGroupSearchComponents.Contains( guid ) )
             {
                 templateKey = TemplateKey.GroupSearchResultItem;
             }
@@ -368,10 +391,30 @@ namespace Rock.Blocks.Types.Mobile.Core
         /// Gets the results as a <see cref="SearchResultUnionItemBag"/> object.
         /// </summary>
         /// <param name="results"></param>
+        /// <param name="rockContext"></param>
         /// <returns></returns>
-        private SearchResultUnionItemBag GetSearchResultItems( List<object> results )
+        private SearchResultUnionItemBag GetSearchResultItems( List<object> results, RockContext rockContext )
         {
             var unionBag = new SearchResultUnionItemBag();
+            var dataViewService = new DataViewService( rockContext );
+
+            if ( DataViewIcons?.Any() ?? false )
+            {
+                // Populate the data view icons for the person.
+                var dataViews = dataViewService.Queryable()
+                    .Where( d => DataViewIcons.Contains( d.Guid ) )
+                    .ToList()
+                    .Where( d => d.IsAuthorized( Rock.Security.Authorization.VIEW, this.RequestContext.CurrentPerson ) )
+                    .Select( d => new DataViewIconBag
+                    {
+                        DataViewGuid = d.Guid,
+                        IconCssClass = d.IconCssClass,
+                        HighlightColor = d.HighlightColor
+                    } )
+                    .ToList();
+
+                unionBag.DataViewIcons = dataViews;
+            }
 
             results.ForEach( o =>
             {
@@ -391,7 +434,7 @@ namespace Rock.Blocks.Types.Mobile.Core
                             unionBag.PersonResults = new List<PersonSearchItemResultBag>();
                         }
 
-                        var personBag = GetPersonSearchResultBag( personEntity );
+                        var personBag = GetPersonSearchResultBag( personEntity, unionBag.DataViewIcons?.Select( dv => dv.DataViewGuid ).ToList(), dataViewService );
                         personBag.DetailKey = $"{type.Name}Guid";
                         personBag.Guid = personEntity.Guid;
 
@@ -439,16 +482,43 @@ namespace Rock.Blocks.Types.Mobile.Core
         /// <summary>
         /// Gets the search result bag for a person.
         /// </summary>
-        /// <param name="bag"></param>
         /// <param name="person"></param>
+        /// <param name="rockContext"></param>
         /// <returns></returns>
-        private PersonSearchItemResultBag GetPersonSearchResultBag( Person person )
+        private PersonSearchItemResultBag GetPersonSearchResultBag( Person person, List<Guid> dataViewGuids, DataViewService dataViewService )
         {
             var itemBag = new PersonSearchItemResultBag();
             itemBag.NickName = person.NickName;
             itemBag.LastName = person.LastName;
             itemBag.PhotoUrl = MobileHelper.BuildPublicApplicationRootUrl( person.PhotoUrl );
             itemBag.Email = person.Email;
+
+            var address = person.GetHomeLocation()?.GetFullStreetAddress();
+
+            if ( address.IsNotNullOrWhiteSpace() )
+            {
+                // Replace line breaks with commas.
+                itemBag.Address = address.Replace( Environment.NewLine, ", " );
+            }
+
+            itemBag.PhoneNumberFormatted = person.GetPhoneNumber( Rock.SystemGuid.DefinedValue.PERSON_PHONE_TYPE_MOBILE.AsGuid() )?.NumberFormatted;
+
+            var personDataViews = new List<Guid>();
+
+            if( dataViewGuids != null )
+            {
+                foreach ( var dataViewGuid in dataViewGuids )
+                {
+                    var recordExists = dataViewService.GetGuids( dataViewGuid ).Contains( person.Guid );
+
+                    if ( recordExists )
+                    {
+                        personDataViews.Add( dataViewGuid );
+                    }
+                }
+            }
+
+            itemBag.MatchingDataViews = personDataViews;
 
             return itemBag;
         }
@@ -465,40 +535,43 @@ namespace Rock.Blocks.Types.Mobile.Core
         [BlockAction( "Search" )]
         public BlockActionResult GetSearchResults( SearchRequestBag requestBag )
         {
-            var searchComponent = SearchContainer.Instance.Components
-                    .Select( c => c.Value.Value )
-                    .FirstOrDefault( c => c.TypeGuid == requestBag.SearchComponentGuid );
-
-            var hasMore = false;
-
-            if ( searchComponent == null || !searchComponent.IsActive )
+            using( var rockContext = new RockContext() )
             {
-                return ActionInternalServerError( "Search component is not configured or not active." );
+                var searchComponent = SearchContainer.Instance.Components
+                                   .Select( c => c.Value.Value )
+                                   .FirstOrDefault( c => c.TypeGuid == requestBag.SearchComponentGuid );
+
+                var hasMore = false;
+
+                if ( searchComponent == null || !searchComponent.IsActive )
+                {
+                    return ActionInternalServerError( "Search component is not configured or not active." );
+                }
+
+                // Perform the search, take one more than configured so we can
+                // determine if there are more items.
+                var results = searchComponent.SearchQuery( requestBag.SearchTerm )
+                    .Skip( requestBag.Offset )
+                    .Take( ResultSize + 1 )
+                    .ToList();
+
+                // Check if we have more results than we will send, if so then set
+                // the flag to tell the client there are more results available.
+                if ( results.Count > ResultSize )
+                {
+                    hasMore = true;
+                    results = results.Take( ResultSize ).ToList();
+                }
+
+                // Convert the results into view models.
+                var result = GetSearchResultItems( results, rockContext );
+
+                return ActionOk( new SearchResponseBag
+                {
+                    Result = result,
+                    HasMore = hasMore
+                } );
             }
-
-            // Perform the search, take one more than configured so we can
-            // determine if there are more items.
-            var results = searchComponent.SearchQuery( requestBag.SearchTerm )
-                .Skip( requestBag.Offset )
-                .Take( ResultSize + 1 )
-                .ToList();
-
-            // Check if we have more results than we will send, if so then set
-            // the flag to tell the client there are more results available.
-            if ( results.Count > ResultSize )
-            {
-                hasMore = true;
-                results = results.Take( ResultSize ).ToList();
-            }
-
-            // Convert the results into view models.
-            var result = GetSearchResultItems( results );
-
-            return ActionOk( new SearchResponseBag
-            {
-                Result = result,
-                HasMore = hasMore
-            } );
         }
 
         #endregion

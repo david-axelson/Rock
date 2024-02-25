@@ -79,6 +79,22 @@ namespace Rock.Model
         }
 
         /// <summary>
+        /// Gets the guids.
+        /// </summary>
+        /// <param name="dataViewGuid"></param>
+        /// <returns></returns>
+        public List<Guid> GetGuids( Guid dataViewGuid )
+        {
+            var dataView = Queryable().AsNoTracking().FirstOrDefault( d => d.Guid == dataViewGuid );
+            var dataViewGetQueryArgs = new DataViewGetQueryArgs
+            {
+                DatabaseTimeoutSeconds = 180,
+            };
+
+            return dataView.GetQuery( dataViewGetQueryArgs ).Select( a => a.Guid ).ToList();
+        }
+
+        /// <summary>
         /// Gets the ids.
         /// </summary>
         /// <param name="dataViewId">The data view identifier.</param>
