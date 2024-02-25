@@ -196,6 +196,11 @@ namespace Rock.DownhillCss
             /// <returns></returns>
             private string ReplaceCssVariable( string cssStyles, string name, string value )
             {
+                if( string.IsNullOrWhiteSpace( name ) || string.IsNullOrWhiteSpace( value ) )
+                {
+                    return cssStyles;
+                }
+                
                 if ( !name.StartsWith( "?" ) )
                 {
                     name = $"?{name}";
@@ -1091,6 +1096,23 @@ formfield, .unlabeled {
 }
 
 /*** Alerts ***/
+
+/* Validation */
+.alert-validation {
+    background-color: ?color-warning-soft;
+}
+
+.alert-validation .alert-message, .alert-validation .alert-heading {
+    color: ?color-warning-strong;
+}
+
+.dark-mode .alert-validation {
+    background-color: ?color-warning-strong;
+}
+
+.dark-mode .alert-validation .alert-message, .dark-mode .alert-validation .alert-heading {
+    color: ?color-warning-soft;
+}
 
 /* Info */
 .alert-info {
