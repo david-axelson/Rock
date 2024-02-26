@@ -23,14 +23,26 @@
 
 import { Guid } from "@Obsidian/Types";
 
-/**
- * The request parameters to use when requesting the list of valid
- * check-in configurations.
- */
-export type ListConfigurationsOptionsBag = {
+/** Defines a single group that can be used during check-in. */
+export type CheckInGroupItemBag = {
     /**
-     * Gets or sets the kiosk unique identifier to use when filtering
-     * the configuration list.
+     * Gets or sets the ability level unique identifier required to
+     * attend this group.
      */
-    kioskGuid?: Guid | null;
+    abilityLevelGuid?: Guid | null;
+
+    /** Gets or sets the area unique identifier that this group belongs to. */
+    areaGuid?: Guid | null;
+
+    /** Gets or sets the unique identifier of this option. */
+    guid?: Guid | null;
+
+    /**
+     * Gets or sets the location unique identifiers. These are in proper
+     * order of location priority.
+     */
+    locationGuids?: Guid[] | null;
+
+    /** Gets or sets the display name of this option. */
+    name?: string | null;
 };

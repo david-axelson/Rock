@@ -23,14 +23,23 @@
 
 import { Guid } from "@Obsidian/Types";
 
-/**
- * The request parameters to use when requesting the list of valid
- * check-in configurations.
- */
-export type ListConfigurationsOptionsBag = {
+/** Defines a single location that can be used during check-in. */
+export type CheckInLocationItemBag = {
+    /** Gets or sets the maximum capacity of the location. */
+    capacity?: number | null;
+
+    /** Gets or sets the number of spots currently filled in the location. */
+    currentCount: number;
+
+    /** Gets or sets the unique identifier of this option. */
+    guid?: Guid | null;
+
+    /** Gets or sets the display name of this option. */
+    name?: string | null;
+
     /**
-     * Gets or sets the kiosk unique identifier to use when filtering
-     * the configuration list.
+     * Gets or sets the schedule unique identifiers that this location
+     * is valid for.
      */
-    kioskGuid?: Guid | null;
+    scheduleGuids?: Guid[] | null;
 };

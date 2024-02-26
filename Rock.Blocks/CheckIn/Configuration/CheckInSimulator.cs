@@ -71,47 +71,6 @@ namespace Rock.Blocks.CheckIn.Configuration
             }
         }
 
-        [BlockAction]
-        public BlockActionResult GetAreas( Guid kioskGuid )
-        {
-            using ( var rockContext = new RockContext() )
-            {
-                var director = new CheckInDirector( rockContext );
-                var kiosk = DeviceCache.Get( kioskGuid, rockContext );
-
-                try
-                {
-                    return ActionOk( director.GetCheckInAreaSummaries( kiosk, null ) );
-                }
-                catch ( CheckInMessageException ex )
-                {
-                    return ActionBadRequest( ex.Message );
-                }
-            }
-        }
-
-        [BlockAction]
-        public BlockActionResult SearchForFamilies( string searchTerm, FamilySearchMode searchType, Guid configurationGuid, Guid kioskGuid )
-        {
-            using ( var rockContext = new RockContext() )
-            {
-                var director = new CheckInDirector( rockContext );
-                var configuration = GroupTypeCache.Get( configurationGuid, rockContext );
-                var kiosk = DeviceCache.Get( kioskGuid, rockContext );
-                var campusId = kiosk.GetCampusId();
-                CampusCache sortByCampus = campusId.HasValue ? CampusCache.Get( campusId.Value, rockContext ) : null;
-
-                try
-                {
-                    return ActionOk( director.SearchForFamilies( searchTerm, searchType, configuration, sortByCampus ) );
-                }
-                catch ( CheckInMessageException ex )
-                {
-                    return ActionBadRequest( ex.Message );
-                }
-            }
-        }
-
         private class CheckInSimulatorOptionsBag
         {
             public List<ConfigurationItemSummaryBag> Configurations { get; set; }

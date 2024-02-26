@@ -26,52 +26,21 @@ namespace Rock.CheckIn.v2
     /// Represents a person and all the check-in related values that will be
     /// used during the check-in process.
     /// </summary>
-    internal class CheckInAttendeeItem
+    internal class CheckInAttendeeItem : PotentialAttendeeBag
     {
-        /// <summary>
-        /// Gets or sets the person.
-        /// </summary>
-        /// <value>The person.</value>
-        public FamilyMemberBag Person { get; set; }
-
         /// <summary>
         /// Gets or sets the recent attendances for this individual. This will
         /// always include todays attendance and may include attendance records
         /// as far back as the AutoSelect feature is configured for.
         /// </summary>
         /// <value>The recent attendances for this individual.</value>
-        public List<RecentAttendanceSummary> RecentAttendances { get; set; }
+        public List<RecentAttendanceItem> RecentAttendances { get; set; }
 
         /// <summary>
         /// Gets or sets the options that are available to be selected from.
         /// </summary>
         /// <value>The options that are available to be selected from.</value>
         public CheckInOptions Options { get; set; }
-
-        /// <summary>
-        /// Gets or sets the selected options that were automatically made.
-        /// </summary>
-        /// <value>The selected options that were automatically made.</value>
-        public SelectedOptions SelectedOptions { get; set; }
-
-        /// <summary>
-        /// Gets or sets a value indicating whether this person is pre-selected
-        /// for check-in.
-        /// </summary>
-        /// <value><c>true</c> if this person is pre-selected; otherwise, <c>false</c>.</value>
-        public bool IsPreSelected { get; set; }
-
-        /// <summary>
-        /// Gets or sets a value indicating whether this person is disabled.
-        /// </summary>
-        /// <value><c>true</c> if this person is disabled; otherwise, <c>false</c>.</value>
-        public bool IsDisabled { get; set; }
-
-        /// <summary>
-        /// Gets or sets the message describing why the person is disabled.
-        /// </summary>
-        /// <value>The message describing why the person is disabled.</value>
-        public string DisabledMessage { get; set; }
 
         /// <summary>
         /// Gets or sets the last date and time the person checked in.

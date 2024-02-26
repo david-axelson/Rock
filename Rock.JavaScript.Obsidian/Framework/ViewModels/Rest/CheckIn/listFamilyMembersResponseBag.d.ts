@@ -21,16 +21,20 @@
 // </copyright>
 //
 
-import { Guid } from "@Obsidian/Types";
+import { AttendanceBag } from "@Obsidian/ViewModels/CheckIn/attendanceBag";
+import { PotentialAttendeeBag } from "@Obsidian/ViewModels/CheckIn/potentialAttendeeBag";
 
 /**
- * The request parameters to use when requesting the list of valid
- * check-in configurations.
+ * The response that will be returned by the list family members check-in
+ * REST endpoint.
  */
-export type ListConfigurationsOptionsBag = {
+export type ListFamilyMembersResponseBag = {
+    /** Gets or sets the existing attendance bags that can be checked out. */
+    existingAttendance?: AttendanceBag[] | null;
+
     /**
-     * Gets or sets the kiosk unique identifier to use when filtering
-     * the configuration list.
+     * Gets or sets the people that can be potentially checked in for
+     * the family.
      */
-    kioskGuid?: Guid | null;
+    people?: PotentialAttendeeBag[] | null;
 };

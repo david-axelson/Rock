@@ -1072,9 +1072,16 @@
     <TypeScriptCompile Include="Framework\ViewModels\Blocks\Workflow\WorkflowTriggerDetail\workflowTriggerDetailBox.d.ts" />
     <TypeScriptCompile Include="Framework\ViewModels\Blocks\Workflow\WorkflowTriggerDetail\workflowTriggerDetailOptionsBag.d.ts" />
     <TypeScriptCompile Include="Framework\ViewModels\CheckIn\areaItemSummaryBag.d.ts" />
+    <TypeScriptCompile Include="Framework\ViewModels\CheckIn\attendanceBag.d.ts" />
+    <TypeScriptCompile Include="Framework\ViewModels\CheckIn\checkInGroupItemBag.d.ts" />
+    <TypeScriptCompile Include="Framework\ViewModels\CheckIn\checkInItemBag.d.ts" />
+    <TypeScriptCompile Include="Framework\ViewModels\CheckIn\checkInLocationItemBag.d.ts" />
     <TypeScriptCompile Include="Framework\ViewModels\CheckIn\configurationItemSummaryBag.d.ts" />
+    <TypeScriptCompile Include="Framework\ViewModels\CheckIn\familyMemberBag.d.ts" />
     <TypeScriptCompile Include="Framework\ViewModels\CheckIn\familyMemberSearchItemBag.d.ts" />
     <TypeScriptCompile Include="Framework\ViewModels\CheckIn\familySearchItemBag.d.ts" />
+    <TypeScriptCompile Include="Framework\ViewModels\CheckIn\potentialAttendeeBag.d.ts" />
+    <TypeScriptCompile Include="Framework\ViewModels\CheckIn\selectedOptionsBag.d.ts" />
     <TypeScriptCompile Include="Framework\ViewModels\Cms\blockCustomActionBag.d.ts" />
     <TypeScriptCompile Include="Framework\ViewModels\Cms\contentCollectionAttributeFilterSettingsBag.d.ts" />
     <TypeScriptCompile Include="Framework\ViewModels\Cms\contentCollectionCustomFieldBag.d.ts" />
@@ -1141,6 +1148,8 @@
     <TypeScriptCompile Include="Framework\ViewModels\Reporting\fieldFilterSourceBag.d.ts" />
     <TypeScriptCompile Include="Framework\ViewModels\Rest\CheckIn\listConfigurationsOptionsBag.d.ts" />
     <TypeScriptCompile Include="Framework\ViewModels\Rest\CheckIn\listConfigurationsResponseBag.d.ts" />
+    <TypeScriptCompile Include="Framework\ViewModels\Rest\CheckIn\listFamilyMembersOptionsBag.d.ts" />
+    <TypeScriptCompile Include="Framework\ViewModels\Rest\CheckIn\listFamilyMembersResponseBag.d.ts" />
     <TypeScriptCompile Include="Framework\ViewModels\Rest\CheckIn\searchForFamiliesOptionsBag.d.ts" />
     <TypeScriptCompile Include="Framework\ViewModels\Rest\CheckIn\searchForFamiliesResponseBag.d.ts" />
     <TypeScriptCompile Include="Framework\ViewModels\Rest\Controls\accountPickerGetChildrenOptionsBag.d.ts" />

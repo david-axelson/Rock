@@ -39,8 +39,8 @@ namespace Rock.CheckIn.v2
         /// available.
         /// </summary>
         /// <param name="person">The person to get the default selection for.</param>
-        /// <returns>A new instance of <see cref="SelectedOptions"/> or <c>null</c> if no defaults could be determined.</returns>
-        public virtual SelectedOptions GetDefaultSelectionForPerson( CheckInAttendeeItem person )
+        /// <returns>A new instance of <see cref="SelectedOptionsBag"/> or <c>null</c> if no defaults could be determined.</returns>
+        public virtual SelectedOptionsBag GetDefaultSelectionForPerson( CheckInAttendeeItem person )
         {
             person.LastCheckIn = person.RecentAttendances.Max( a => ( DateTime? ) a.StartDateTime );
 
@@ -49,7 +49,7 @@ namespace Rock.CheckIn.v2
                 .OrderBy( a => NamedScheduleCache.Get( a.ScheduleGuid )?.StartTimeOfDay )
                 .ThenByDescending( a => a.StartDateTime );
 
-            var previousCheckIns = new List<RecentAttendanceSummary>();
+            var previousCheckIns = new List<RecentAttendanceItem>();
 
             // Sum down the previous check-ins so that we only have one per schedule.
             // This is ordered in such a way that the most recent attendance will
@@ -90,9 +90,9 @@ namespace Rock.CheckIn.v2
         /// </summary>
         /// <param name="person">The person to be checked in.</param>
         /// <param name="previousCheckIns">The previous check-in records.</param>
-        /// <param name="selectedOptions">On return contains an instance of <see cref="SelectedOptions"/> or <c>null</c>.</param>
+        /// <param name="selectedOptions">On return contains an instance of <see cref="SelectedOptionsBag"/> or <c>null</c>.</param>
         /// <returns><c>true</c> if a match was found and <paramref name="selectedOptions"/> is valid, <c>false</c> otherwise.</returns>
-        protected virtual bool TryGetExactMatch( CheckInAttendeeItem person, List<RecentAttendanceSummary> previousCheckIns, out SelectedOptions selectedOptions )
+        protected virtual bool TryGetExactMatch( CheckInAttendeeItem person, List<RecentAttendanceItem> previousCheckIns, out SelectedOptionsBag selectedOptions )
         {
             foreach ( var previousCheckIn in previousCheckIns )
             {
@@ -145,9 +145,9 @@ namespace Rock.CheckIn.v2
         /// </summary>
         /// <param name="person">The person to be checked in.</param>
         /// <param name="previousCheckIns">The previous check-in records.</param>
-        /// <param name="selectedOptions">On return contains an instance of <see cref="SelectedOptions"/> or <c>null</c>.</param>
+        /// <param name="selectedOptions">On return contains an instance of <see cref="SelectedOptionsBag"/> or <c>null</c>.</param>
         /// <returns><c>true</c> if a match was found and <paramref name="selectedOptions"/> is valid, <c>false</c> otherwise.</returns>
-        protected virtual bool TryGetBestMatchingGroup( CheckInAttendeeItem person, List<RecentAttendanceSummary> previousCheckIns, out SelectedOptions selectedOptions )
+        protected virtual bool TryGetBestMatchingGroup( CheckInAttendeeItem person, List<RecentAttendanceItem> previousCheckIns, out SelectedOptionsBag selectedOptions )
         {
             foreach ( var previousCheckIn in previousCheckIns )
             {
@@ -183,9 +183,9 @@ namespace Rock.CheckIn.v2
         /// as a last resort.
         /// </summary>
         /// <param name="person">The person to be checked in.</param>
-        /// <param name="selectedOptions">On return contains an instance of <see cref="SelectedOptions"/> or <c>null</c>.</param>
+        /// <param name="selectedOptions">On return contains an instance of <see cref="SelectedOptionsBag"/> or <c>null</c>.</param>
         /// <returns><c>true</c> if a match was found and <paramref name="selectedOptions"/> is valid, <c>false</c> otherwise.</returns>
-        protected virtual bool TryGetAnyValidSelection( CheckInAttendeeItem person, out SelectedOptions selectedOptions )
+        protected virtual bool TryGetAnyValidSelection( CheckInAttendeeItem person, out SelectedOptionsBag selectedOptions )
         {
             foreach ( var group in person.Options.Groups )
             {
@@ -215,9 +215,9 @@ namespace Rock.CheckIn.v2
         /// <param name="area">The potential check-in area to be selected.</param>
         /// <param name="group">The potential check-in group to be selected.</param>
         /// <param name="person">The person to be checked in.</param>
-        /// <param name="selectedOptions">On return contains an instance of <see cref="SelectedOptions"/> or <c>null</c>.</param>
+        /// <param name="selectedOptions">On return contains an instance of <see cref="SelectedOptionsBag"/> or <c>null</c>.</param>
         /// <returns><c>true</c> if a match was found and <paramref name="selectedOptions"/> is valid, <c>false</c> otherwise.</returns>
-        protected virtual bool TryGetFirstValidSelectionForGroup( CheckInAreaItem area, CheckInGroupItem group, CheckInAttendeeItem person, out SelectedOptions selectedOptions )
+        protected virtual bool TryGetFirstValidSelectionForGroup( CheckInAreaItem area, CheckInGroupItem group, CheckInAttendeeItem person, out SelectedOptionsBag selectedOptions )
         {
             foreach ( var locationGuid in group.LocationGuids )
             {
@@ -251,17 +251,17 @@ namespace Rock.CheckIn.v2
         }
 
         /// <summary>
-        /// This is a convenience method to get the <see cref="SelectedOptions"/>
+        /// This is a convenience method to get the <see cref="SelectedOptionsBag"/>
         /// from the given values.
         /// </summary>
         /// <param name="area">The selectedarea.</param>
         /// <param name="group">The selected group.</param>
         /// <param name="location">The selected location.</param>
         /// <param name="schedule">The selected schedule.</param>
-        /// <returns>An instance of <see cref="SelectedOptions"/>.</returns>
-        protected SelectedOptions GetSelectedOptions( CheckInAreaItem area, CheckInGroupItem group, CheckInLocationItem location, CheckInScheduleItem schedule )
+        /// <returns>An instance of <see cref="SelectedOptionsBag"/>.</returns>
+        protected SelectedOptionsBag GetSelectedOptions( CheckInAreaItem area, CheckInGroupItem group, CheckInLocationItem location, CheckInScheduleItem schedule )
         {
-            return new SelectedOptions
+            return new SelectedOptionsBag
             {
                 Area = new CheckInItemBag
                 {

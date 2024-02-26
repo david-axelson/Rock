@@ -163,7 +163,7 @@ namespace Rock.Rest.v2.Controllers
         [Authenticate]
         //[Secured]
         [Route( "ListFamilyMembers" )]
-        [ProducesResponseType( HttpStatusCode.OK, Type = typeof( object ) )]
+        [ProducesResponseType( HttpStatusCode.OK, Type = typeof( ListFamilyMembersResponseBag ) )]
         [SystemGuid.RestActionGuid( "2bd5afdf-da57-48bb-a6db-7dd9ad1ab8da" )]
         public IActionResult PostListFamilyMembers( [FromBody] ListFamilyMembersOptionsBag options )
         {
@@ -199,9 +199,9 @@ namespace Rock.Rest.v2.Controllers
                     director.SetDefaultSelectionsForAttendee( person, configData );
                 }
 
-                return Ok( new
+                return Ok( new ListFamilyMembersResponseBag
                 {
-                    People = people,
+                    People = director.GetPotentialAttendeeBags( people ),
                     ExistingAttendance = existingAttendance
                 } );
             }

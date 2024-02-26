@@ -545,6 +545,26 @@ namespace Rock.CheckIn.v2
             return checkedInAttendances;
         }
 
+        /// <summary>
+        /// Gets the potential attendee bags from the set of attendee items.
+        /// </summary>
+        /// <param name="attendees">The attendees to be converted to bags.</param>
+        /// <returns>A list of bags that represent the attendees.</returns>
+        public List<PotentialAttendeeBag> GetPotentialAttendeeBags( IEnumerable<CheckInAttendeeItem> attendees )
+        {
+            // TODO: This per-item guts should be an extension method.
+            return attendees
+                .Select( a => new PotentialAttendeeBag
+                {
+                    Person = a.Person,
+                    IsPreSelected = a.IsPreSelected,
+                    IsDisabled = a.IsDisabled,
+                    DisabledMessage = a.DisabledMessage,
+                    SelectedOptions = a.SelectedOptions
+                } )
+                .ToList();
+        }
+
         #endregion
 
         #region Protected Methods
@@ -971,8 +991,8 @@ namespace Rock.CheckIn.v2
         /// </summary>
         /// <param name="cutoffDateTime">Attendance records must start on or after this date and time.</param>
         /// <param name="personGuids">The person unique identifiers to query the database for.</param>
-        /// <returns>A collection of <see cref="RecentAttendanceSummary"/> records.</returns>
-        private List<RecentAttendanceSummary> GetRecentAttendance( DateTime cutoffDateTime, IEnumerable<Guid> personGuids )
+        /// <returns>A collection of <see cref="RecentAttendanceItem"/> records.</returns>
+        private List<RecentAttendanceItem> GetRecentAttendance( DateTime cutoffDateTime, IEnumerable<Guid> personGuids )
         {
             var attendanceService = new AttendanceService( _rockContext );
 
@@ -991,7 +1011,7 @@ namespace Rock.CheckIn.v2
             personAttendanceQuery = WhereContains( personAttendanceQuery, personGuids, aa => aa.PersonAlias.Person.Guid );
 
             return personAttendanceQuery
-                .Select( a => new RecentAttendanceSummary
+                .Select( a => new RecentAttendanceItem
                 {
                     AttendanceId = a.Id,
                     AttendanceGuid = a.Guid,

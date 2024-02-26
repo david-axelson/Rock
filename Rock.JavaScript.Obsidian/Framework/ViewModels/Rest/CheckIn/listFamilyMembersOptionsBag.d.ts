@@ -24,13 +24,22 @@
 import { Guid } from "@Obsidian/Types";
 
 /**
- * The request parameters to use when requesting the list of valid
- * check-in configurations.
+ * The request parameters to use when requesting the list of
+ * members for a family.
  */
-export type ListConfigurationsOptionsBag = {
+export type ListFamilyMembersOptionsBag = {
     /**
-     * Gets or sets the kiosk unique identifier to use when filtering
-     * the configuration list.
+     * Gets or sets the area unique identifiers that will be used to
+     * determine which options are available for each family member.
      */
+    areaGuids?: Guid[] | null;
+
+    /** Gets or sets the configuration unique identifier. */
+    configurationGuid?: Guid | null;
+
+    /** Gets or sets the family unique identifier. */
+    familyGuid?: Guid | null;
+
+    /** Gets or sets the kiosk unique identifier. */
     kioskGuid?: Guid | null;
 };

@@ -21,16 +21,22 @@
 // </copyright>
 //
 
-import { Guid } from "@Obsidian/Types";
+import { CheckInItemBag } from "@Obsidian/ViewModels/CheckIn/checkInItemBag";
 
 /**
- * The request parameters to use when requesting the list of valid
- * check-in configurations.
+ * A set of items that represent the current selections that should be
+ * made for a person.
  */
-export type ListConfigurationsOptionsBag = {
-    /**
-     * Gets or sets the kiosk unique identifier to use when filtering
-     * the configuration list.
-     */
-    kioskGuid?: Guid | null;
+export type SelectedOptionsBag = {
+    /** Gets or sets the area. */
+    area?: CheckInItemBag | null;
+
+    /** Gets or sets the group. */
+    group?: CheckInItemBag | null;
+
+    /** Gets or sets the location. */
+    location?: CheckInItemBag | null;
+
+    /** Gets or sets the schedule. */
+    schedule?: CheckInItemBag | null;
 };

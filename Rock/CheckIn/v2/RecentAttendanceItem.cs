@@ -22,7 +22,7 @@ namespace Rock.CheckIn.v2
     /// <summary>
     /// A representation of a recent attendance record for a person.
     /// </summary>
-    internal class RecentAttendanceSummary
+    internal class RecentAttendanceItem
     {
         /// <summary>
         /// Gets or sets the Attendance identifier.

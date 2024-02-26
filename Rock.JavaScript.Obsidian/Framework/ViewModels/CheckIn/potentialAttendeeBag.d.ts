@@ -21,16 +21,23 @@
 // </copyright>
 //
 
-import { Guid } from "@Obsidian/Types";
+import { FamilyMemberBag } from "@Obsidian/ViewModels/CheckIn/familyMemberBag";
+import { SelectedOptionsBag } from "@Obsidian/ViewModels/CheckIn/selectedOptionsBag";
 
-/**
- * The request parameters to use when requesting the list of valid
- * check-in configurations.
- */
-export type ListConfigurationsOptionsBag = {
-    /**
-     * Gets or sets the kiosk unique identifier to use when filtering
-     * the configuration list.
-     */
-    kioskGuid?: Guid | null;
+/** A potential attendee item bag. */
+export type PotentialAttendeeBag = {
+    /** Gets or sets the message describing why this person is not available. */
+    disabledMessage?: string | null;
+
+    /** Gets or sets a value indicating whether this person is disabled. */
+    isDisabled: boolean;
+
+    /** Gets or sets a value indicating whether this instance is already selected. */
+    isPreSelected: boolean;
+
+    /** Gets or sets the person represented by this item. */
+    person?: FamilyMemberBag | null;
+
+    /** Gets or sets the selected options for this potential attendee. */
+    selectedOptions?: SelectedOptionsBag | null;
 };

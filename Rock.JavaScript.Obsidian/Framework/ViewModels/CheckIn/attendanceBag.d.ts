@@ -21,45 +21,39 @@
 // </copyright>
 //
 
+import { CheckInStatus } from "@Obsidian/Enums/Event/checkInStatus";
 import { Guid } from "@Obsidian/Types";
+import { CheckInItemBag } from "@Obsidian/ViewModels/CheckIn/checkInItemBag";
 
-/**
- * A search result item that represents a single family member in check-in
- * family search.
- */
-export type FamilyMemberSearchItemBag = {
-    /**
-     * Gets or sets the birth date. If this date is used, the time zone
-     * information should be thrown away so that just the raw date is
-     * left. Otherwise the birthdate might shift by one day depending
-     * on the time zone.
-     */
-    birthDate?: string | null;
+/** A single attendance record used by the check-in system. */
+export type AttendanceBag = {
+    /** Gets or sets the first name. */
+    firstName?: string | null;
 
-    /** Gets or sets the birth day. */
-    birthDay?: number | null;
+    /** Gets or sets the full name. */
+    fullName?: string | null;
 
-    /** Gets or sets the birth month. */
-    birthMonth?: number | null;
+    /** Gets or sets the group for this attendance record. */
+    group?: CheckInItemBag | null;
 
-    /** Gets or sets the birth year. */
-    birthYear?: number | null;
-
-    /** Gets or sets the person's gender. */
-    gender: number;
-
-    /** Gets or sets the unique identifier of the Person. */
+    /** Gets or sets the attendance unique identifier. */
     guid?: Guid | null;
-
-    /** Gets or sets the identifier key of the Person. */
-    idKey?: string | null;
 
     /** Gets or sets the last name. */
     lastName?: string | null;
 
-    /** Gets or sets the person's nick name. */
+    /** Gets or sets the location for this attendance record. */
+    location?: CheckInItemBag | null;
+
+    /** Gets or sets the name of the nick. */
     nickName?: string | null;
 
-    /** Gets or sets the group role order. */
-    roleOrder: number;
+    /** Gets or sets the person unique identifier. */
+    personGuid?: Guid | null;
+
+    /** Gets or sets the schedule for this attendance record. */
+    schedule?: CheckInItemBag | null;
+
+    /** Gets or sets the check-in status. */
+    status: CheckInStatus;
 };

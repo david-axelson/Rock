@@ -79,7 +79,9 @@ export class CheckInStep {
     public async execute(executePreviousSteps: boolean): Promise<void> {
         if (executePreviousSteps) {
             try {
-                this.previousStep?.execute(executePreviousSteps);
+                if (this.previousStep) {
+                    await this.previousStep.execute(executePreviousSteps);
+                }
             }
             catch {
                 this.state.value = "Error";

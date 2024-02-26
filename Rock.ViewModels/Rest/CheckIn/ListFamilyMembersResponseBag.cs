@@ -14,39 +14,29 @@
 // limitations under the License.
 // </copyright>
 //
+using System.Collections.Generic;
 
 using Rock.ViewModels.CheckIn;
 
-namespace Rock.CheckIn.v2
+namespace Rock.ViewModels.Rest.CheckIn
 {
     /// <summary>
-    /// A set of items that represent the current selections that should be
-    /// made for a person.
+    /// The response that will be returned by the list family members check-in
+    /// REST endpoint.
     /// </summary>
-    internal class SelectedOptions
+    public class ListFamilyMembersResponseBag
     {
         /// <summary>
-        /// Gets or sets the area.
+        /// Gets or sets the people that can be potentially checked in for
+        /// the family.
         /// </summary>
-        /// <value>The area.</value>
-        public CheckInItemBag Area { get; set; }
+        /// <value>The people.</value>
+        public List<PotentialAttendeeBag> People { get; set; }
 
         /// <summary>
-        /// Gets or sets the group.
+        /// Gets or sets the existing attendance bags that can be checked out.
         /// </summary>
-        /// <value>The group.</value>
-        public CheckInItemBag Group { get; set; }
-
-        /// <summary>
-        /// Gets or sets the location.
-        /// </summary>
-        /// <value>The location.</value>
-        public CheckInItemBag Location { get; set; }
-
-        /// <summary>
-        /// Gets or sets the schedule.
-        /// </summary>
-        /// <value>The schedule.</value>
-        public CheckInItemBag Schedule { get; set; }
+        /// <value>The existing attendance.</value>
+        public List<AttendanceBag> ExistingAttendance { get; set; }
     }
 }

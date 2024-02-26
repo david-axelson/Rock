@@ -17,9 +17,9 @@
 namespace Rock.ViewModels.CheckIn
 {
     /// <summary>
-    /// A Family Member item bag.
+    /// A potential attendee item bag.
     /// </summary>
-    public class FamilyMemberItemBag
+    public class PotentialAttendeeBag
     {
         /// <summary>
         /// Gets or sets the person represented by this item.
@@ -45,6 +45,10 @@ namespace Rock.ViewModels.CheckIn
         /// <value>The disabled reason message.</value>
         public string DisabledMessage { get; set; }
 
-        // TODO: SelectedOptions
+        /// <summary>
+        /// Gets or sets the selected options for this potential attendee.
+        /// </summary>
+        /// <value>The selected options.</value>
+        public SelectedOptionsBag SelectedOptions { get; set; }
     }
 }
