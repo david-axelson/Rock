@@ -467,6 +467,84 @@ namespace Rock.CheckIn.v2
             }
         }
 
+        /// <summary>
+        /// Gets the current attendance bags for the attendees. This means all
+        /// the bags that represent attendance records for people that are
+        /// considered to be currently checked in. This assumes the
+        /// <see cref="CheckInAttendeeItem.RecentAttendances"/> property has
+        /// been populated for each attendee.
+        /// </summary>
+        /// <param name="attendees">The attendees.</param>
+        /// <param name="configuration">The check-in configuration.</param>
+        /// <returns>A list of attendance bags.</returns>
+        public List<AttendanceBag> GetCurrentAttendanceBags( IReadOnlyCollection<CheckInAttendeeItem> attendees, CheckInConfigurationData configuration )
+        {
+            var checkedInAttendances = new List<AttendanceBag>();
+            var today = RockDateTime.Today;
+
+            foreach ( var attendee in attendees )
+            {
+                var activeAttendances = attendee.RecentAttendances
+                    .Where( a => a.StartDateTime >= today
+                        && !a.EndDateTime.HasValue )
+                    .ToList();
+
+                // We could get fancy and group things to try to improve
+                // performance a tiny bit, but it would be extremely unsual
+                // for a person to be checked into more than one thing so we
+                // will just do a simple loop.
+                foreach ( var attendance in activeAttendances )
+                {
+                    var location = NamedLocationCache.Get( attendance.LocationGuid, _rockContext );
+                    var schedule = NamedScheduleCache.Get( attendance.ScheduleGuid, _rockContext );
+                    var group = GroupCache.Get( attendance.GroupGuid, _rockContext );
+
+                    if ( location == null || schedule == null || group == null )
+                    {
+                        continue;
+                    }
+
+                    var campusId = location.GetCampusIdForLocation();
+                    var now = campusId.HasValue
+                        ? CampusCache.Get( campusId.Value )?.CurrentDateTime ?? RockDateTime.Now
+                        : RockDateTime.Now;
+
+                    if ( !schedule.WasScheduleOrCheckInActiveForCheckOut( now ) )
+                    {
+                        continue;
+                    }
+
+                    checkedInAttendances.Add( new AttendanceBag
+                    {
+                        Guid = attendance.AttendanceGuid,
+                        PersonGuid = attendance.PersonGuid,
+                        NickName = attendee.Person.NickName,
+                        FirstName = attendee.Person.FirstName,
+                        LastName = attendee.Person.LastName,
+                        FullName = attendee.Person.FullName,
+                        Status = attendance.Status,
+                        Group = new CheckInItemBag
+                        {
+                            Guid = group.Guid,
+                            Name = group.Name
+                        },
+                        Location = new CheckInItemBag
+                        {
+                            Guid = location.Guid,
+                            Name = location.Name
+                        },
+                        Schedule = new CheckInItemBag
+                        {
+                            Guid = schedule.Guid,
+                            Name = schedule.Name
+                        }
+                    } );
+                }
+            }
+
+            return checkedInAttendances;
+        }
+
         #endregion
 
         #region Protected Methods
@@ -653,7 +731,7 @@ namespace Rock.CheckIn.v2
         /// </summary>
         /// <param name="familyMemberQry">The family member query.</param>
         /// <returns>A list of <see cref="FamilySearchItemBag"/> instances.</returns>
-        private List<FamilySearchItemBag> GetFamilySearchItemBags( IQueryable<GroupMember> familyMemberQry )
+        private static List<FamilySearchItemBag> GetFamilySearchItemBags( IQueryable<GroupMember> familyMemberQry )
         {
             // Pull just the information we need from the database.
             var familyMembers = familyMemberQry
@@ -916,6 +994,8 @@ namespace Rock.CheckIn.v2
                 .Select( a => new RecentAttendanceSummary
                 {
                     AttendanceId = a.Id,
+                    AttendanceGuid = a.Guid,
+                    Status = a.CheckInStatus,
                     StartDateTime = a.StartDateTime,
                     EndDateTime = a.EndDateTime,
                     PersonGuid = a.PersonAlias.Person.Guid,

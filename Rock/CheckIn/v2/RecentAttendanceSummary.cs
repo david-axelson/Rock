@@ -33,6 +33,20 @@ namespace Rock.CheckIn.v2
         public int AttendanceId { get; set; }
 
         /// <summary>
+        /// Gets or sets the Attendance unique identifier.
+        /// </summary>
+        /// <value>
+        /// The unique identifier.
+        /// </value>
+        public Guid AttendanceGuid { get; set; }
+
+        /// <summary>
+        /// Gets or sets the status of the attendance record.
+        /// </summary>
+        /// <value>The status of the attendance record.</value>
+        public Rock.Enums.Event.CheckInStatus Status { get; set; }
+
+        /// <summary>
         /// Gets or sets the start date time.
         /// </summary>
         /// <value>

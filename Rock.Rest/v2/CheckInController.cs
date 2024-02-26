@@ -191,6 +191,7 @@ namespace Rock.Rest.v2.Controllers
                 var checkInOptions = director.GetAllCheckInOptions( areas, kiosk, null );
 
                 var people = director.GetAttendeeItems( familyMembers, checkInOptions, configData );
+                var existingAttendance = director.GetCurrentAttendanceBags( people, configData );
 
                 foreach ( var person in people )
                 {
@@ -200,7 +201,8 @@ namespace Rock.Rest.v2.Controllers
 
                 return Ok( new
                 {
-                    People = people
+                    People = people,
+                    ExistingAttendance = existingAttendance
                 } );
             }
             catch ( CheckInMessageException ex )
