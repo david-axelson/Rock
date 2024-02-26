@@ -44,7 +44,6 @@ using Rock.Rest.Validation;
 
 namespace Rock.Rest
 {
-
     /// <summary>
     ///
     /// </summary>
