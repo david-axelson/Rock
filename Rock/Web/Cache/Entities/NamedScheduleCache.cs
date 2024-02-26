@@ -165,6 +165,32 @@ namespace Rock.Web.Cache
         }
 
         /// <summary>
+        /// Determines whether a schedule is active for check-out for the specified time.
+        /// </summary>
+        /// <example>
+        /// CheckOut Window: 5/1/2013 11:00:00 PM - 5/2/2013 2:00:00 AM
+        /// 
+        ///  * Current time: 8/8/2019 11:01:00 PM - returns true
+        ///  * Current time: 8/8/2019 10:59:00 PM - returns false
+        ///  * Current time: 8/8/2019 1:00:00 AM - returns true
+        ///  * Current time: 8/8/2019 2:01:00 AM - returns false
+        ///
+        /// Note: Add any other test cases you want to test to the "Rock.Tests.Rock.Model.ScheduleCheckInTests" project.
+        /// </example>
+        /// <param name="time">The time.</param>
+        /// <returns>
+        ///   <c>true</c> if the schedule is active for check out at the specified time; otherwise, <c>false</c>.
+        /// </returns>
+        private bool IsScheduleActiveForCheckOut( DateTime time )
+        {
+            return Schedule.IsScheduleActiveForCheckOut( time,
+                GetCalendarEvent(),
+                CheckInStartOffsetMinutes.Value,
+                CategoryId,
+                CalendarContent );
+        }
+
+        /// <summary>
         /// Returns value indicating if check-in was active at a current time for this schedule.
         /// </summary>
         /// <param name="time">The time at which to use when determining if check-in was active.</param>
@@ -172,6 +198,18 @@ namespace Rock.Web.Cache
         public bool WasScheduleOrCheckInActive( DateTime time )
         {
             return WasScheduleActive( time ) || WasCheckInActive( time );
+        }
+
+        /// <summary>
+        /// Determines if the schedule or check-in is active for check out.
+        /// Check out can happen while check-in is active or until the event
+        /// ends (start time + duration).
+        /// </summary>
+        /// <param name="time">The time to check.</param>
+        /// <returns></returns>
+        public bool WasScheduleOrCheckInActiveForCheckOut( DateTime time )
+        {
+            return IsScheduleActiveForCheckOut( time ) || WasScheduleActive( time ) || WasCheckInActive( time );
         }
 
         /// <inheritdoc/>

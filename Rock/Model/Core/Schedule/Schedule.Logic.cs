@@ -1190,7 +1190,32 @@ namespace Rock.Model
         /// </returns>
         private bool IsScheduleActiveForCheckOut( DateTime time )
         {
-            var calEvent = GetICalEvent();
+            return IsScheduleActiveForCheckOut( time, GetICalEvent(), CheckInStartOffsetMinutes.Value, CategoryId, iCalendarContent );
+        }
+
+        /// <summary>
+        /// Determines whether a schedule is active for check-out for the specified time.
+        /// </summary>
+        /// <example>
+        /// CheckOut Window: 5/1/2013 11:00:00 PM - 5/2/2013 2:00:00 AM
+        /// 
+        ///  * Current time: 8/8/2019 11:01:00 PM - returns true
+        ///  * Current time: 8/8/2019 10:59:00 PM - returns false
+        ///  * Current time: 8/8/2019 1:00:00 AM - returns true
+        ///  * Current time: 8/8/2019 2:01:00 AM - returns false
+        ///
+        /// Note: Add any other test cases you want to test to the "Rock.Tests.Rock.Model.ScheduleCheckInTests" project.
+        /// </example>
+        /// <param name="time">The time.</param>
+        /// <param name="calEvent">The calendar event that represents the schedule.</param>
+        /// <param name="checkInStartOffsetMinutes">The check in start offset minutes.</param>
+        /// <param name="categoryId">The category identifier the schedule belongs to.</param>
+        /// <param name="iCalendarContent">The iCal calendar content text.</param>
+        /// <returns>
+        ///   <c>true</c> if the schedule is active for check out at the specified time; otherwise, <c>false</c>.
+        /// </returns>
+        internal static bool IsScheduleActiveForCheckOut( DateTime time, CalendarEvent calEvent, int checkInStartOffsetMinutes, int? categoryId, string iCalendarContent )
+        {
             if ( calEvent == null || calEvent.DtStart == null )
             {
                 return false;
@@ -1199,7 +1224,7 @@ namespace Rock.Model
             // For check-out, we use the start time + duration to determine the end of the window...
             // ...in iCal, this is the DTEnd value
             var checkOutEnd = calEvent.DtEnd;
-            var checkInStart = calEvent.DtStart.AddMinutes( 0 - CheckInStartOffsetMinutes.Value );
+            var checkInStart = calEvent.DtStart.AddMinutes( 0 - checkInStartOffsetMinutes );
 
             // Check if the end time spilled over to a different day...
             int checkOutEndDateCompare = checkOutEnd.Date.CompareTo( checkInStart.Date );
@@ -1240,7 +1265,7 @@ namespace Rock.Model
                 }
             }
 
-            var occurrences = GetICalOccurrences( time.Date );
+            var occurrences = GetICalOccurrences( time.Date, null, null, categoryId, iCalendarContent, () => calEvent );
             return occurrences.Count > 0;
         }
 
