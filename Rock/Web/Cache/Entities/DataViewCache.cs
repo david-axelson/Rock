@@ -21,17 +21,25 @@ using System.Runtime.Serialization;
 
 using Rock.Data;
 using Rock.Model;
+using Rock.Reporting;
 
 namespace Rock.Web.Cache
 {
     /// <summary>
-    /// Information about a DataView that is cached by Rock. 
+    /// Information about a DataView that can be added to a short-term cache.
     /// </summary>
     [Serializable]
     [DataContract]
-    public class DataViewCache : ModelCache<DataViewCache, DataView>
+    public class DataViewCache : ModelCache<DataViewCache, DataView>, IDataViewDefinition
     {
         #region Fields
+
+        /// <summary>
+        /// The last time this cache object ran the query from cache rather
+        /// than building the expression. We use this to update the last run
+        /// value of the data view occasionally.
+        /// </summary>
+        private DateTime _lastCachedRun = DateTime.MinValue;
 
         /// <summary>
         /// The persisted entity id values that have been cached for the
@@ -44,79 +52,79 @@ namespace Rock.Web.Cache
 
         #region Properties
 
-        /// <inheritdoc cref="DataView.IsSystem"/>
+        /// <inheritdoc cref="Rock.Model.DataView.IsSystem" />
         [DataMember]
         public bool IsSystem { get; private set; }
 
-        /// <inheritdoc cref="DataView.Name"/>
+        /// <inheritdoc cref="Rock.Model.DataView.Name" />
         [DataMember]
         public string Name { get; private set; }
 
-        /// <inheritdoc cref="DataView.Description"/>
+        /// <inheritdoc cref="Rock.Model.DataView.Description" />
         [DataMember]
         public string Description { get; private set; }
 
-        /// <inheritdoc cref="DataView.CategoryId"/>
+        /// <inheritdoc cref="Rock.Model.DataView.CategoryId" />
         [DataMember]
         public int? CategoryId { get; private set; }
 
-        /// <inheritdoc cref="DataView.EntityTypeId"/>
-        [DataMember]
+        /// <inheritdoc cref="Rock.Model.DataView.EntityTypeId" />
+        [DataMember( IsRequired = true )]
         public int? EntityTypeId { get; private set; }
 
-        /// <inheritdoc cref="DataView.DataViewFilterId"/>
+        /// <inheritdoc cref="Rock.Model.DataView.DataViewFilterId" />
         [DataMember]
         public int? DataViewFilterId { get; private set; }
 
-        /// <inheritdoc cref="DataView.TransformEntityTypeId"/>
+        /// <inheritdoc cref="Rock.Model.DataView.TransformEntityTypeId" />
         [DataMember]
         public int? TransformEntityTypeId { get; private set; }
 
-        /// <inheritdoc cref="DataView.PersistedScheduleIntervalMinutes"/>
+        /// <inheritdoc cref="Rock.Model.DataView.PersistedScheduleIntervalMinutes" />
         [DataMember]
         public int? PersistedScheduleIntervalMinutes { get; private set; }
 
-        /// <inheritdoc cref="DataView.PersistedLastRefreshDateTime"/>
+        /// <inheritdoc cref="Rock.Model.DataView.PersistedLastRefreshDateTime" />
         [DataMember]
         public DateTime? PersistedLastRefreshDateTime { get; private set; }
 
-        /// <inheritdoc cref="DataView.IncludeDeceased"/>
+        /// <inheritdoc cref="Rock.Model.DataView.IncludeDeceased" />
         [DataMember]
         public bool IncludeDeceased { get; private set; }
 
-        /// <inheritdoc cref="DataView.PersistedLastRunDurationMilliseconds"/>
+        /// <inheritdoc cref="Rock.Model.DataView.PersistedLastRunDurationMilliseconds" />
         [DataMember]
         public int? PersistedLastRunDurationMilliseconds { get; private set; }
 
-        /// <inheritdoc cref="DataView.LastRunDateTime"/>
+        /// <inheritdoc cref="Rock.Model.DataView.LastRunDateTime" />
         [DataMember]
         public DateTime? LastRunDateTime { get; private set; }
 
-        /// <inheritdoc cref="DataView.RunCount"/>
+        /// <inheritdoc cref="Rock.Model.DataView.RunCount" />
         [DataMember]
         public int? RunCount { get; private set; }
 
-        /// <inheritdoc cref="DataView.TimeToRunDurationMilliseconds"/>
+        /// <inheritdoc cref="Rock.Model.DataView.TimeToRunDurationMilliseconds" />
         [DataMember]
         public double? TimeToRunDurationMilliseconds { get; private set; }
 
-        /// <inheritdoc cref="DataView.RunCountLastRefreshDateTime"/>
+        /// <inheritdoc cref="Rock.Model.DataView.RunCountLastRefreshDateTime" />
         [DataMember]
         public DateTime? RunCountLastRefreshDateTime { get; private set; }
 
-        /// <inheritdoc cref="DataView.DisableUseOfReadOnlyContext"/>
+        /// <inheritdoc cref="Rock.Model.DataView.DisableUseOfReadOnlyContext" />
         [DataMember]
         public bool DisableUseOfReadOnlyContext { get; private set; }
 
-        /// <inheritdoc cref="DataView.PersistedScheduleId"/>
+        /// <inheritdoc cref="Rock.Model.DataView.PersistedScheduleId" />
         [DataMember]
         public int? PersistedScheduleId { get; private set; }
 
-        /// <inheritdoc cref="DataView.IconCssClass"/>
+        /// <inheritdoc cref="Rock.Model.DataView.IconCssClass"/>
         [DataMember]
         public string IconCssClass { get; private set; }
 
-        /// <inheritdoc cref="DataView.HighlightColor"/>
+        /// <inheritdoc cref="Rock.Model.DataView.HighlightColor"/>
         [DataMember]
         public string HighlightColor { get; private set; }
 
@@ -124,28 +132,40 @@ namespace Rock.Web.Cache
 
         #region Navigation Properties
 
-        /// <inheritdoc cref="DataView.Category"/>
+        /// <inheritdoc cref="Rock.Model.DataView.Category" />
         public CategoryCache Category => CategoryId.HasValue ? CategoryCache.Get( CategoryId.Value ) : null;
 
-        /// <inheritdoc cref="DataView.EntityType"/>
+        /// <inheritdoc cref="Rock.Model.DataView.EntityType" />
         public EntityTypeCache EntityType => EntityTypeId.HasValue ? EntityTypeCache.Get( EntityTypeId.Value ) : null;
 
-        /// <inheritdoc cref="DataView.TransformEntityType"/>
-        public EntityTypeCache TransformEntityType => TransformEntityTypeId.HasValue ? EntityTypeCache.Get( TransformEntityTypeId.Value ) : null;
-
-        /*
-            2024-02-20 - DSH
-
-            We intentionally don't include the DataViewFilter navigation property
-            because it would be hard to determine when one of them was changed.
-        */
+        /// <inheritdoc cref="Rock.Model.DataView.DataViewFilter" />
+        public DataViewFilterCache DataViewFilter => DataViewFilterId.HasValue ? DataViewFilterCache.Get( DataViewFilterId.Value ) : null;
 
         /// <inheritdoc cref="DataView.PersistedSchedule"/>
         public NamedScheduleCache PersistedSchedule => PersistedScheduleId.HasValue ? NamedScheduleCache.Get( PersistedScheduleId.Value ) : null;
 
+        /// <inheritdoc cref="DataView.TransformEntityType"/>
+        public EntityTypeCache TransformEntityType => TransformEntityTypeId.HasValue ? EntityTypeCache.Get( TransformEntityTypeId.Value ) : null;
+
         #endregion
 
-        #region Methods
+        #region IDataViewDefinition implementation
+
+        /// <inheritdoc/>
+        IDataViewFilterDefinition IDataViewDefinition.DataViewFilter => this.DataViewFilter;
+
+        #endregion
+
+        #region Public Methods
+
+        /// <summary>
+        /// Returns true if this DataView is configured to be Persisted.
+        /// </summary>
+        /// <returns><c>true</c> if this instance is persisted; otherwise, <c>false</c>.</returns>
+        public bool IsPersisted()
+        {
+            return this.PersistedScheduleIntervalMinutes.HasValue || this.PersistedScheduleId.HasValue;
+        }
 
         /// <summary>
         /// Copies from model.
@@ -160,92 +180,66 @@ namespace Rock.Web.Cache
                 return;
             }
 
-            IsSystem = dataView.IsSystem;
-            Name = dataView.Name;
-            Description = dataView.Description;
             CategoryId = dataView.CategoryId;
-            EntityTypeId = dataView.EntityTypeId;
             DataViewFilterId = dataView.DataViewFilterId;
-            TransformEntityTypeId = dataView.TransformEntityTypeId;
-            PersistedScheduleIntervalMinutes = dataView.PersistedScheduleIntervalMinutes;
-            PersistedLastRefreshDateTime = dataView.PersistedLastRefreshDateTime;
-            IncludeDeceased = dataView.IncludeDeceased;
-            PersistedLastRunDurationMilliseconds = dataView.PersistedLastRunDurationMilliseconds;
-            LastRunDateTime = dataView.LastRunDateTime;
-            RunCount = dataView.RunCount;
-            TimeToRunDurationMilliseconds = dataView.TimeToRunDurationMilliseconds;
-            RunCountLastRefreshDateTime = dataView.RunCountLastRefreshDateTime;
+            Description = dataView.Description;
             DisableUseOfReadOnlyContext = dataView.DisableUseOfReadOnlyContext;
-            PersistedScheduleId = dataView.PersistedScheduleId;
-            IconCssClass = dataView.IconCssClass;
+            EntityTypeId = dataView.EntityTypeId;
+            IncludeDeceased = dataView.IncludeDeceased;
             HighlightColor = dataView.HighlightColor;
+            IconCssClass = dataView.IconCssClass;
+            IsSystem = dataView.IsSystem;
+            LastRunDateTime = dataView.LastRunDateTime;
+            Name = dataView.Name;
+            PersistedLastRefreshDateTime = dataView.PersistedLastRefreshDateTime;
+            PersistedLastRunDurationMilliseconds = dataView.PersistedLastRunDurationMilliseconds;
+            PersistedScheduleId = dataView.PersistedScheduleId;
+            PersistedScheduleIntervalMinutes = dataView.PersistedScheduleIntervalMinutes;
+            RunCount = dataView.RunCount;
+            RunCountLastRefreshDateTime = dataView.RunCountLastRefreshDateTime;
+            TimeToRunDurationMilliseconds = dataView.TimeToRunDurationMilliseconds;
+            TransformEntityTypeId = dataView.TransformEntityTypeId;
         }
 
         /// <summary>
-        /// Returns true if this DataView is configured to be Persisted.
+        /// Gets the query.
         /// </summary>
-        /// <returns><c>true</c> if this instance is persisted; otherwise, <c>false</c>.</returns>
-        public bool IsPersisted()
+        /// <param name="options">The data view get query arguments.</param>
+        /// <returns>A queryable that contains the entities returned by the filters.</returns>
+        public IQueryable<IEntity> GetQueryable( GetQueryableOptions options )
         {
-            return this.PersistedScheduleIntervalMinutes.HasValue || this.PersistedScheduleId.HasValue;
-        }
+            options = options ?? new GetQueryableOptions();
 
-        /// <summary>
-        /// Gets the queryable that is generated by the DataView filters. This
-        /// will automatically use the persisted values if they are configured
-        /// and available. A new <see cref="RockContext"/> will be created to
-        /// access the database.
-        /// </summary>
-        /// <returns>A queryable that contains the entities returned by the filters or <c>null</c> if the DataView is not valid.</returns>
-        public IQueryable<IEntity> GetQueryable()
-        {
-            return GetQueryable( new RockContext() );
-        }
-
-        /// <summary>
-        /// Gets the queryable that is generated by the DataView filters. This
-        /// will automatically use the persisted values if they are configured
-        /// and available.
-        /// </summary>
-        /// <param name="rockContext">The rock context to attach the query to.</param>
-        /// <returns>A queryable that contains the entities returned by the filters or <c>null</c> if the DataView is not valid.</returns>
-        public IQueryable<IEntity> GetQueryable( RockContext rockContext )
-        {
             if ( IsPersisted() && PersistedLastRefreshDateTime.HasValue )
             {
+                if ( options.DataViewFilterOverrides?.ShouldUpdateStatics != false )
+                {
+                    MaybeUpdateLastRunDate();
+                }
+
                 var entityType = EntityType?.GetEntityType();
 
                 if ( entityType == null )
                 {
-                    return null;
+                    throw new InvalidOperationException( $"Unknown entity type for DataView #{Id}: {Name}." );
                 }
+
+                var rockContext = options.DbContext ?? new RockContext();
 
                 var entityIdQry = rockContext.Set<DataViewPersistedValue>()
                     .Where( pv => pv.DataViewId == Id )
                     .Select( pv => pv.EntityId );
 
-                var qry = Reflection.GetQueryableForEntityType( entityType, rockContext );
+                var qry = Reflection.GetQueryableForEntityType( entityType, ( DbContext ) rockContext );
 
-                return qry.Where( a => entityIdQry.Contains( a.Id ) );
+                qry = qry.Where( a => entityIdQry.Contains( a.Id ) );
+                qry = GetSortedQueryable( qry, options.SortProperty );
+
+                return qry;
             }
             else
             {
-                var dataView = new DataViewService( rockContext ).Get( Id );
-
-                // Shouldn't normally happen, but it's possible for the DataView
-                // to be deleted while the cache object is currently being
-                // accessed by some other code.
-                if ( dataView == null )
-                {
-                    return null;
-                }
-
-                var getQueryArgs = new DataViewGetQueryArgs
-                {
-                    DatabaseTimeoutSeconds = 30
-                };
-
-                return dataView.GetQuery( getQueryArgs );
+                return DataViewQueryBuilder.Instance.GetDataViewQuery( this, options );
             }
         }
 
@@ -253,23 +247,12 @@ namespace Rock.Web.Cache
         /// Gets the entity identifiers represented by the DataView filters.
         /// This will automatically use the persisted values if they are
         /// configured and available. A new <see cref="RockContext"/> will be
-        /// created to query the database with.
+        /// created to query the database if the values are not already cached.
         /// </summary>
-        /// <returns>A read-only collection of identifiers or <c>null</c> if the DataView is not valid.</returns>
+        /// <returns>A read-only collection of identifiers.</returns>
         public IReadOnlyCollection<int> GetEntityIds()
         {
-            RockContext rockContext = null;
-
-            var ids = GetEntityIds( () =>
-            {
-                rockContext = new RockContext();
-
-                return rockContext;
-            } );
-
-            rockContext?.Dispose();
-
-            return ids;
+            return GetEntityIds( new GetQueryableOptions() );
         }
 
         /// <summary>
@@ -277,43 +260,27 @@ namespace Rock.Web.Cache
         /// This will automatically use the persisted values if they are
         /// configured and available.
         /// </summary>
-        /// <param name="rockContext">The rock context to attach the query to.</param>
-        /// <returns>A read-only collection of identifiers or <c>null</c> if the DataView is not valid.</returns>
-        /// <exception cref="System.ArgumentNullException">rockContext</exception>
-        public IReadOnlyCollection<int> GetEntityIds( RockContext rockContext )
+        /// <param name="options">The options to use if access to the database is required.</param>
+        /// <returns>A read-only collection of identifiers.</returns>
+        /// <exception cref="System.ArgumentNullException">options</exception>
+        public IReadOnlyCollection<int> GetEntityIds( GetQueryableOptions options )
         {
-            if ( rockContext == null )
-            {
-                throw new ArgumentNullException( nameof( rockContext ) );
-            }
+            options = options ?? new GetQueryableOptions();
 
-            return GetEntityIds( () => rockContext );
-        }
-
-        /// <summary>
-        /// Gets the entity identifiers represented by the DataView filters.
-        /// This will automatically use the persisted values if they are
-        /// configured and available.
-        /// </summary>
-        /// <param name="rockContextFactory">The factory that will give us the rock context if we need to query the database.</param>
-        /// <returns>A read-only collection of identifiers or <c>null</c> if the DataView is not valid.</returns>
-        private IReadOnlyCollection<int> GetEntityIds( Func<RockContext> rockContextFactory )
-        {
             if ( IsPersisted() && PersistedLastRefreshDateTime.HasValue )
             {
+                if ( options.DataViewFilterOverrides?.ShouldUpdateStatics != false )
+                {
+                    MaybeUpdateLastRunDate();
+                }
+
                 if ( _persistedEntityIds != null )
                 {
                     return _persistedEntityIds;
                 }
 
-                var entityType = EntityType?.GetEntityType();
-
-                if ( entityType == null )
-                {
-                    return null;
-                }
-
-                var rockContext = rockContextFactory();
+                bool ownsContext = options.DbContext != null;
+                var rockContext = options.DbContext ?? new RockContext();
 
                 var idQry = rockContext.Set<DataViewPersistedValue>()
                     .Where( pv => pv.DataViewId == Id )
@@ -321,30 +288,74 @@ namespace Rock.Web.Cache
 
                 _persistedEntityIds = new HashSet<int>( idQry );
 
+                if ( ownsContext )
+                {
+                    rockContext.Dispose();
+                }
+
                 return _persistedEntityIds;
             }
             else
             {
-                var rockContext = rockContextFactory();
-                var dataView = new DataViewService( rockContext ).Get( Id );
-
-                // Shouldn't normally happen, but it's possible for the DataView
-                // to be deleted while the cache object is currently being
-                // accessed by some other code.
-                if ( dataView == null )
-                {
-                    return null;
-                }
-
-                var getQueryArgs = new DataViewGetQueryArgs
-                {
-                    DatabaseTimeoutSeconds = 30
-                };
-
-                return dataView.GetQuery( getQueryArgs )
+                return DataViewQueryBuilder.Instance.GetDataViewQuery( this, options )
                     .Select( a => a.Id )
                     .ToList();
             }
+        }
+
+        /// <summary>
+        /// Gets the sorted queryable for the specified sort property. This is
+        /// used when we are querying the persisted values.
+        /// </summary>
+        /// <param name="qry">The query to be sorted.</param>
+        /// <param name="sortProperty">The sort property.</param>
+        /// <returns>A new queryable that has the sorting applied.</returns>
+        private IQueryable<IEntity> GetSortedQueryable( IQueryable<IEntity> qry, Rock.Web.UI.Controls.SortProperty sortProperty )
+        {
+            if ( sortProperty == null )
+            {
+                // if no sorting is specified, just sort by Id
+                sortProperty = new Rock.Web.UI.Controls.SortProperty
+                {
+                    Direction = System.Web.UI.WebControls.SortDirection.Ascending,
+                    Property = "Id"
+                };
+            }
+
+            var entityType = EntityType.GetEntityType();
+            var qryType = typeof( IQueryable<> ).MakeGenericType( entityType );
+            var castMethod = typeof( Queryable ).GetMethod( nameof( Queryable.Cast ) ).MakeGenericMethod( entityType );
+            var entityQueryable = castMethod.Invoke( null, new object[] { qry } );
+
+            var orderName = sortProperty.Direction == System.Web.UI.WebControls.SortDirection.Ascending
+                ? nameof( ExtensionMethods.OrderBy )
+                : nameof( ExtensionMethods.OrderByDescending );
+
+            var orderMethod = typeof( ExtensionMethods )
+                .GetMethods()
+                .Where( m => m.Name == orderName && m.GetParameters().Length == 2 )
+                .First();
+
+            return ( IQueryable<IEntity> ) orderMethod
+                .MakeGenericMethod( entityType )
+                .Invoke( null, new object[] { entityQueryable, sortProperty.Property } );
+        }
+
+        /// <summary>
+        /// Update the last run date on the data view (via transaction) if it
+        /// has not been updated recently.
+        /// </summary>
+        private void MaybeUpdateLastRunDate()
+        {
+            // If it has been less than ten minutes since we last updated
+            // then don't do anything.
+            if ( _lastCachedRun.AddMinutes( 10 ) > RockDateTime.Now )
+            {
+                return;
+            }
+
+            _lastCachedRun = RockDateTime.Now;
+            DataViewService.AddRunDataViewTransaction( Id );
         }
 
         /// <summary>

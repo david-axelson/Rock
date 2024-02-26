@@ -400,7 +400,6 @@
     <Compile Include="Communication\ConversationMessageBag.cs" />
     <Compile Include="Controls\PhoneNumberBoxWithSmsControlBag.cs" />
     <Compile Include="Controls\NoteMentionItemBag.cs" />
-    <Compile Include="Blocks\Tv\AppleTvPageDetail\RockCacheabilityBag.cs" />
     <Compile Include="Rest\CheckIn\ListConfigurationsOptionsBag.cs" />
     <Compile Include="Rest\CheckIn\ListConfigurationsResponseBag.cs" />
     <Compile Include="Rest\CheckIn\ListFamilyMembersOptionsBag.cs" />
@@ -408,9 +407,10 @@
     <Compile Include="Rest\CheckIn\SearchForFamiliesResponseBag.cs" />
     <Compile Include="Rest\Controls\CurrencyBoxGetCurrencyInfoResultsBag.cs" />
     <Compile Include="Rest\Controls\CurrencyBoxGetCurrencyInfoOptionsBag.cs" />
+    <Compile Include="Controls\RockCacheabilityBag.cs" />
     <Compile Include="Rest\Controls\CaptchaControlValidateTokenOptionsBag.cs" />
     <Compile Include="Rest\Controls\CaptchaControlTokenValidateTokenResultBag.cs" />
-    <Compile Include="Blocks\Tv\AppleTvPageDetail\TimeIntervalBag.cs" />
+    <Compile Include="Utility\TimeIntervalBag.cs" />
     <Compile Include="Core\Grid\CustomActionBag.cs" />
     <Compile Include="Core\Grid\CustomColumnDefinitionBag.cs" />
     <Compile Include="Core\Grid\GridCommunicationBag.cs" />

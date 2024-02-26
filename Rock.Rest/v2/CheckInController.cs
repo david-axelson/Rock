@@ -228,7 +228,7 @@ namespace Rock.Rest.v2.Controllers
             var bench = new Rock.Utility.Performance.MicroBench();
             var validBenchmarks = new List<string> { "empty", "familySearch", "getFamilyMembers", "getFamilyMemberBags", "getAllCheckInOptions", "cloneOptions", "filterOptions" };
 
-            bench.RepititionMode = Rock.Utility.Performance.RepititionMode.Fast;
+            bench.RepititionMode = Rock.Enums.Core.BenchmarkRepititionMode.Fast;
 
             if ( configuration == null )
             {

@@ -19,6 +19,8 @@ using System.Reflection;
 
 using Microsoft.Extensions.Logging;
 
+using Rock.Enums.Core;
+
 namespace Rock.Utility.Performance
 {
     /// <summary>
@@ -54,7 +56,7 @@ namespace Rock.Utility.Performance
         /// benchmark runs for.
         /// </summary>
         /// <value>The repitition mode.</value>
-        public RepititionMode RepititionMode { get; set; } = RepititionMode.Normal;
+        public BenchmarkRepititionMode RepititionMode { get; set; } = BenchmarkRepititionMode.Normal;
 
         #endregion
 
@@ -223,11 +225,11 @@ namespace Rock.Utility.Performance
         /// <returns>The number of runs.</returns>
         private int GetOverheadRunCount()
         {
-            if ( RepititionMode == RepititionMode.Fast )
+            if ( RepititionMode == BenchmarkRepititionMode.Fast )
             {
                 return 5;
             }
-            else if ( RepititionMode == RepititionMode.Extended )
+            else if ( RepititionMode == BenchmarkRepititionMode.Extended )
             {
                 return 20;
             }
@@ -243,11 +245,11 @@ namespace Rock.Utility.Performance
         /// <returns>The number of runs.</returns>
         private int GetWarmupRunCount()
         {
-            if ( RepititionMode == RepititionMode.Fast )
+            if ( RepititionMode == BenchmarkRepititionMode.Fast )
             {
                 return 5;
             }
-            else if ( RepititionMode == RepititionMode.Extended )
+            else if ( RepititionMode == BenchmarkRepititionMode.Extended )
             {
                 return 20;
             }
@@ -263,11 +265,11 @@ namespace Rock.Utility.Performance
         /// <returns>The number of runs.</returns>
         private int GetRealRunCount()
         {
-            if ( RepititionMode == RepititionMode.Fast )
+            if ( RepititionMode == BenchmarkRepititionMode.Fast )
             {
                 return 10;
             }
-            else if ( RepititionMode == RepititionMode.Extended )
+            else if ( RepititionMode == BenchmarkRepititionMode.Extended )
             {
                 return 50;
             }

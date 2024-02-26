@@ -14,36 +14,47 @@
 // limitations under the License.
 // </copyright>
 //
+using Rock.Model;
+using Rock.Web.UI.Controls;
 
-namespace Rock.ViewModels.Blocks.Tv.AppleTvPageDetail
+namespace Rock.Reporting
 {
     /// <summary>
-    /// 
+    /// Parameters for the GetQuery actions.
     /// </summary>
-    public class RockCacheabilityBag
+    public sealed class GetQueryableOptions
     {
         /// <summary>
-        /// Gets or sets the type of the rock cacheability type.
+        /// Gets or sets the database context.
         /// </summary>
         /// <value>
-        /// The type of the rock cacheability.
+        /// The database context.
         /// </value>
-        public int RockCacheabilityType { get; set; }
+        public System.Data.Entity.DbContext DbContext { get; set; }
 
         /// <summary>
-        /// Gets or sets the maximum age.
+        /// Gets or sets the sort property.
         /// </summary>
         /// <value>
-        /// The maximum age.
+        /// The sort property.
         /// </value>
-        public TimeIntervalBag MaxAge { get; set; }
+        public SortProperty SortProperty { get; set; }
 
         /// <summary>
-        /// Gets or sets the shared maximum age.
+        /// Gets or sets the data view filter overrides.
         /// </summary>
         /// <value>
-        /// The shared maximum age.
+        /// The data view filter overrides.
         /// </value>
-        public TimeIntervalBag SharedMaxAge { get; set; }
+        public DataViewFilterOverrides DataViewFilterOverrides { get; set; }
+
+        /// <summary>
+        /// Gets or sets the database timeout seconds.
+        /// </summary>
+        /// <value>
+        /// The database timeout seconds.
+        /// </value>
+        public int? DatabaseTimeoutSeconds { get; set; }
     }
+
 }
