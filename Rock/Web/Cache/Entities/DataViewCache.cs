@@ -185,6 +185,8 @@ namespace Rock.Web.Cache
             Description = dataView.Description;
             DisableUseOfReadOnlyContext = dataView.DisableUseOfReadOnlyContext;
             EntityTypeId = dataView.EntityTypeId;
+            HighlightColor = dataView.HighlightColor;
+            IconCssClass = dataView.IconCssClass;
             IncludeDeceased = dataView.IncludeDeceased;
             HighlightColor = dataView.HighlightColor;
             IconCssClass = dataView.IconCssClass;
