@@ -809,6 +809,7 @@
     <Compile Include="CheckIn\v2\CheckInConfigurationData.cs" />
     <Compile Include="CheckIn\v2\CheckInDirector.cs" />
     <Compile Include="CheckIn\v2\CheckInAttendeeItem.cs" />
+    <Compile Include="CheckIn\v2\DefaultConversionProvider.cs" />
     <Compile Include="CheckIn\v2\DefaultSearchProvider.cs" />
     <Compile Include="CheckIn\v2\CheckInGroupData.cs" />
     <Compile Include="CheckIn\v2\CheckInGroupItem.cs" />

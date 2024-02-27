@@ -32,6 +32,47 @@ namespace Rock.CheckIn.v2
     /// </summary>
     internal class DefaultOptionsSelectionProvider
     {
+        #region Properties
+
+        /// <summary>
+        /// Gets or sets the check-in configuration in effect during filtering.
+        /// </summary>
+        /// <value>The check-in configuration.</value>
+        protected CheckInConfigurationData Configuration { get; }
+
+        /// <summary>
+        /// Gets or sets the check-in director.
+        /// </summary>
+        /// <value>The check-in director.</value>
+        protected CheckInDirector Director { get; }
+
+        #endregion
+
+        #region Constructors
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="DefaultOptionsSelectionProvider"/> class.
+        /// </summary>
+        /// <param name="director">The check-in director.</param>
+        /// <param name="configuration">The check-in configuration.</param>
+        public DefaultOptionsSelectionProvider( CheckInDirector director, CheckInConfigurationData configuration )
+        {
+            if ( director == null )
+            {
+                throw new ArgumentNullException( nameof( director ) );
+            }
+
+            if ( configuration == null )
+            {
+                throw new ArgumentNullException( nameof( configuration ) );
+            }
+
+            Director = director;
+            Configuration = configuration;
+        }
+
+        #endregion
+
         /// <summary>
         /// Gets the default selection for the person. This uses recent
         /// attendance to try and put them in the same location they were in

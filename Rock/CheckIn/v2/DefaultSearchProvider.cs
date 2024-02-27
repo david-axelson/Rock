@@ -38,9 +38,10 @@ namespace Rock.CheckIn.v2
         #region Properties
 
         /// <summary>
-        /// The context to use when accessing the database.
+        /// Gets or sets the check-in director.
         /// </summary>
-        protected RockContext RockContext { get; }
+        /// <value>The check-in director.</value>
+        protected CheckInDirector Director { get; }
 
         /// <summary>
         /// Gets the check-in configuration data.
@@ -55,15 +56,15 @@ namespace Rock.CheckIn.v2
         /// <summary>
         /// Initializes a new instance of the <see cref="DefaultSearchProvider"/> class.
         /// </summary>
-        /// <param name="rockContext">The rock context to use when accessing the database.</param>
+        /// <param name="director">The rock context to use when accessing the database.</param>
         /// <param name="configuration">The check-in configuration data.</param>
-        /// <exception cref="System.ArgumentNullException"><paramref name="rockContext"/> is <c>null</c>.</exception>
+        /// <exception cref="System.ArgumentNullException"><paramref name="director"/> is <c>null</c>.</exception>
         /// <exception cref="System.ArgumentNullException"><paramref name="configuration"/> is <c>null</c>.</exception>
-        public DefaultSearchProvider( RockContext rockContext, CheckInConfigurationData configuration )
+        public DefaultSearchProvider( CheckInDirector director, CheckInConfigurationData configuration )
         {
-            if ( rockContext == null )
+            if ( director == null )
             {
-                throw new ArgumentNullException( nameof( rockContext ) );
+                throw new ArgumentNullException( nameof( director ) );
             }
 
             if ( configuration == null )
@@ -71,7 +72,7 @@ namespace Rock.CheckIn.v2
                 throw new ArgumentNullException( nameof( configuration ) );
             }
 
-            RockContext = rockContext;
+            Director = director;
             Configuration = configuration;
         }
 
@@ -182,7 +183,7 @@ namespace Rock.CheckIn.v2
 
             if ( Configuration.IsInactivePersonExcluded )
             {
-                var inactiveValueId = DefinedValueCache.Get( Rock.SystemGuid.DefinedValue.PERSON_RECORD_STATUS_INACTIVE.AsGuid(), RockContext )?.Id;
+                var inactiveValueId = DefinedValueCache.Get( Rock.SystemGuid.DefinedValue.PERSON_RECORD_STATUS_INACTIVE.AsGuid(), Director.RockContext )?.Id;
 
                 if ( inactiveValueId.HasValue )
                 {
@@ -292,8 +293,8 @@ namespace Rock.CheckIn.v2
         /// <exception cref="Exception">Person record type was not found in the database, please check your installation.</exception>
         protected virtual IQueryable<GroupMember> GetFamilyGroupMemberQuery()
         {
-            var familyGroupTypeId = GroupTypeCache.Get( Rock.SystemGuid.GroupType.GROUPTYPE_FAMILY.AsGuid(), RockContext )?.Id;
-            var personRecordTypeId = DefinedValueCache.Get( Rock.SystemGuid.DefinedValue.PERSON_RECORD_TYPE_PERSON.AsGuid(), RockContext )?.Id;
+            var familyGroupTypeId = GroupTypeCache.Get( Rock.SystemGuid.GroupType.GROUPTYPE_FAMILY.AsGuid(), Director.RockContext )?.Id;
+            var personRecordTypeId = DefinedValueCache.Get( Rock.SystemGuid.DefinedValue.PERSON_RECORD_TYPE_PERSON.AsGuid(), Director.RockContext )?.Id;
 
             if ( !familyGroupTypeId.HasValue )
             {
@@ -305,7 +306,7 @@ namespace Rock.CheckIn.v2
                 throw new Exception( "Person record type was not found in the database, please check your installation." );
             }
 
-            return new GroupMemberService( RockContext )
+            return new GroupMemberService( Director.RockContext )
                 .Queryable()
                 .AsNoTracking()
                 .Where( gm => gm.GroupTypeId == familyGroupTypeId.Value
@@ -320,7 +321,7 @@ namespace Rock.CheckIn.v2
         /// <returns>A queryable of family <see cref="Group"/> objects.</returns>
         protected virtual IQueryable<Group> SearchForFamiliesByName( string searchTerm )
         {
-            var personIdQry = new PersonService( RockContext )
+            var personIdQry = new PersonService( Director.RockContext )
                 .GetByFullName( searchTerm, false )
                 .AsNoTracking()
                 .Select( p => p.Id );
@@ -338,7 +339,7 @@ namespace Rock.CheckIn.v2
         /// <returns>A queryable of family <see cref="Group"/> objects.</returns>
         protected virtual IQueryable<Group> SearchForFamiliesByPhoneNumber( string searchTerm )
         {
-            var personRecordTypeId = DefinedValueCache.Get( Rock.SystemGuid.DefinedValue.PERSON_RECORD_TYPE_PERSON.AsGuid(), RockContext )?.Id;
+            var personRecordTypeId = DefinedValueCache.Get( Rock.SystemGuid.DefinedValue.PERSON_RECORD_TYPE_PERSON.AsGuid(), Director.RockContext )?.Id;
             var numericSearchTerm = searchTerm.AsNumeric();
 
             if ( Configuration.MinimumPhoneNumberLength.HasValue && searchTerm.Length < Configuration.MinimumPhoneNumberLength.Value )
@@ -356,7 +357,7 @@ namespace Rock.CheckIn.v2
                 throw new Exception( "Person record type was not found in the database, please check your installation." );
             }
 
-            var phoneQry = new PhoneNumberService( RockContext )
+            var phoneQry = new PhoneNumberService( Director.RockContext )
                 .Queryable()
                 .AsNoTracking();
 
@@ -391,14 +392,14 @@ namespace Rock.CheckIn.v2
         /// <returns>A queryable of family <see cref="Group"/> objects.</returns>
         protected virtual IQueryable<Group> SearchForFamiliesByScannedId( string searchTerm )
         {
-            var alternateIdValueId = DefinedValueCache.Get( SystemGuid.DefinedValue.PERSON_SEARCH_KEYS_ALTERNATE_ID.AsGuid(), RockContext )?.Id;
+            var alternateIdValueId = DefinedValueCache.Get( SystemGuid.DefinedValue.PERSON_SEARCH_KEYS_ALTERNATE_ID.AsGuid(), Director.RockContext )?.Id;
 
             if ( !alternateIdValueId.HasValue )
             {
                 throw new Exception( "Alternate Id search type value was not found in the database, please check your installation." );
             }
 
-            var personIdQry = new PersonSearchKeyService( RockContext )
+            var personIdQry = new PersonSearchKeyService( Director.RockContext )
                 .Queryable()
                 .AsNoTracking()
                 .Where( psk => psk.SearchTypeValueId == alternateIdValueId.Value
@@ -438,12 +439,12 @@ namespace Rock.CheckIn.v2
         /// <exception cref="Exception">Inactive person record status was not found in the database, please check your installation.</exception>
         protected virtual IQueryable<GroupMember> GetImmediateFamilyMembersQuery( Guid familyGuid, CheckInConfigurationData configuration )
         {
-            var groupMemberService = new GroupMemberService( RockContext );
+            var groupMemberService = new GroupMemberService( Director.RockContext );
             var qry = groupMemberService.GetByGroupGuid( familyGuid ).AsNoTracking();
 
             if ( configuration.IsInactivePersonExcluded )
             {
-                var personRecordStatusInactiveId = DefinedValueCache.Get( SystemGuid.DefinedValue.PERSON_RECORD_STATUS_INACTIVE.AsGuid(), RockContext )?.Id;
+                var personRecordStatusInactiveId = DefinedValueCache.Get( SystemGuid.DefinedValue.PERSON_RECORD_STATUS_INACTIVE.AsGuid(), Director.RockContext )?.Id;
 
                 if ( !personRecordStatusInactiveId.HasValue )
                 {
@@ -469,7 +470,7 @@ namespace Rock.CheckIn.v2
         /// <exception cref="Exception">Known relationship owner role was not found in the database, please check your installation.</exception>
         protected virtual IQueryable<GroupMember> GetCanCheckInFamilyMembersQuery( Guid familyGuid, CheckInConfigurationData configuration )
         {
-            var knownRelationshipGroupType = GroupTypeCache.Get( Rock.SystemGuid.GroupType.GROUPTYPE_KNOWN_RELATIONSHIPS.AsGuid(), RockContext );
+            var knownRelationshipGroupType = GroupTypeCache.Get( Rock.SystemGuid.GroupType.GROUPTYPE_KNOWN_RELATIONSHIPS.AsGuid(), Director.RockContext );
             int? personRecordStatusInactiveId = null;
 
             if ( knownRelationshipGroupType == null )
@@ -479,7 +480,7 @@ namespace Rock.CheckIn.v2
 
             if ( configuration.IsInactivePersonExcluded )
             {
-                personRecordStatusInactiveId = DefinedValueCache.Get( SystemGuid.DefinedValue.PERSON_RECORD_STATUS_INACTIVE.AsGuid(), RockContext )?.Id;
+                personRecordStatusInactiveId = DefinedValueCache.Get( SystemGuid.DefinedValue.PERSON_RECORD_STATUS_INACTIVE.AsGuid(), Director.RockContext )?.Id;
 
                 if ( !personRecordStatusInactiveId.HasValue )
                 {
@@ -497,7 +498,7 @@ namespace Rock.CheckIn.v2
 
             var familyMemberPersonIdQry = GetImmediateFamilyMembersQuery( familyGuid, configuration )
                 .Select( fm => fm.PersonId );
-            var groupMemberService = new GroupMemberService( RockContext );
+            var groupMemberService = new GroupMemberService( Director.RockContext );
             var canCheckInRoleIds = knownRelationshipGroupType.Roles
                 .Where( r => configuration.CanCheckInKnownRelationshipRoleGuids.Contains( r.Guid ) )
                 .Select( r => r.Id )

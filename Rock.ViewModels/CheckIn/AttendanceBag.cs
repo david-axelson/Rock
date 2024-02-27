@@ -68,6 +68,12 @@ namespace Rock.ViewModels.CheckIn
         public CheckInStatus Status { get; set; }
 
         /// <summary>
+        /// Gets or sets the area for this attendance record.
+        /// </summary>
+        /// <value>The area for this attendance record.</value>
+        public CheckInItemBag Area { get; set; }
+
+        /// <summary>
         /// Gets or sets the group for this attendance record.
         /// </summary>
         /// <value>The group for this attendance record.</value>

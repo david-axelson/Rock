@@ -25,7 +25,6 @@ using Rock.Data;
 using Rock.Enums.CheckIn;
 using Rock.Model;
 using Rock.Observability;
-using Rock.Utility;
 using Rock.ViewModels.CheckIn;
 using Rock.Web.Cache;
 
@@ -162,11 +161,11 @@ namespace Rock.CheckIn.v2
         /// </summary>
         /// <param name="searchTerm">The search term.</param>
         /// <param name="searchType">Type of the search.</param>
-        /// <param name="checkinConfiguration">The checkin configuration.</param>
+        /// <param name="configuration">The check-in configuration.</param>
         /// <returns>A collection of <see cref="FamilySearchItemBag"/> objects.</returns>
-        public List<FamilySearchItemBag> SearchForFamilies( string searchTerm, FamilySearchMode searchType, GroupTypeCache checkinConfiguration )
+        public List<FamilySearchItemBag> SearchForFamilies( string searchTerm, FamilySearchMode searchType, CheckInConfigurationData configuration )
         {
-            return SearchForFamilies( searchTerm, searchType, checkinConfiguration, null );
+            return SearchForFamilies( searchTerm, searchType, configuration, null );
         }
 
         /// <summary>
@@ -174,13 +173,11 @@ namespace Rock.CheckIn.v2
         /// </summary>
         /// <param name="searchTerm">The search term.</param>
         /// <param name="searchType">Type of the search.</param>
-        /// <param name="checkinConfiguration">The check-in configuration.</param>
+        /// <param name="configuration">The check-in configuration.</param>
         /// <param name="sortByCampus">If provided, then results will be sorted by families matching this campus first.</param>
         /// <returns>A collection of <see cref="FamilySearchItemBag"/> objects.</returns>
-        public List<FamilySearchItemBag> SearchForFamilies( string searchTerm, FamilySearchMode searchType, GroupTypeCache checkinConfiguration, CampusCache sortByCampus )
+        public List<FamilySearchItemBag> SearchForFamilies( string searchTerm, FamilySearchMode searchType, CheckInConfigurationData configuration, CampusCache sortByCampus )
         {
-            var configuration = checkinConfiguration?.GetCheckInConfiguration( RockContext );
-
             if ( searchTerm.IsNullOrWhiteSpace() )
             {
                 throw new CheckInMessageException( "Search term must not be empty." );
@@ -188,7 +185,7 @@ namespace Rock.CheckIn.v2
 
             if ( configuration == null )
             {
-                throw new ArgumentOutOfRangeException( nameof( checkinConfiguration ), "Check-in configuration data is not valid." );
+                throw new ArgumentNullException( nameof( configuration ) );
             }
 
             var searchProvider = CreateSearchProvider( configuration );
@@ -225,78 +222,15 @@ namespace Rock.CheckIn.v2
         /// </summary>
         /// <param name="familyGuid">The primary family unique identifier, this is used to resolve duplicates where a family member is also marked as can check-in.</param>
         /// <param name="groupMembers">The <see cref="GroupMember"/> objects to be converted to bags.</param>
+        /// <param name="configuration">The check-in configuration.</param>
         /// <returns>A collection of <see cref="FamilyMemberBag"/> objects.</returns>
-        public List<FamilyMemberBag> GetFamilyMemberBags( Guid familyGuid, IEnumerable<GroupMember> groupMembers )
+        public List<FamilyMemberBag> GetFamilyMemberBags( Guid familyGuid, IEnumerable<GroupMember> groupMembers, CheckInConfigurationData configuration )
         {
             using ( var activity = ObservabilityHelper.StartActivity( "Get Family Member Bags" ) )
             {
-                var familyMembers = new List<FamilyMemberBag>();
+                var conversionProvider = CreateConversionProvider( configuration );
 
-                // Get the group members along with the person record in memory.
-                // Then sort by those that match the correct family first so that
-                // any duplicates (non family members) can be skipped. This ensures
-                // that a family member has precedence over the same person record
-                // that is also flagged as "can check-in".
-                //
-                // Even though the logic between the two cases below is the same,
-                // casting it to an IQueryable first will make sure the select
-                // happens at the SQL level instead of in C# code.
-                var members = groupMembers is IQueryable<GroupMember> groupMembersQry
-                    ? groupMembersQry
-                        .Select( gm => new
-                        {
-                            GroupGuid = gm.Person.PrimaryFamily != null ? gm.Person.PrimaryFamily.Guid : familyGuid,
-                            RoleOrder = gm.GroupRole.Order,
-                            gm.Person
-                        } )
-                        .ToList()
-                        .OrderByDescending( gm => gm.GroupGuid == familyGuid )
-                        .ThenBy( gm => gm.RoleOrder )
-                    : groupMembers
-                        .Select( gm => new
-                        {
-                            GroupGuid = gm.Person.PrimaryFamily != null ? gm.Person.PrimaryFamily.Guid : familyGuid,
-                            RoleOrder = gm.GroupRole.Order,
-                            gm.Person
-                        } )
-                        .ToList()
-                        .OrderByDescending( gm => gm.GroupGuid == familyGuid )
-                        .ThenBy( gm => gm.RoleOrder );
-
-                foreach ( var member in members )
-                {
-                    // Skip any duplicates.
-                    if ( familyMembers.Any( fm => fm.Guid == member.Person.Guid ) )
-                    {
-                        continue;
-                    }
-
-                    var familyMember = new FamilyMemberBag
-                    {
-                        Guid = member.Person.Guid,
-                        IdKey = member.Person.IdKey,
-                        FamilyGuid = member.GroupGuid,
-                        FirstName = member.Person.FirstName,
-                        NickName = member.Person.NickName,
-                        LastName = member.Person.LastName,
-                        FullName = member.Person.FullName,
-                        PhotoUrl = member.Person.PhotoUrl,
-                        BirthYear = member.Person.BirthYear,
-                        BirthMonth = member.Person.BirthMonth,
-                        BirthDay = member.Person.BirthDay,
-                        BirthDate = member.Person.BirthYear.HasValue ? member.Person.BirthDate : null,
-                        Age = member.Person.Age,
-                        AgePrecise = member.Person.AgePrecise,
-                        GradeOffset = member.Person.GradeOffset,
-                        GradeFormatted = member.Person.GradeFormatted,
-                        Gender = member.Person.Gender,
-                        RoleOrder = member.RoleOrder
-                    };
-
-                    familyMembers.Add( familyMember );
-                }
-
-                return familyMembers;
+                return conversionProvider.GetFamilyMemberBags( familyGuid, groupMembers );
             }
         }
 
@@ -327,21 +261,9 @@ namespace Rock.CheckIn.v2
             var preSelectCutoff = RockDateTime.Today.AddDays( Math.Min( -1, 0 - configuration.AutoSelectDaysBack ) );
             var recentAttendance = GetRecentAttendance( preSelectCutoff, familyMembers.Select( fm => fm.Guid ) );
 
-            return familyMembers
-                .Select( fm =>
-                {
-                    var attendeeAttendances = recentAttendance
-                        .Where( a => a.PersonGuid == fm.Guid )
-                        .ToList();
+            var conversionProvider = CreateConversionProvider( configuration );
 
-                    return new CheckInAttendeeItem
-                    {
-                        Person = fm,
-                        RecentAttendances = attendeeAttendances,
-                        Options = baseOptions.Clone()
-                    };
-                } )
-                .ToList();
+            return conversionProvider.GetAttendeeItems( familyMembers, baseOptions, recentAttendance );
         }
 
         /// <summary>
@@ -417,6 +339,7 @@ namespace Rock.CheckIn.v2
         {
             var checkedInAttendances = new List<AttendanceBag>();
             var today = RockDateTime.Today;
+            var conversionProvider = CreateConversionProvider( configuration );
 
             foreach ( var attendee in attendees )
             {
@@ -431,11 +354,12 @@ namespace Rock.CheckIn.v2
                 // will just do a simple loop.
                 foreach ( var attendance in activeAttendances )
                 {
+                    var area = GroupTypeCache.Get( attendance.GroupTypeGuid, RockContext );
+                    var group = GroupCache.Get( attendance.GroupGuid, RockContext );
                     var location = NamedLocationCache.Get( attendance.LocationGuid, RockContext );
                     var schedule = NamedScheduleCache.Get( attendance.ScheduleGuid, RockContext );
-                    var group = GroupCache.Get( attendance.GroupGuid, RockContext );
 
-                    if ( location == null || schedule == null || group == null )
+                    if ( area == null || group == null || location == null || schedule == null )
                     {
                         continue;
                     }
@@ -450,31 +374,13 @@ namespace Rock.CheckIn.v2
                         continue;
                     }
 
-                    checkedInAttendances.Add( new AttendanceBag
-                    {
-                        Guid = attendance.AttendanceGuid,
-                        PersonGuid = attendance.PersonGuid,
-                        NickName = attendee.Person.NickName,
-                        FirstName = attendee.Person.FirstName,
-                        LastName = attendee.Person.LastName,
-                        FullName = attendee.Person.FullName,
-                        Status = attendance.Status,
-                        Group = new CheckInItemBag
-                        {
-                            Guid = group.Guid,
-                            Name = group.Name
-                        },
-                        Location = new CheckInItemBag
-                        {
-                            Guid = location.Guid,
-                            Name = location.Name
-                        },
-                        Schedule = new CheckInItemBag
-                        {
-                            Guid = schedule.Guid,
-                            Name = schedule.Name
-                        }
-                    } );
+                    checkedInAttendances.Add( conversionProvider.GetAttendanceBag(
+                        attendance,
+                        attendee,
+                        area,
+                        group,
+                        location,
+                        schedule ) );
                 }
             }
 
@@ -485,19 +391,14 @@ namespace Rock.CheckIn.v2
         /// Gets the potential attendee bags from the set of attendee items.
         /// </summary>
         /// <param name="attendees">The attendees to be converted to bags.</param>
+        /// <param name="configuration">The check-in configuration.</param>
         /// <returns>A list of bags that represent the attendees.</returns>
-        public List<PotentialAttendeeBag> GetPotentialAttendeeBags( IEnumerable<CheckInAttendeeItem> attendees )
+        public List<PotentialAttendeeBag> GetPotentialAttendeeBags( IEnumerable<CheckInAttendeeItem> attendees, CheckInConfigurationData configuration )
         {
-            // TODO: This per-item guts should be an extension method.
+            var conversionProvider = CreateConversionProvider( configuration );
+
             return attendees
-                .Select( a => new PotentialAttendeeBag
-                {
-                    Person = a.Person,
-                    IsPreSelected = a.IsPreSelected,
-                    IsDisabled = a.IsDisabled,
-                    DisabledMessage = a.DisabledMessage,
-                    SelectedOptions = a.SelectedOptions
-                } )
+                .Select( a => conversionProvider.GetPotentialAttendeeBag( a ) )
                 .ToList();
         }
 
@@ -512,7 +413,7 @@ namespace Rock.CheckIn.v2
         /// <returns>An instance of <see cref="DefaultSearchProvider"/>.</returns>
         protected virtual DefaultSearchProvider CreateSearchProvider( CheckInConfigurationData configuration )
         {
-            return new DefaultSearchProvider( RockContext, configuration );
+            return new DefaultSearchProvider( this, configuration );
         }
 
         /// <summary>
@@ -522,7 +423,7 @@ namespace Rock.CheckIn.v2
         /// <returns>An instance of <see cref="DefaultOptionsFilterProvider"/>.</returns>
         protected virtual DefaultOptionsFilterProvider CreateOptionsFilterProvider( CheckInConfigurationData configuration )
         {
-            return new DefaultOptionsFilterProvider( configuration, this );
+            return new DefaultOptionsFilterProvider( this, configuration );
         }
 
         /// <summary>
@@ -534,7 +435,18 @@ namespace Rock.CheckIn.v2
         /// <returns>An instance of <see cref="DefaultOptionsSelectionProvider"/>.</returns>
         protected virtual DefaultOptionsSelectionProvider CreateOptionsSelectionProvider( CheckInConfigurationData configuration )
         {
-            return new DefaultOptionsSelectionProvider();
+            return new DefaultOptionsSelectionProvider( this, configuration );
+        }
+
+        /// <summary>
+        /// Creates the object that will handle converting items from one type
+        /// to another.
+        /// </summary>
+        /// <param name="configuration">The check-in configuration.</param>
+        /// <returns>An instance of <see cref="DefaultConversionProvider"/>.</returns>
+        protected virtual DefaultConversionProvider CreateConversionProvider( CheckInConfigurationData configuration )
+        {
+            return new DefaultConversionProvider( this, configuration );
         }
 
         #endregion

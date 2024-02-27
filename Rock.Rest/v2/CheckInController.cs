@@ -110,7 +110,7 @@ namespace Rock.Rest.v2.Controllers
         [SystemGuid.RestActionGuid( "2c587733-0e08-4e93-8f2b-3e2518362768" )]
         public IActionResult PostSearchForFamilies( [FromBody] SearchForFamiliesOptionsBag options )
         {
-            var configuration = GroupTypeCache.Get( options.ConfigurationGuid, _rockContext );
+            var configuration = GroupTypeCache.Get( options.ConfigurationGuid, _rockContext )?.GetCheckInConfiguration( _rockContext );
             var director = new CheckInDirector( _rockContext );
             CampusCache sortByCampus = null;
 
@@ -187,7 +187,7 @@ namespace Rock.Rest.v2.Controllers
                 var configData = configuration.GetCheckInConfiguration( _rockContext );
 
                 var familyMembersQry = director.GetFamilyMembersForFamilyQuery( options.FamilyGuid, configData );
-                var familyMembers = director.GetFamilyMemberBags( options.FamilyGuid, familyMembersQry );
+                var familyMembers = director.GetFamilyMemberBags( options.FamilyGuid, familyMembersQry, configData );
                 var checkInOptions = director.GetAllCheckInOptions( areas, kiosk, null );
 
                 var people = director.GetAttendeeItems( familyMembers, checkInOptions, configData );
@@ -201,7 +201,7 @@ namespace Rock.Rest.v2.Controllers
 
                 return Ok( new ListFamilyMembersResponseBag
                 {
-                    People = director.GetPotentialAttendeeBags( people ),
+                    People = director.GetPotentialAttendeeBags( people, configData ),
                     ExistingAttendance = existingAttendance
                 } );
             }
@@ -224,7 +224,7 @@ namespace Rock.Rest.v2.Controllers
         [SystemGuid.RestActionGuid( "1eb635a9-6a6a-4445-a0a2-bb59a5a08982" )]
         public IActionResult PostBenchmark( [FromBody] BenchmarkOptionsBag options )
         {
-            var configuration = GroupTypeCache.Get( options.ConfigurationGuid, _rockContext );
+            var configuration = GroupTypeCache.Get( options.ConfigurationGuid, _rockContext )?.GetCheckInConfiguration( _rockContext );
             var kiosk = DeviceCache.Get( options.KioskGuid, _rockContext );
             var areas = options.AreaGuids.Select( guid => GroupTypeCache.Get( guid, _rockContext ) ).ToList();
             var bench = new Rock.Utility.Performance.MicroBench();
@@ -292,7 +292,7 @@ namespace Rock.Rest.v2.Controllers
                         using ( var rockContext = new RockContext() )
                         {
                             var director = new CheckInDirector( rockContext );
-                            var familyMembersQry = director.GetFamilyMembersForFamilyQuery( options.FamilyGuid, configuration.GetCheckInConfiguration( rockContext ) );
+                            var familyMembersQry = director.GetFamilyMembersForFamilyQuery( options.FamilyGuid, configuration );
                         }
                     } );
 
@@ -306,7 +306,7 @@ namespace Rock.Rest.v2.Controllers
                     using ( var rockContext = new RockContext() )
                     {
                         var director = new CheckInDirector( rockContext );
-                        var familyMembersQry = director.GetFamilyMembersForFamilyQuery( options.FamilyGuid, configuration.GetCheckInConfiguration( rockContext ) );
+                        var familyMembersQry = director.GetFamilyMembersForFamilyQuery( options.FamilyGuid, configuration );
 
                         familyMembers = familyMembersQry
                             .Include( fm => fm.Person )
@@ -314,7 +314,7 @@ namespace Rock.Rest.v2.Controllers
                             .Include( fm => fm.GroupRole )
                             .ToList();
 
-                        familyMemberBag = director.GetFamilyMemberBags( options.FamilyGuid, familyMembers ).First( fm => fm.FirstName == "Noah" );
+                        familyMemberBag = director.GetFamilyMemberBags( options.FamilyGuid, familyMembers, configuration ).First( fm => fm.FirstName == "Noah" );
                     }
 
                     var result = bench.Benchmark( () =>
@@ -323,7 +323,7 @@ namespace Rock.Rest.v2.Controllers
                         {
                             var director = new CheckInDirector( rockContext );
 
-                            var bags = director.GetFamilyMemberBags( options.FamilyGuid, familyMembers );
+                            var bags = director.GetFamilyMemberBags( options.FamilyGuid, familyMembers, configuration );
                         }
                     } );
 
@@ -364,15 +364,14 @@ namespace Rock.Rest.v2.Controllers
                 else if ( benchmark == "filterOptions" )
                 {
                     CheckInOptions mainCheckInOptions;
-                    var configData = configuration.GetCheckInConfiguration( _rockContext );
                     FamilyMemberBag familyMemberBag;
 
                     using ( var rockContext = new RockContext() )
                     {
                         var director = new CheckInDirector( rockContext );
-                        var familyMembersQry = director.GetFamilyMembersForFamilyQuery( options.FamilyGuid, configData );
+                        var familyMembersQry = director.GetFamilyMembersForFamilyQuery( options.FamilyGuid, configuration );
 
-                        familyMemberBag = director.GetFamilyMemberBags( options.FamilyGuid, familyMembersQry ).First( fm => fm.FirstName == "Noah" );
+                        familyMemberBag = director.GetFamilyMemberBags( options.FamilyGuid, familyMembersQry, configuration ).First( fm => fm.FirstName == "Noah" );
                         mainCheckInOptions = director.GetAllCheckInOptions( areas, kiosk, null );
                     }
 
@@ -388,7 +387,7 @@ namespace Rock.Rest.v2.Controllers
                                 Options = mainCheckInOptions.Clone()
                             };
 
-                            director.FilterPersonOptions( person, configData );
+                            director.FilterPersonOptions( person, configuration );
                         }
                     } );
 

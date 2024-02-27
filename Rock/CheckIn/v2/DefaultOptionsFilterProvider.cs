@@ -82,12 +82,24 @@ namespace Rock.CheckIn.v2
         /// <summary>
         /// Initializes a new instance of the <see cref="DefaultOptionsFilterProvider"/> class.
         /// </summary>
-        /// <param name="configuration">The check-in configuration.</param>
         /// <param name="director">The check-in director.</param>
-        public DefaultOptionsFilterProvider( CheckInConfigurationData configuration, CheckInDirector director )
+        /// <param name="configuration">The check-in configuration.</param>
+        /// <exception cref="System.ArgumentNullException"><paramref name="director"/> is <c>null</c>.</exception>
+        /// <exception cref="System.ArgumentNullException"><paramref name="configuration"/> is <c>null</c>.</exception>
+        public DefaultOptionsFilterProvider( CheckInDirector director, CheckInConfigurationData configuration )
         {
-            Configuration = configuration;
+            if ( director == null )
+            {
+                throw new ArgumentNullException( nameof( director ) );
+            }
+
+            if ( configuration == null )
+            {
+                throw new ArgumentNullException( nameof( configuration ) );
+            }
+
             Director = director;
+            Configuration = configuration;
         }
 
         #endregion
