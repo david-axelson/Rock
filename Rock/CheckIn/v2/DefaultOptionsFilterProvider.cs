@@ -25,9 +25,9 @@ using Rock.Observability;
 namespace Rock.CheckIn.v2
 {
     /// <summary>
-    /// Performs person options logic for check-in.
+    /// Provides the logic for filtering options in check-in.
     /// </summary>
-    internal class DefaultPersonOptionsCoordinator
+    internal class DefaultOptionsFilterProvider
     {
         #region Fields
 
@@ -80,11 +80,11 @@ namespace Rock.CheckIn.v2
         #region Constructors
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="DefaultPersonOptionsCoordinator"/> class.
+        /// Initializes a new instance of the <see cref="DefaultOptionsFilterProvider"/> class.
         /// </summary>
         /// <param name="configuration">The check-in configuration.</param>
         /// <param name="director">The check-in director.</param>
-        public DefaultPersonOptionsCoordinator( CheckInConfigurationData configuration, CheckInDirector director )
+        public DefaultOptionsFilterProvider( CheckInConfigurationData configuration, CheckInDirector director )
         {
             Configuration = configuration;
             Director = director;

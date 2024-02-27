@@ -809,14 +809,14 @@
     <Compile Include="CheckIn\v2\CheckInConfigurationData.cs" />
     <Compile Include="CheckIn\v2\CheckInDirector.cs" />
     <Compile Include="CheckIn\v2\CheckInAttendeeItem.cs" />
-    <Compile Include="CheckIn\v2\CheckInFamilySearch.cs" />
+    <Compile Include="CheckIn\v2\DefaultSearchProvider.cs" />
     <Compile Include="CheckIn\v2\CheckInGroupData.cs" />
     <Compile Include="CheckIn\v2\CheckInGroupItem.cs" />
     <Compile Include="CheckIn\v2\CheckInLocationItem.cs" />
     <Compile Include="CheckIn\v2\CheckInMessageException.cs" />
     <Compile Include="CheckIn\v2\CheckInOptions.cs" />
     <Compile Include="CheckIn\v2\DefaultOptionsSelector.cs" />
-    <Compile Include="CheckIn\v2\DefaultPersonOptionsCoordinator.cs" />
+    <Compile Include="CheckIn\v2\DefaultOptionsFilterProvider.cs" />
     <Compile Include="CheckIn\v2\Filters\CheckInByAgeOptionsFilter.cs" />
     <Compile Include="CheckIn\v2\Filters\CheckInByDataViewOptionsFilter.cs" />
     <Compile Include="CheckIn\v2\Filters\CheckInByGenderOptionsFilter.cs" />

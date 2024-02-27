@@ -186,7 +186,7 @@ namespace Rock.Rest.v2.Controllers
                 var areas = options.AreaGuids.Select( guid => GroupTypeCache.Get( guid, _rockContext ) ).ToList();
                 var configData = configuration.GetCheckInConfiguration( _rockContext );
 
-                var familyMembersQry = director.GetFamilyMembersForCheckInQuery( options.FamilyGuid, configuration );
+                var familyMembersQry = director.GetFamilyMembersForFamilyQuery( options.FamilyGuid, configData );
                 var familyMembers = director.GetFamilyMemberBags( options.FamilyGuid, familyMembersQry );
                 var checkInOptions = director.GetAllCheckInOptions( areas, kiosk, null );
 
@@ -292,7 +292,7 @@ namespace Rock.Rest.v2.Controllers
                         using ( var rockContext = new RockContext() )
                         {
                             var director = new CheckInDirector( rockContext );
-                            var familyMembersQry = director.GetFamilyMembersForCheckInQuery( options.FamilyGuid, configuration );
+                            var familyMembersQry = director.GetFamilyMembersForFamilyQuery( options.FamilyGuid, configuration.GetCheckInConfiguration( rockContext ) );
                         }
                     } );
 
@@ -306,7 +306,7 @@ namespace Rock.Rest.v2.Controllers
                     using ( var rockContext = new RockContext() )
                     {
                         var director = new CheckInDirector( rockContext );
-                        var familyMembersQry = director.GetFamilyMembersForCheckInQuery( options.FamilyGuid, configuration );
+                        var familyMembersQry = director.GetFamilyMembersForFamilyQuery( options.FamilyGuid, configuration.GetCheckInConfiguration( rockContext ) );
 
                         familyMembers = familyMembersQry
                             .Include( fm => fm.Person )
@@ -370,7 +370,7 @@ namespace Rock.Rest.v2.Controllers
                     using ( var rockContext = new RockContext() )
                     {
                         var director = new CheckInDirector( rockContext );
-                        var familyMembersQry = director.GetFamilyMembersForCheckInQuery( options.FamilyGuid, configuration );
+                        var familyMembersQry = director.GetFamilyMembersForFamilyQuery( options.FamilyGuid, configData );
 
                         familyMemberBag = director.GetFamilyMemberBags( options.FamilyGuid, familyMembersQry ).First( fm => fm.FirstName == "Noah" );
                         mainCheckInOptions = director.GetAllCheckInOptions( areas, kiosk, null );

@@ -191,12 +191,12 @@ namespace Rock.CheckIn.v2
                 throw new ArgumentOutOfRangeException( nameof( checkinConfiguration ), "Check-in configuration data is not valid." );
             }
 
-            var familySearch = CreateFamilySearch( configuration );
-            var familyQry = familySearch.GetFamilySearchQuery( searchTerm, searchType );
-            var familyIdQry = familySearch.GetSortedFamilyIdSearchQuery( familyQry, sortByCampus );
-            var familyMemberQry = familySearch.GetFamilyMemberSearchQuery( familyIdQry );
+            var searchProvider = CreateSearchProvider( configuration );
+            var familyQry = searchProvider.GetFamilySearchQuery( searchTerm, searchType );
+            var familyIdQry = searchProvider.GetSortedFamilyIdSearchQuery( familyQry, sortByCampus );
+            var familyMemberQry = searchProvider.GetFamilyMemberSearchQuery( familyIdQry );
 
-            return GetFamilySearchItemBags( familyMemberQry );
+            return searchProvider.GetFamilySearchItemBags( familyMemberQry );
         }
 
         /// <summary>
@@ -206,24 +206,16 @@ namespace Rock.CheckIn.v2
         /// the configured "can check-in" known relationships.
         /// </summary>
         /// <param name="familyGuid">The family unique identifier.</param>
-        /// <param name="checkinConfiguration">The check-in configuration.</param>
+        /// <param name="configuration">The check-in configuration.</param>
         /// <returns>A queryable that can be used to load all the group members associated with the family.</returns>
         /// <exception cref="ArgumentOutOfRangeException">Check-in configuration data is not valid.</exception>
-        public IQueryable<GroupMember> GetFamilyMembersForCheckInQuery( Guid familyGuid, GroupTypeCache checkinConfiguration )
+        public IQueryable<GroupMember> GetFamilyMembersForFamilyQuery( Guid familyGuid, CheckInConfigurationData configuration )
         {
             using ( var activity = ObservabilityHelper.StartActivity( "Get Family Members Query" ) )
             {
-                var configuration = checkinConfiguration?.GetCheckInConfiguration( RockContext );
+                var searchProvider = CreateSearchProvider( configuration );
 
-                if ( configuration == null )
-                {
-                    throw new ArgumentOutOfRangeException( nameof( checkinConfiguration ), "Check-in configuration data is not valid." );
-                }
-
-                var familyMemberQry = GetImmediateFamilyMembersQuery( familyGuid, configuration );
-                var canCheckInFamilyMemberQry = GetCanCheckInFamilyMembersQuery( familyGuid, configuration );
-
-                return familyMemberQry.Union( canCheckInFamilyMemberQry );
+                return searchProvider.GetFamilyMembersForFamilyQuery( familyGuid );
             }
         }
 
@@ -514,23 +506,23 @@ namespace Rock.CheckIn.v2
         #region Protected Methods
 
         /// <summary>
-        /// Creates the object that will handle family search logic.
+        /// Creates the object that will handle search logic.
         /// </summary>
         /// <param name="configuration">The check-in configuration.</param>
-        /// <returns>An instance of <see cref="CheckInFamilySearch"/>.</returns>
-        protected virtual CheckInFamilySearch CreateFamilySearch( CheckInConfigurationData configuration )
+        /// <returns>An instance of <see cref="DefaultSearchProvider"/>.</returns>
+        protected virtual DefaultSearchProvider CreateSearchProvider( CheckInConfigurationData configuration )
         {
-            return new CheckInFamilySearch( RockContext, configuration );
+            return new DefaultSearchProvider( RockContext, configuration );
         }
 
         /// <summary>
         /// Creates the object that will handle person options logic.
         /// </summary>
         /// <param name="configuration">The check-in configuration.</param>
-        /// <returns>An instance of <see cref="DefaultPersonOptionsCoordinator"/>.</returns>
-        protected virtual DefaultPersonOptionsCoordinator CreatePersonOptionsCoordinator( CheckInConfigurationData configuration )
+        /// <returns>An instance of <see cref="DefaultOptionsFilterProvider"/>.</returns>
+        protected virtual DefaultOptionsFilterProvider CreatePersonOptionsCoordinator( CheckInConfigurationData configuration )
         {
-            return new DefaultPersonOptionsCoordinator( configuration, this );
+            return new DefaultOptionsFilterProvider( configuration, this );
         }
 
         /// <summary>
@@ -654,179 +646,6 @@ namespace Rock.CheckIn.v2
         #endregion
 
         #region Private Methods
-
-        /// <summary>
-        /// Gets the family search item bags from the queryable.
-        /// </summary>
-        /// <param name="familyMemberQry">The family member query.</param>
-        /// <returns>A list of <see cref="FamilySearchItemBag"/> instances.</returns>
-        private static List<FamilySearchItemBag> GetFamilySearchItemBags( IQueryable<GroupMember> familyMemberQry )
-        {
-            // Pull just the information we need from the database.
-            var familyMembers = familyMemberQry
-                .Select( gm => new
-                {
-                    GroupGuid = gm.Group.Guid,
-                    GroupName = gm.Group.Name,
-                    CampusGuid = gm.Group.Campus.Guid,
-                    RoleOrder = gm.GroupRole.Order,
-                    gm.Person.Guid,
-                    gm.Person.Id,
-                    gm.Person.BirthYear,
-                    gm.Person.BirthMonth,
-                    gm.Person.BirthDay,
-                    gm.Person.Gender,
-                    gm.Person.NickName,
-                    gm.Person.LastName
-                } )
-                .ToList();
-
-            // Convert the raw database data into the bags that are understood
-            // by different elements of the check-in system.
-            var families = familyMembers
-                .GroupBy( fm => fm.GroupGuid )
-                .Select( family =>
-                {
-                    var firstMember = family.First();
-
-                    return new FamilySearchItemBag
-                    {
-                        Guid = firstMember.GroupGuid,
-                        Name = firstMember.GroupName,
-                        CampusGuid = firstMember.CampusGuid,
-                        Members = family
-                            .OrderBy( fm => fm.RoleOrder )
-                            .ThenBy( fm => fm.BirthYear )
-                            .ThenBy( fm => fm.BirthMonth )
-                            .ThenBy( fm => fm.BirthDay )
-                            .ThenBy( fm => fm.Gender )
-                            .ThenBy( fm => fm.NickName )
-                            .Select( fm => new FamilyMemberSearchItemBag
-                            {
-                                Guid = fm.Guid,
-                                IdKey = IdHasher.Instance.GetHash( fm.Id ),
-                                NickName = fm.NickName,
-                                LastName = fm.LastName,
-                                RoleOrder = fm.RoleOrder,
-                                Gender = fm.Gender,
-                                BirthYear = fm.BirthYear,
-                                BirthMonth = fm.BirthMonth,
-                                BirthDay = fm.BirthDay,
-                                BirthDate = fm.BirthYear.HasValue && fm.BirthMonth.HasValue && fm.BirthDay.HasValue
-                                    ? new DateTimeOffset( new DateTime( fm.BirthYear.Value, fm.BirthMonth.Value, fm.BirthDay.Value ) )
-                                    : ( DateTimeOffset? ) null
-                            } )
-                            .ToList()
-                    };
-                } )
-                .ToList();
-
-            return families;
-        }
-
-        /// <summary>
-        /// Gets a queryable that will return all family members that are
-        /// part of the specified family. Only <see cref="GroupMember"/>
-        /// records that are part of the <see cref="Group"/> specified by
-        /// <paramref name="familyGuid"/> will be returned.
-        /// </summary>
-        /// <param name="familyGuid">The unique identifier of the family.</param>
-        /// <param name="configuration">The check-in configuration.</param>
-        /// <returns>A queryable of matching <see cref="GroupMember"/> objects.</returns>
-        /// <exception cref="Exception">Inactive person record status was not found in the database, please check your installation.</exception>
-        private IQueryable<GroupMember> GetImmediateFamilyMembersQuery( Guid familyGuid, CheckInConfigurationData configuration )
-        {
-            var groupMemberService = new GroupMemberService( RockContext );
-            var qry = groupMemberService.GetByGroupGuid( familyGuid ).AsNoTracking();
-
-            if ( configuration.IsInactivePersonExcluded )
-            {
-                var personRecordStatusInactiveId = DefinedValueCache.Get( SystemGuid.DefinedValue.PERSON_RECORD_STATUS_INACTIVE.AsGuid(), RockContext )?.Id;
-
-                if ( !personRecordStatusInactiveId.HasValue )
-                {
-                    throw new Exception( "Inactive person record status was not found in the database, please check your installation." );
-                }
-
-                qry = qry.Where( m => m.Person.RecordStatusValueId != personRecordStatusInactiveId.Value );
-            }
-
-            return qry;
-        }
-
-        /// <summary>
-        /// Gets a queryable that will return any group member records with
-        /// a valid relationship to any member of the family. This uses the
-        /// allowed can check-in roles defined on the configuration.
-        /// </summary>
-        /// <param name="familyGuid">The family unique identifier.</param>
-        /// <param name="configuration">The check-in configuration.</param>
-        /// <returns>A queryable of matching <see cref="GroupMember"/> objects.</returns>
-        /// <exception cref="Exception">Known relationship group type was not found in the database, please check your installation.</exception>
-        /// <exception cref="Exception">Inactive person record status was not found in the database, please check your installation.</exception>
-        /// <exception cref="Exception">Known relationship owner role was not found in the database, please check your installation.</exception>
-        private IQueryable<GroupMember> GetCanCheckInFamilyMembersQuery( Guid familyGuid, CheckInConfigurationData configuration )
-        {
-            var knownRelationshipGroupType = GroupTypeCache.Get( Rock.SystemGuid.GroupType.GROUPTYPE_KNOWN_RELATIONSHIPS.AsGuid(), RockContext );
-            int? personRecordStatusInactiveId = null;
-
-            if ( knownRelationshipGroupType == null )
-            {
-                throw new Exception( "Known relationship group type was not found in the database, please check your installation." );
-            }
-
-            if ( configuration.IsInactivePersonExcluded )
-            {
-                personRecordStatusInactiveId = DefinedValueCache.Get( SystemGuid.DefinedValue.PERSON_RECORD_STATUS_INACTIVE.AsGuid(), RockContext )?.Id;
-
-                if ( !personRecordStatusInactiveId.HasValue )
-                {
-                    throw new Exception( "Inactive person record status was not found in the database, please check your installation." );
-                }
-            }
-
-            var knownRelationshipsOwnerGuid = SystemGuid.GroupRole.GROUPROLE_KNOWN_RELATIONSHIPS_OWNER.AsGuid();
-            var ownerRole = knownRelationshipGroupType.Roles.FirstOrDefault( r => r.Guid == knownRelationshipsOwnerGuid );
-
-            if ( ownerRole == null )
-            {
-                throw new Exception( "Known relationship owner role was not found in the database, please check your installation." );
-            }
-
-            var familyMemberPersonIdQry = GetImmediateFamilyMembersQuery( familyGuid, configuration )
-                .Select( fm => fm.PersonId );
-            var groupMemberService = new GroupMemberService( RockContext );
-            var canCheckInRoleIds = knownRelationshipGroupType.Roles
-                .Where( r => configuration.CanCheckInKnownRelationshipRoleGuids.Contains( r.Guid ) )
-                .Select( r => r.Id )
-                .ToList();
-
-            // Get the Known Relationship group ids for each member of the family.
-            var relationshipGroupIdQry = groupMemberService
-                .Queryable()
-                .AsNoTracking()
-                .Where( g => g.GroupRoleId == ownerRole.Id
-                    && familyMemberPersonIdQry.Contains( g.PersonId ) )
-                .Select( g => g.GroupId );
-
-            // Get anyone in any of those groups that has a role flagged as "can check-in".
-            var canCheckInFamilyMemberQry = groupMemberService
-                .Queryable()
-                .AsNoTracking()
-                .Where( gm => relationshipGroupIdQry.Contains( gm.GroupId ) );
-
-            canCheckInFamilyMemberQry = WhereContains( canCheckInFamilyMemberQry, canCheckInRoleIds, gm => gm.GroupRoleId );
-
-            // If check-in does not allow inactive people then add that
-            // check now.
-            if ( configuration.IsInactivePersonExcluded )
-            {
-                canCheckInFamilyMemberQry = canCheckInFamilyMemberQry
-                    .Where( gm => gm.Person.RecordStatusReasonValueId != personRecordStatusInactiveId.Value );
-            }
-
-            return canCheckInFamilyMemberQry;
-        }
 
         /// <summary>
         /// Gets the recent attendance for a set of people.
