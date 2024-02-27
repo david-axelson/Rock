@@ -21,7 +21,6 @@ using System.Data.Entity;
 using System.Linq;
 using System.Linq.Expressions;
 
-using Rock.CheckIn.v2.Filters;
 using Rock.Data;
 using Rock.Enums.CheckIn;
 using Rock.Model;
@@ -39,40 +38,13 @@ namespace Rock.CheckIn.v2
     /// </summary>
     internal class CheckInDirector
     {
-        #region Fields
+        #region Properties
 
         /// <summary>
         /// The context to use when accessing the database.
         /// </summary>
-        private readonly RockContext _rockContext;
-
-        /// <summary>
-        /// The default group filter types.
-        /// </summary>
-        private static readonly List<Type> _defaultGroupFilterTypes = new List<Type>
-        {
-            typeof( CheckInByAgeOptionsFilter ),
-            typeof( CheckInByGradeOptionsFilter ),
-            typeof( CheckInByGenderOptionsFilter ),
-            typeof( CheckInByMembershipOptionsFilter ),
-            typeof( CheckInByDataViewOptionsFilter )
-        };
-
-        /// <summary>
-        /// The default location filter types.
-        /// </summary>
-        private static readonly List<Type> _defaultLocationFilterTypes = new List<Type>
-        {
-            typeof( CheckInThresholdOptionsFilter )
-        };
-
-        /// <summary>
-        /// The default schedule filter types.
-        /// </summary>
-        private static readonly List<Type> _defaultScheduleFilterTypes = new List<Type>
-        {
-            typeof( CheckInOptionsDuplicateCheckInFilter )
-        };
+        /// <value>The database context.</value>
+        public RockContext RockContext { get; }
 
         #endregion
 
@@ -90,7 +62,7 @@ namespace Rock.CheckIn.v2
                 throw new ArgumentNullException( nameof( rockContext ) );
             }
 
-            _rockContext = rockContext;
+            RockContext = rockContext;
         }
 
         #endregion
@@ -207,7 +179,7 @@ namespace Rock.CheckIn.v2
         /// <returns>A collection of <see cref="FamilySearchItemBag"/> objects.</returns>
         public List<FamilySearchItemBag> SearchForFamilies( string searchTerm, FamilySearchMode searchType, GroupTypeCache checkinConfiguration, CampusCache sortByCampus )
         {
-            var configuration = checkinConfiguration?.GetCheckInConfiguration( _rockContext );
+            var configuration = checkinConfiguration?.GetCheckInConfiguration( RockContext );
 
             if ( searchTerm.IsNullOrWhiteSpace() )
             {
@@ -241,7 +213,7 @@ namespace Rock.CheckIn.v2
         {
             using ( var activity = ObservabilityHelper.StartActivity( "Get Family Members Query" ) )
             {
-                var configuration = checkinConfiguration?.GetCheckInConfiguration( _rockContext );
+                var configuration = checkinConfiguration?.GetCheckInConfiguration( RockContext );
 
                 if ( configuration == null )
                 {
@@ -337,6 +309,19 @@ namespace Rock.CheckIn.v2
         }
 
         /// <summary>
+        /// Filters the check-in options for a single person.
+        /// </summary>
+        /// <param name="person">The person to use when filtering options.</param>
+        /// <param name="configuration">The check-in configuration data.</param>
+        public virtual void FilterPersonOptions( CheckInAttendeeItem person, CheckInConfigurationData configuration )
+        {
+            var filter = CreatePersonOptionsCoordinator( configuration );
+
+            filter.FilterPersonOptions( person );
+            filter.RemoveEmptyOptions( person );
+        }
+
+        /// <summary>
         /// Gets the attendee item information for the family members. This also
         /// gathers all required information to later perform filtering on the
         /// attendees.
@@ -399,48 +384,7 @@ namespace Rock.CheckIn.v2
                     throw new ArgumentNullException( nameof( possibleAreas ) );
                 }
 
-                return CheckInOptions.Create( possibleAreas, kiosk, locations, _rockContext );
-            }
-        }
-
-        /// <summary>
-        /// Filters the check-in options for a single person.
-        /// </summary>
-        /// <param name="person">The person to use when filtering options.</param>
-        /// <param name="configuration">The check-inconfiguration.</param>
-        public void FilterPersonOptions( CheckInAttendeeItem person, CheckInConfigurationData configuration )
-        {
-            using ( var activity = ObservabilityHelper.StartActivity( $"Get Options For {person.Person.NickName}" ) )
-            {
-                var groupFilters = GetGroupFilters( configuration, person );
-
-                if ( groupFilters.Count > 0 )
-                {
-                    person.Options.Groups
-                        .RemoveAll( g => groupFilters.Any( f => !f.IsGroupValid( g ) ) );
-                }
-
-                var locationFilters = GetLocationFilters( configuration, person );
-
-                if ( locationFilters.Count > 0 )
-                {
-                    person.Options.Locations
-                        .RemoveAll( l => locationFilters.Any( f => !f.IsLocationValid( l ) ) );
-                }
-
-                var scheduleFilters = GetScheduleFilters( configuration, person );
-
-                if ( scheduleFilters.Count > 0 )
-                {
-                    person.Options.Schedules
-                        .RemoveAll( l => scheduleFilters.Any( f => !f.IsScheduleValid( l ) ) );
-
-                    // TODO: Need to filter out any schedules the person is already
-                    // checked into. The RemoveEmptyOptions() would then remove the
-                    // groups and locations that depend on that schedule.
-                }
-
-                RemoveEmptyOptions( person, configuration );
+                return CheckInOptions.Create( possibleAreas, kiosk, locations, RockContext );
             }
         }
 
@@ -495,9 +439,9 @@ namespace Rock.CheckIn.v2
                 // will just do a simple loop.
                 foreach ( var attendance in activeAttendances )
                 {
-                    var location = NamedLocationCache.Get( attendance.LocationGuid, _rockContext );
-                    var schedule = NamedScheduleCache.Get( attendance.ScheduleGuid, _rockContext );
-                    var group = GroupCache.Get( attendance.GroupGuid, _rockContext );
+                    var location = NamedLocationCache.Get( attendance.LocationGuid, RockContext );
+                    var schedule = NamedScheduleCache.Get( attendance.ScheduleGuid, RockContext );
+                    var group = GroupCache.Get( attendance.GroupGuid, RockContext );
 
                     if ( location == null || schedule == null || group == null )
                     {
@@ -576,7 +520,17 @@ namespace Rock.CheckIn.v2
         /// <returns>An instance of <see cref="CheckInFamilySearch"/>.</returns>
         protected virtual CheckInFamilySearch CreateFamilySearch( CheckInConfigurationData configuration )
         {
-            return new CheckInFamilySearch( _rockContext, configuration );
+            return new CheckInFamilySearch( RockContext, configuration );
+        }
+
+        /// <summary>
+        /// Creates the object that will handle person options logic.
+        /// </summary>
+        /// <param name="configuration">The check-in configuration.</param>
+        /// <returns>An instance of <see cref="DefaultPersonOptionsCoordinator"/>.</returns>
+        protected virtual DefaultPersonOptionsCoordinator CreatePersonOptionsCoordinator( CheckInConfigurationData configuration )
+        {
+            return new DefaultPersonOptionsCoordinator( configuration, this );
         }
 
         /// <summary>
@@ -591,51 +545,6 @@ namespace Rock.CheckIn.v2
             return new DefaultOptionsSelector();
         }
 
-        /// <summary>
-        /// Removes any option items that are "empty". Meaning, if a group has
-        /// no locations then it can't be available as a choice so it will be
-        /// removed.
-        /// </summary>
-        /// <param name="person">The person whose options should be cleaned up.</param>
-        /// <param name="configuration">The check-in configuration.</param>
-        protected virtual void RemoveEmptyOptions( CheckInAttendeeItem person, CheckInConfigurationData configuration )
-        {
-            person.Options.RemoveEmptyOptions();
-        }
-
-        /// <summary>
-        /// Gets the filter type definitions to use when filtering options for
-        /// groups.
-        /// </summary>
-        /// <param name="configuration">The check-in configuration.</param>
-        /// <returns>A collection of <see cref="Type"/> objects.</returns>
-        protected virtual IReadOnlyCollection<Type> GetGroupFilterTypes( CheckInConfigurationData configuration )
-        {
-            return _defaultGroupFilterTypes;
-        }
-
-        /// <summary>
-        /// Gets the filter type definitions to use when filtering options for
-        /// locations.
-        /// </summary>
-        /// <param name="configuration">The check-in configuration.</param>
-        /// <returns>A collection of <see cref="Type"/> objects.</returns>
-        protected virtual IReadOnlyCollection<Type> GetLocationFilterTypes( CheckInConfigurationData configuration )
-        {
-            return _defaultLocationFilterTypes;
-        }
-
-        /// <summary>
-        /// Gets the filter type definitions to use when filtering options for
-        /// schedules.
-        /// </summary>
-        /// <param name="configuration">The check-in configuration.</param>
-        /// <returns>A collection of <see cref="Type"/> objects.</returns>
-        protected virtual IReadOnlyCollection<Type> GetScheduleFilterTypes( CheckInConfigurationData configuration )
-        {
-            return _defaultScheduleFilterTypes;
-        }
-
         #endregion
 
         #region Internal Methods
@@ -647,14 +556,14 @@ namespace Rock.CheckIn.v2
         /// <exception cref="Exception">Check-in Template Purpose was not found in the database, please check your installation.</exception>
         internal IEnumerable<GroupTypeCache> GetConfigurationTemplates()
         {
-            var checkinTemplateTypeId = DefinedValueCache.Get( Rock.SystemGuid.DefinedValue.GROUPTYPE_PURPOSE_CHECKIN_TEMPLATE.AsGuid(), _rockContext )?.Id;
+            var checkinTemplateTypeId = DefinedValueCache.Get( Rock.SystemGuid.DefinedValue.GROUPTYPE_PURPOSE_CHECKIN_TEMPLATE.AsGuid(), RockContext )?.Id;
 
             if ( !checkinTemplateTypeId.HasValue )
             {
                 throw new Exception( "Check-in Template Purpose was not found in the database, please check your installation." );
             }
 
-            return GroupTypeCache.All( _rockContext )
+            return GroupTypeCache.All( RockContext )
                 .Where( t => t.GroupTypePurposeValueId.HasValue && t.GroupTypePurposeValueId == checkinTemplateTypeId.Value );
         }
 
@@ -677,17 +586,17 @@ namespace Rock.CheckIn.v2
 
             // Get all the group locations associated with those locations.
             var groupLocations = locationIds
-                .SelectMany( id => GroupLocationCache.AllForLocationId( id, _rockContext ) )
+                .SelectMany( id => GroupLocationCache.AllForLocationId( id, RockContext ) )
                 .DistinctBy( glc => glc.Id )
                 .ToList();
 
             // Get the distinct group types for those group locations that have
             // attendance enabled.
             return groupLocations
-                .Select( gl => GroupCache.Get( gl.GroupId, _rockContext )?.GroupTypeId )
+                .Select( gl => GroupCache.Get( gl.GroupId, RockContext )?.GroupTypeId )
                 .Where( id => id.HasValue )
                 .Distinct()
-                .Select( id => GroupTypeCache.Get( id.Value, _rockContext ) )
+                .Select( id => GroupTypeCache.Get( id.Value, RockContext ) )
                 .Where( gt => gt != null && gt.TakesAttendance )
                 .ToList();
         }
@@ -816,73 +725,6 @@ namespace Rock.CheckIn.v2
         }
 
         /// <summary>
-        /// Gets the filters to use when filtering options for a specific group.
-        /// </summary>
-        /// <param name="configuration">The check-in configuration.</param>
-        /// <param name="person">The person to filter options for.</param>
-        /// <returns>A list of <see cref="ICheckInOptionsFilter"/> objects that will perform filtering logic.</returns>
-        private List<ICheckInOptionsFilter> GetGroupFilters( CheckInConfigurationData configuration, CheckInAttendeeItem person )
-        {
-            var types = GetGroupFilterTypes( configuration );
-
-            return CreateOptionsFilters( types, configuration, person );
-        }
-
-        /// <summary>
-        /// Gets the filters to use when filtering options for a specific location.
-        /// </summary>
-        /// <param name="configuration">The check-in configuration.</param>
-        /// <param name="person">The person to filter options for.</param>
-        /// <returns>A list of <see cref="ICheckInOptionsFilter"/> objects that will perform filtering logic.</returns>
-        private List<ICheckInOptionsFilter> GetLocationFilters( CheckInConfigurationData configuration, CheckInAttendeeItem person )
-        {
-            var types = GetLocationFilterTypes( configuration );
-
-            return CreateOptionsFilters( types, configuration, person );
-        }
-
-        /// <summary>
-        /// Gets the filters to use when filtering options for a specific
-        /// schedule.
-        /// </summary>
-        /// <param name="configuration">The check-in configuration.</param>
-        /// <param name="person">The person to filter options for.</param>
-        /// <returns>A list of <see cref="ICheckInOptionsFilter"/> objects that will perform filtering logic.</returns>
-        private List<ICheckInOptionsFilter> GetScheduleFilters( CheckInConfigurationData configuration, CheckInAttendeeItem person )
-        {
-            var types = GetScheduleFilterTypes( configuration );
-
-            return CreateOptionsFilters( types, configuration, person );
-        }
-
-        /// <summary>
-        /// Creates the options filters specified by the types. This filters will
-        /// be properly initialized before returning.
-        /// </summary>
-        /// <param name="filterTypes">The filter types.</param>
-        /// <param name="configuration">The check-in configuration.</param>
-        /// <param name="person">The person to filter for.</param>
-        /// <returns>A collection of filter instances.</returns>
-        private List<ICheckInOptionsFilter> CreateOptionsFilters( IReadOnlyCollection<Type> filterTypes, CheckInConfigurationData configuration, CheckInAttendeeItem person )
-        {
-            var expectedType = typeof( ICheckInOptionsFilter );
-
-            return filterTypes
-                .Where( t => expectedType.IsAssignableFrom( t ) )
-                .Select( t =>
-                {
-                    var filter = ( ICheckInOptionsFilter ) Activator.CreateInstance( t );
-
-                    filter.Configuration = configuration;
-                    filter.RockContext = _rockContext;
-                    filter.Person = person;
-
-                    return filter;
-                } )
-                .ToList();
-        }
-
-        /// <summary>
         /// Gets a queryable that will return all family members that are
         /// part of the specified family. Only <see cref="GroupMember"/>
         /// records that are part of the <see cref="Group"/> specified by
@@ -894,12 +736,12 @@ namespace Rock.CheckIn.v2
         /// <exception cref="Exception">Inactive person record status was not found in the database, please check your installation.</exception>
         private IQueryable<GroupMember> GetImmediateFamilyMembersQuery( Guid familyGuid, CheckInConfigurationData configuration )
         {
-            var groupMemberService = new GroupMemberService( _rockContext );
+            var groupMemberService = new GroupMemberService( RockContext );
             var qry = groupMemberService.GetByGroupGuid( familyGuid ).AsNoTracking();
 
             if ( configuration.IsInactivePersonExcluded )
             {
-                var personRecordStatusInactiveId = DefinedValueCache.Get( SystemGuid.DefinedValue.PERSON_RECORD_STATUS_INACTIVE.AsGuid(), _rockContext )?.Id;
+                var personRecordStatusInactiveId = DefinedValueCache.Get( SystemGuid.DefinedValue.PERSON_RECORD_STATUS_INACTIVE.AsGuid(), RockContext )?.Id;
 
                 if ( !personRecordStatusInactiveId.HasValue )
                 {
@@ -925,7 +767,7 @@ namespace Rock.CheckIn.v2
         /// <exception cref="Exception">Known relationship owner role was not found in the database, please check your installation.</exception>
         private IQueryable<GroupMember> GetCanCheckInFamilyMembersQuery( Guid familyGuid, CheckInConfigurationData configuration )
         {
-            var knownRelationshipGroupType = GroupTypeCache.Get( Rock.SystemGuid.GroupType.GROUPTYPE_KNOWN_RELATIONSHIPS.AsGuid(), _rockContext );
+            var knownRelationshipGroupType = GroupTypeCache.Get( Rock.SystemGuid.GroupType.GROUPTYPE_KNOWN_RELATIONSHIPS.AsGuid(), RockContext );
             int? personRecordStatusInactiveId = null;
 
             if ( knownRelationshipGroupType == null )
@@ -935,7 +777,7 @@ namespace Rock.CheckIn.v2
 
             if ( configuration.IsInactivePersonExcluded )
             {
-                personRecordStatusInactiveId = DefinedValueCache.Get( SystemGuid.DefinedValue.PERSON_RECORD_STATUS_INACTIVE.AsGuid(), _rockContext )?.Id;
+                personRecordStatusInactiveId = DefinedValueCache.Get( SystemGuid.DefinedValue.PERSON_RECORD_STATUS_INACTIVE.AsGuid(), RockContext )?.Id;
 
                 if ( !personRecordStatusInactiveId.HasValue )
                 {
@@ -953,7 +795,7 @@ namespace Rock.CheckIn.v2
 
             var familyMemberPersonIdQry = GetImmediateFamilyMembersQuery( familyGuid, configuration )
                 .Select( fm => fm.PersonId );
-            var groupMemberService = new GroupMemberService( _rockContext );
+            var groupMemberService = new GroupMemberService( RockContext );
             var canCheckInRoleIds = knownRelationshipGroupType.Roles
                 .Where( r => configuration.CanCheckInKnownRelationshipRoleGuids.Contains( r.Guid ) )
                 .Select( r => r.Id )
@@ -994,7 +836,7 @@ namespace Rock.CheckIn.v2
         /// <returns>A collection of <see cref="RecentAttendanceItem"/> records.</returns>
         private List<RecentAttendanceItem> GetRecentAttendance( DateTime cutoffDateTime, IEnumerable<Guid> personGuids )
         {
-            var attendanceService = new AttendanceService( _rockContext );
+            var attendanceService = new AttendanceService( RockContext );
 
             var personAttendanceQuery = attendanceService
                 .Queryable().AsNoTracking()

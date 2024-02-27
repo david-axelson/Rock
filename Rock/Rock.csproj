@@ -816,6 +816,7 @@
     <Compile Include="CheckIn\v2\CheckInMessageException.cs" />
     <Compile Include="CheckIn\v2\CheckInOptions.cs" />
     <Compile Include="CheckIn\v2\DefaultOptionsSelector.cs" />
+    <Compile Include="CheckIn\v2\DefaultPersonOptionsCoordinator.cs" />
     <Compile Include="CheckIn\v2\Filters\CheckInByAgeOptionsFilter.cs" />
     <Compile Include="CheckIn\v2\Filters\CheckInByDataViewOptionsFilter.cs" />
     <Compile Include="CheckIn\v2\Filters\CheckInByGenderOptionsFilter.cs" />
