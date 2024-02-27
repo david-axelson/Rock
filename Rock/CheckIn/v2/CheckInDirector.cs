@@ -307,7 +307,7 @@ namespace Rock.CheckIn.v2
         /// <param name="configuration">The check-in configuration data.</param>
         public virtual void FilterPersonOptions( CheckInAttendeeItem person, CheckInConfigurationData configuration )
         {
-            var filter = CreatePersonOptionsCoordinator( configuration );
+            var filter = CreateOptionsFilterProvider( configuration );
 
             filter.FilterPersonOptions( person );
             filter.RemoveEmptyOptions( person );
@@ -394,7 +394,7 @@ namespace Rock.CheckIn.v2
             {
                 if ( configuration.AutoSelect == AutoSelectMode.PeopleAndAreaGroupLocation )
                 {
-                    var optionsSelector = CreateDefaultOptionsSelector( configuration );
+                    var optionsSelector = CreateOptionsSelectionProvider( configuration );
 
                     attendee.SelectedOptions = optionsSelector.GetDefaultSelectionForPerson( attendee );
                 }
@@ -520,7 +520,7 @@ namespace Rock.CheckIn.v2
         /// </summary>
         /// <param name="configuration">The check-in configuration.</param>
         /// <returns>An instance of <see cref="DefaultOptionsFilterProvider"/>.</returns>
-        protected virtual DefaultOptionsFilterProvider CreatePersonOptionsCoordinator( CheckInConfigurationData configuration )
+        protected virtual DefaultOptionsFilterProvider CreateOptionsFilterProvider( CheckInConfigurationData configuration )
         {
             return new DefaultOptionsFilterProvider( configuration, this );
         }
@@ -531,10 +531,10 @@ namespace Rock.CheckIn.v2
         /// mode (AutoBack mode is set to select group/location/schedule).
         /// </summary>
         /// <param name="configuration">The check-in configuration.</param>
-        /// <returns>An instance of <see cref="DefaultOptionsSelector"/>.</returns>
-        protected virtual DefaultOptionsSelector CreateDefaultOptionsSelector( CheckInConfigurationData configuration )
+        /// <returns>An instance of <see cref="DefaultOptionsSelectionProvider"/>.</returns>
+        protected virtual DefaultOptionsSelectionProvider CreateOptionsSelectionProvider( CheckInConfigurationData configuration )
         {
-            return new DefaultOptionsSelector();
+            return new DefaultOptionsSelectionProvider();
         }
 
         #endregion

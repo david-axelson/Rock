@@ -30,7 +30,7 @@ namespace Rock.CheckIn.v2
     /// is used when the AutoSelect feature is enabled and also configured to
     /// select the group/location/schedule.
     /// </summary>
-    internal class DefaultOptionsSelector
+    internal class DefaultOptionsSelectionProvider
     {
         /// <summary>
         /// Gets the default selection for the person. This uses recent
