@@ -731,14 +731,13 @@ namespace Rock.Blocks.Security
 
             foreach ( var attributeWithDefault in attributesWithDefaults )
             {
-                var cacheValue = GetAttributeValue( attributeWithDefault.Key );
+                var personAttributeValue = person.GetAttributeValue( attributeWithDefault.Key );
 
-                // If the cacheValue is null add an empty value for it
-                // Otherwise the default value will be returned in Attribute.Helper.SaveAttributeValues.
-                if ( cacheValue == null || cacheValue == attributeWithDefault.DefaultValueAsFormatted )
+                // If the cacheValue is null or the default then set an empty value for it
+                // Otherwise the default value will be returned and persisted in Attribute.Helper.SaveAttributeValues.
+                if ( personAttributeValue == null || personAttributeValue.Equals( attributeWithDefault.DefaultValue, StringComparison.OrdinalIgnoreCase ) )
                 {
-                    // Directly update the AttributeValue dictionary for the Person.
-                    person.AttributeValues[attributeWithDefault.Key].Value = string.Empty;
+                    person.SetAttributeValue( attributeWithDefault.Key, string.Empty );
                 }
             }
 
