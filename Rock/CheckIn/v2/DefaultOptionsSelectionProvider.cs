@@ -41,10 +41,10 @@ namespace Rock.CheckIn.v2
         protected CheckInConfigurationData Configuration { get; }
 
         /// <summary>
-        /// Gets or sets the check-in director.
+        /// Gets or sets the check-in coordinator.
         /// </summary>
-        /// <value>The check-in director.</value>
-        protected CheckInDirector Director { get; }
+        /// <value>The check-in coordinator.</value>
+        protected DefaultCheckInCoordinator Coordinator { get; }
 
         #endregion
 
@@ -53,22 +53,10 @@ namespace Rock.CheckIn.v2
         /// <summary>
         /// Initializes a new instance of the <see cref="DefaultOptionsSelectionProvider"/> class.
         /// </summary>
-        /// <param name="director">The check-in director.</param>
-        /// <param name="configuration">The check-in configuration.</param>
-        public DefaultOptionsSelectionProvider( CheckInDirector director, CheckInConfigurationData configuration )
+        /// <param name="coordinator">The check-in coordinator.</param>
+        public DefaultOptionsSelectionProvider( DefaultCheckInCoordinator coordinator )
         {
-            if ( director == null )
-            {
-                throw new ArgumentNullException( nameof( director ) );
-            }
-
-            if ( configuration == null )
-            {
-                throw new ArgumentNullException( nameof( configuration ) );
-            }
-
-            Director = director;
-            Configuration = configuration;
+            Coordinator = coordinator ?? throw new ArgumentNullException( nameof( coordinator ) );
         }
 
         #endregion

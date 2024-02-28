@@ -17,12 +17,10 @@
 
 using System;
 using System.Collections.Generic;
-using System.Data.Entity;
 using System.Linq;
 using System.Linq.Expressions;
 
 using Rock.Data;
-using Rock.Enums.CheckIn;
 using Rock.Model;
 using Rock.Observability;
 using Rock.ViewModels.CheckIn;
@@ -69,12 +67,13 @@ namespace Rock.CheckIn.v2
         #region Public Methods
 
         /// <summary>
-        /// Gets the configuration summary bags for all valid check-in configurations.
+        /// Gets the configuration summary bags for all valid check-in
+        /// configurations.
         /// </summary>
         /// <returns>A colleciton of <see cref="ConfigurationItemSummaryBag"/> objects.</returns>
-        public List<ConfigurationItemSummaryBag> GetConfigurationSummaries()
+        public virtual List<ConfigurationItemSummaryBag> GetConfigurationSummaries()
         {
-            return GetConfigurationTemplates()
+            return GetConfigurationTemplates( RockContext )
                 .OrderBy( t => t.Name )
                 .Select( t => new ConfigurationItemSummaryBag
                 {
@@ -87,14 +86,14 @@ namespace Rock.CheckIn.v2
 
         /// <summary>
         /// Gets the check in area summary bags for all valid check-in areas. If
-        /// a <paramref name="kiosk"/> or <paramref name="checkinConfiguration"/> are
+        /// a <paramref name="kiosk"/> or <paramref name="checkinTemplate"/> are
         /// provided then they will be used to filter the results to only areas
         /// valid for those items.
         /// </summary>
         /// <param name="kiosk">The optional kiosk to filter the results for.</param>
-        /// <param name="checkinConfiguration">The optional configuration to filter the results for.</param>
+        /// <param name="checkinTemplate">The optional check-in template to filter all areas to.</param>
         /// <returns>A collection of <see cref="AreaItemSummaryBag"/> objects.</returns>
-        public List<AreaItemSummaryBag> GetCheckInAreaSummaries( DeviceCache kiosk, GroupTypeCache checkinConfiguration )
+        public virtual List<AreaItemSummaryBag> GetCheckInAreaSummaries( DeviceCache kiosk, GroupTypeCache checkinTemplate )
         {
             var areas = new Dictionary<Guid, AreaItemSummaryBag>();
             List<GroupTypeCache> configurations;
@@ -103,13 +102,13 @@ namespace Rock.CheckIn.v2
             // If the caller specified a configuration, then we return areas for
             // only that primary configuration. Otherwise we include areas from
             // all configurations.
-            if ( checkinConfiguration != null )
+            if ( checkinTemplate != null )
             {
-                configurations = new List<GroupTypeCache> { checkinConfiguration };
+                configurations = new List<GroupTypeCache> { checkinTemplate };
             }
             else
             {
-                configurations = GetConfigurationTemplates().ToList();
+                configurations = GetConfigurationTemplates( RockContext ).ToList();
             }
 
             if ( kiosk != null )
@@ -157,116 +156,6 @@ namespace Rock.CheckIn.v2
         }
 
         /// <summary>
-        /// Searches for families that match the criteria for the configuration.
-        /// </summary>
-        /// <param name="searchTerm">The search term.</param>
-        /// <param name="searchType">Type of the search.</param>
-        /// <param name="configuration">The check-in configuration.</param>
-        /// <returns>A collection of <see cref="FamilySearchItemBag"/> objects.</returns>
-        public List<FamilySearchItemBag> SearchForFamilies( string searchTerm, FamilySearchMode searchType, CheckInConfigurationData configuration )
-        {
-            return SearchForFamilies( searchTerm, searchType, configuration, null );
-        }
-
-        /// <summary>
-        /// Searches for families that match the criteria for the configuration.
-        /// </summary>
-        /// <param name="searchTerm">The search term.</param>
-        /// <param name="searchType">Type of the search.</param>
-        /// <param name="configuration">The check-in configuration.</param>
-        /// <param name="sortByCampus">If provided, then results will be sorted by families matching this campus first.</param>
-        /// <returns>A collection of <see cref="FamilySearchItemBag"/> objects.</returns>
-        public List<FamilySearchItemBag> SearchForFamilies( string searchTerm, FamilySearchMode searchType, CheckInConfigurationData configuration, CampusCache sortByCampus )
-        {
-            if ( searchTerm.IsNullOrWhiteSpace() )
-            {
-                throw new CheckInMessageException( "Search term must not be empty." );
-            }
-
-            if ( configuration == null )
-            {
-                throw new ArgumentNullException( nameof( configuration ) );
-            }
-
-            var searchProvider = CreateSearchProvider( configuration );
-            var familyQry = searchProvider.GetFamilySearchQuery( searchTerm, searchType );
-            var familyIdQry = searchProvider.GetSortedFamilyIdSearchQuery( familyQry, sortByCampus );
-            var familyMemberQry = searchProvider.GetFamilyMemberSearchQuery( familyIdQry );
-
-            return searchProvider.GetFamilySearchItemBags( familyMemberQry );
-        }
-
-        /// <summary>
-        /// Find all family members that match the specified family unique
-        /// identifier for check-in. This normally includes immediate family
-        /// members as well as people associated to the family with one of
-        /// the configured "can check-in" known relationships.
-        /// </summary>
-        /// <param name="familyGuid">The family unique identifier.</param>
-        /// <param name="configuration">The check-in configuration.</param>
-        /// <returns>A queryable that can be used to load all the group members associated with the family.</returns>
-        /// <exception cref="ArgumentOutOfRangeException">Check-in configuration data is not valid.</exception>
-        public IQueryable<GroupMember> GetFamilyMembersForFamilyQuery( Guid familyGuid, CheckInConfigurationData configuration )
-        {
-            using ( var activity = ObservabilityHelper.StartActivity( "Get Family Members Query" ) )
-            {
-                var searchProvider = CreateSearchProvider( configuration );
-
-                return searchProvider.GetFamilyMembersForFamilyQuery( familyGuid );
-            }
-        }
-
-        /// <summary>
-        /// Converts the family members into bags that represent the data
-        /// required for check-in.
-        /// </summary>
-        /// <param name="familyGuid">The primary family unique identifier, this is used to resolve duplicates where a family member is also marked as can check-in.</param>
-        /// <param name="groupMembers">The <see cref="GroupMember"/> objects to be converted to bags.</param>
-        /// <param name="configuration">The check-in configuration.</param>
-        /// <returns>A collection of <see cref="FamilyMemberBag"/> objects.</returns>
-        public List<FamilyMemberBag> GetFamilyMemberBags( Guid familyGuid, IEnumerable<GroupMember> groupMembers, CheckInConfigurationData configuration )
-        {
-            using ( var activity = ObservabilityHelper.StartActivity( "Get Family Member Bags" ) )
-            {
-                var conversionProvider = CreateConversionProvider( configuration );
-
-                return conversionProvider.GetFamilyMemberBags( familyGuid, groupMembers );
-            }
-        }
-
-        /// <summary>
-        /// Filters the check-in options for a single person.
-        /// </summary>
-        /// <param name="person">The person to use when filtering options.</param>
-        /// <param name="configuration">The check-in configuration data.</param>
-        public virtual void FilterPersonOptions( CheckInAttendeeItem person, CheckInConfigurationData configuration )
-        {
-            var filter = CreateOptionsFilterProvider( configuration );
-
-            filter.FilterPersonOptions( person );
-            filter.RemoveEmptyOptions( person );
-        }
-
-        /// <summary>
-        /// Gets the attendee item information for the family members. This also
-        /// gathers all required information to later perform filtering on the
-        /// attendees.
-        /// </summary>
-        /// <param name="familyMembers">The <see cref="FamilyMemberBag"/> to be used when constructing the <see cref="CheckInAttendeeItem"/> that willw rap it.</param>
-        /// <param name="baseOptions">The <see cref="GroupMember"/> objects to be converted to bags.</param>
-        /// <param name="configuration">The check-in configuration.</param>
-        /// <returns>A collection of <see cref="CheckInAttendeeItem"/> objects.</returns>
-        public List<CheckInAttendeeItem> GetAttendeeItems( IReadOnlyCollection<FamilyMemberBag> familyMembers, CheckInOptions baseOptions, CheckInConfigurationData configuration )
-        {
-            var preSelectCutoff = RockDateTime.Today.AddDays( Math.Min( -1, 0 - configuration.AutoSelectDaysBack ) );
-            var recentAttendance = GetRecentAttendance( preSelectCutoff, familyMembers.Select( fm => fm.Guid ) );
-
-            var conversionProvider = CreateConversionProvider( configuration );
-
-            return conversionProvider.GetAttendeeItems( familyMembers, baseOptions, recentAttendance );
-        }
-
-        /// <summary>
         /// <para>
         /// Gets all the check-in options that are possible for the kiosk or
         /// locations. 
@@ -283,7 +172,7 @@ namespace Rock.CheckIn.v2
         /// <param name="locations">The list of locations to use.</param>
         /// <returns>An instance of <see cref="CheckInOptions"/> that describes the available options.</returns>
         /// <exception cref="System.ArgumentNullException"><paramref name="possibleAreas"/> is <c>null</c>.</exception>
-        /// <exception cref="System.ArgumentNullException">kiosk - Kiosk must be specified unless locations are specified.</exception>
+        /// <exception cref="System.ArgumentNullException"><paramref name="kiosk"/> - Kiosk must be specified unless locations are specified.</exception>
         public CheckInOptions GetAllCheckInOptions( IReadOnlyCollection<GroupTypeCache> possibleAreas, DeviceCache kiosk, IReadOnlyCollection<NamedLocationCache> locations )
         {
             using ( var activity = ObservabilityHelper.StartActivity( "Get All Options" ) )
@@ -303,173 +192,18 @@ namespace Rock.CheckIn.v2
         }
 
         /// <summary>
-        /// Sets the default selections for the specified attendee. This will
-        /// mark a person as pre-selected if they have recent attendance and
-        /// it will also set the current selections if the check-in template
-        /// is configured that way.
+        /// Gets the check in coordinator that will be used for the specified configuration.
         /// </summary>
-        /// <param name="attendee">The attendee to be checked in.</param>
-        /// <param name="configuration">The check-in configuration.</param>
-        public void SetDefaultSelectionsForAttendee( CheckInAttendeeItem attendee, CheckInConfigurationData configuration )
+        /// <param name="configuration">The configuration.</param>
+        /// <returns>DefaultCheckInCoordinator.</returns>
+        public virtual DefaultCheckInCoordinator GetCheckInCoordinator( CheckInConfigurationData configuration )
         {
-            using ( var activity = ObservabilityHelper.StartActivity( $"Set Defaults for {attendee.Person.NickName}" ) )
-            {
-                if ( configuration.AutoSelect == AutoSelectMode.PeopleAndAreaGroupLocation )
-                {
-                    var optionsSelector = CreateOptionsSelectionProvider( configuration );
-
-                    attendee.SelectedOptions = optionsSelector.GetDefaultSelectionForPerson( attendee );
-                }
-
-                attendee.IsPreSelected = configuration.AutoSelectDaysBack > 0 && attendee.RecentAttendances.Count > 0;
-            }
-        }
-
-        /// <summary>
-        /// Gets the current attendance bags for the attendees. This means all
-        /// the bags that represent attendance records for people that are
-        /// considered to be currently checked in. This assumes the
-        /// <see cref="CheckInAttendeeItem.RecentAttendances"/> property has
-        /// been populated for each attendee.
-        /// </summary>
-        /// <param name="attendees">The attendees.</param>
-        /// <param name="configuration">The check-in configuration.</param>
-        /// <returns>A list of attendance bags.</returns>
-        public List<AttendanceBag> GetCurrentAttendanceBags( IReadOnlyCollection<CheckInAttendeeItem> attendees, CheckInConfigurationData configuration )
-        {
-            var checkedInAttendances = new List<AttendanceBag>();
-            var today = RockDateTime.Today;
-            var conversionProvider = CreateConversionProvider( configuration );
-
-            foreach ( var attendee in attendees )
-            {
-                var activeAttendances = attendee.RecentAttendances
-                    .Where( a => a.StartDateTime >= today
-                        && !a.EndDateTime.HasValue )
-                    .ToList();
-
-                // We could get fancy and group things to try to improve
-                // performance a tiny bit, but it would be extremely unsual
-                // for a person to be checked into more than one thing so we
-                // will just do a simple loop.
-                foreach ( var attendance in activeAttendances )
-                {
-                    var area = GroupTypeCache.Get( attendance.GroupTypeGuid, RockContext );
-                    var group = GroupCache.Get( attendance.GroupGuid, RockContext );
-                    var location = NamedLocationCache.Get( attendance.LocationGuid, RockContext );
-                    var schedule = NamedScheduleCache.Get( attendance.ScheduleGuid, RockContext );
-
-                    if ( area == null || group == null || location == null || schedule == null )
-                    {
-                        continue;
-                    }
-
-                    var campusId = location.GetCampusIdForLocation();
-                    var now = campusId.HasValue
-                        ? CampusCache.Get( campusId.Value )?.CurrentDateTime ?? RockDateTime.Now
-                        : RockDateTime.Now;
-
-                    if ( !schedule.WasScheduleOrCheckInActiveForCheckOut( now ) )
-                    {
-                        continue;
-                    }
-
-                    checkedInAttendances.Add( conversionProvider.GetAttendanceBag(
-                        attendance,
-                        attendee,
-                        area,
-                        group,
-                        location,
-                        schedule ) );
-                }
-            }
-
-            return checkedInAttendances;
-        }
-
-        /// <summary>
-        /// Gets the potential attendee bags from the set of attendee items.
-        /// </summary>
-        /// <param name="attendees">The attendees to be converted to bags.</param>
-        /// <param name="configuration">The check-in configuration.</param>
-        /// <returns>A list of bags that represent the attendees.</returns>
-        public List<PotentialAttendeeBag> GetPotentialAttendeeBags( IEnumerable<CheckInAttendeeItem> attendees, CheckInConfigurationData configuration )
-        {
-            var conversionProvider = CreateConversionProvider( configuration );
-
-            return attendees
-                .Select( a => conversionProvider.GetPotentialAttendeeBag( a ) )
-                .ToList();
+            return new DefaultCheckInCoordinator( this, configuration );
         }
 
         #endregion
 
         #region Protected Methods
-
-        /// <summary>
-        /// Creates the object that will handle search logic.
-        /// </summary>
-        /// <param name="configuration">The check-in configuration.</param>
-        /// <returns>An instance of <see cref="DefaultSearchProvider"/>.</returns>
-        protected virtual DefaultSearchProvider CreateSearchProvider( CheckInConfigurationData configuration )
-        {
-            return new DefaultSearchProvider( this, configuration );
-        }
-
-        /// <summary>
-        /// Creates the object that will handle person options logic.
-        /// </summary>
-        /// <param name="configuration">The check-in configuration.</param>
-        /// <returns>An instance of <see cref="DefaultOptionsFilterProvider"/>.</returns>
-        protected virtual DefaultOptionsFilterProvider CreateOptionsFilterProvider( CheckInConfigurationData configuration )
-        {
-            return new DefaultOptionsFilterProvider( this, configuration );
-        }
-
-        /// <summary>
-        /// Creates the object that will handle making default selections for
-        /// people. This is used when check-in is configured for full auto
-        /// mode (AutoBack mode is set to select group/location/schedule).
-        /// </summary>
-        /// <param name="configuration">The check-in configuration.</param>
-        /// <returns>An instance of <see cref="DefaultOptionsSelectionProvider"/>.</returns>
-        protected virtual DefaultOptionsSelectionProvider CreateOptionsSelectionProvider( CheckInConfigurationData configuration )
-        {
-            return new DefaultOptionsSelectionProvider( this, configuration );
-        }
-
-        /// <summary>
-        /// Creates the object that will handle converting items from one type
-        /// to another.
-        /// </summary>
-        /// <param name="configuration">The check-in configuration.</param>
-        /// <returns>An instance of <see cref="DefaultConversionProvider"/>.</returns>
-        protected virtual DefaultConversionProvider CreateConversionProvider( CheckInConfigurationData configuration )
-        {
-            return new DefaultConversionProvider( this, configuration );
-        }
-
-        #endregion
-
-        #region Internal Methods
-
-        /// <summary>
-        /// Gets the configuration group types that are defined in the system.
-        /// </summary>
-        /// <returns>An enumeration of <see cref="GroupTypeCache"/> objects.</returns>
-        /// <exception cref="Exception">Check-in Template Purpose was not found in the database, please check your installation.</exception>
-        internal IEnumerable<GroupTypeCache> GetConfigurationTemplates()
-        {
-            var checkinTemplateTypeId = DefinedValueCache.Get( Rock.SystemGuid.DefinedValue.GROUPTYPE_PURPOSE_CHECKIN_TEMPLATE.AsGuid(), RockContext )?.Id;
-
-            if ( !checkinTemplateTypeId.HasValue )
-            {
-                throw new Exception( "Check-in Template Purpose was not found in the database, please check your installation." );
-            }
-
-            return GroupTypeCache.All( RockContext )
-                .Where( t => t.GroupTypePurposeValueId.HasValue && t.GroupTypePurposeValueId == checkinTemplateTypeId.Value );
-        }
 
         /// <summary>
         /// Gets the group type areas that are valid for the kiosk device. Only group
@@ -478,7 +212,7 @@ namespace Rock.CheckIn.v2
         /// <param name="kiosk">The kiosk device.</param>
         /// <returns>An enumeration of <see cref="GroupTypeCache" /> objects.</returns>
         /// <exception cref="System.ArgumentNullException"><paramref name="kiosk"/> is <c>null</c>.</exception>
-        internal IEnumerable<GroupTypeCache> GetKioskAreas( DeviceCache kiosk )
+        protected virtual IEnumerable<GroupTypeCache> GetKioskAreas( DeviceCache kiosk )
         {
             if ( kiosk == null )
             {
@@ -504,6 +238,29 @@ namespace Rock.CheckIn.v2
                 .Where( gt => gt != null && gt.TakesAttendance )
                 .ToList();
         }
+
+        /// <summary>
+        /// Gets the configuration group types that are defined in the system.
+        /// </summary>
+        /// <param name="rockContext">The rock context to use if database access is required.</param>
+        /// <returns>An enumeration of <see cref="GroupTypeCache"/> objects.</returns>
+        /// <exception cref="Exception">Check-in Template Purpose was not found in the database, please check your installation.</exception>
+        protected virtual IEnumerable<GroupTypeCache> GetConfigurationTemplates( RockContext rockContext )
+        {
+            var checkinTemplateTypeId = DefinedValueCache.Get( Rock.SystemGuid.DefinedValue.GROUPTYPE_PURPOSE_CHECKIN_TEMPLATE.AsGuid(), rockContext )?.Id;
+
+            if ( !checkinTemplateTypeId.HasValue )
+            {
+                throw new Exception( "Check-in Template Purpose was not found in the database, please check your installation." );
+            }
+
+            return GroupTypeCache.All( rockContext )
+                .Where( t => t.GroupTypePurposeValueId.HasValue && t.GroupTypePurposeValueId == checkinTemplateTypeId.Value );
+        }
+
+        #endregion
+
+        #region Internal Methods
 
         /// <summary>
         /// <para>
@@ -553,51 +310,6 @@ namespace Rock.CheckIn.v2
             {
                 return source.Where( a => false );
             }
-        }
-
-        #endregion
-
-        #region Private Methods
-
-        /// <summary>
-        /// Gets the recent attendance for a set of people.
-        /// </summary>
-        /// <param name="cutoffDateTime">Attendance records must start on or after this date and time.</param>
-        /// <param name="personGuids">The person unique identifiers to query the database for.</param>
-        /// <returns>A collection of <see cref="RecentAttendanceItem"/> records.</returns>
-        private List<RecentAttendanceItem> GetRecentAttendance( DateTime cutoffDateTime, IEnumerable<Guid> personGuids )
-        {
-            var attendanceService = new AttendanceService( RockContext );
-
-            var personAttendanceQuery = attendanceService
-                .Queryable().AsNoTracking()
-                .Where( a => a.PersonAlias != null
-                    && a.Occurrence.Group != null
-                    && a.Occurrence.Schedule != null
-                    && a.StartDateTime >= cutoffDateTime
-                    && a.DidAttend.HasValue
-                    && a.DidAttend.Value == true );
-
-            // TODO: This should probably be changed to a raw SQL query for performance.
-            // Because the list of personGuids will be changing constantly it
-            // will still not be cached by EF.
-            personAttendanceQuery = WhereContains( personAttendanceQuery, personGuids, aa => aa.PersonAlias.Person.Guid );
-
-            return personAttendanceQuery
-                .Select( a => new RecentAttendanceItem
-                {
-                    AttendanceId = a.Id,
-                    AttendanceGuid = a.Guid,
-                    Status = a.CheckInStatus,
-                    StartDateTime = a.StartDateTime,
-                    EndDateTime = a.EndDateTime,
-                    PersonGuid = a.PersonAlias.Person.Guid,
-                    GroupTypeGuid = a.Occurrence.Group.GroupType.Guid,
-                    GroupGuid = a.Occurrence.Group.Guid,
-                    LocationGuid = a.Occurrence.Location.Guid,
-                    ScheduleGuid = a.Occurrence.Schedule.Guid
-                } )
-                .ToList();
         }
 
         #endregion

@@ -70,7 +70,7 @@ namespace Rock.Rest.v2.Controllers
         [SystemGuid.RestActionGuid( "200dd82f-6532-4437-9ba4-a289408b0eb8" )]
         public IActionResult PostListConfigurations( [FromBody] ListConfigurationsOptionsBag options )
         {
-            var director = new CheckInDirector( _rockContext );
+            var helper = new CheckInDirector( _rockContext );
             DeviceCache kiosk = null;
 
             if ( options.KioskGuid.HasValue )
@@ -87,8 +87,8 @@ namespace Rock.Rest.v2.Controllers
             {
                 return Ok( new ListConfigurationsResponseBag
                 {
-                    Configurations = director.GetConfigurationSummaries(),
-                    Areas = director.GetCheckInAreaSummaries( kiosk, null )
+                    Configurations = helper.GetConfigurationSummaries(),
+                    Areas = helper.GetCheckInAreaSummaries( kiosk, null )
                 } );
             }
             catch ( CheckInMessageException ex )
@@ -111,7 +111,6 @@ namespace Rock.Rest.v2.Controllers
         public IActionResult PostSearchForFamilies( [FromBody] SearchForFamiliesOptionsBag options )
         {
             var configuration = GroupTypeCache.Get( options.ConfigurationGuid, _rockContext )?.GetCheckInConfiguration( _rockContext );
-            var director = new CheckInDirector( _rockContext );
             CampusCache sortByCampus = null;
 
             if ( configuration == null )
@@ -138,9 +137,10 @@ namespace Rock.Rest.v2.Controllers
 
             try
             {
-                var families = director.SearchForFamilies( options.SearchTerm,
+                var director = new CheckInDirector( _rockContext );
+                var coordinator = director.GetCheckInCoordinator( configuration );
+                var families = coordinator.SearchForFamilies( options.SearchTerm,
                     options.SearchType,
-                    configuration,
                     sortByCampus );
 
                 return Ok( new SearchForFamiliesResponseBag
@@ -167,9 +167,8 @@ namespace Rock.Rest.v2.Controllers
         [SystemGuid.RestActionGuid( "2bd5afdf-da57-48bb-a6db-7dd9ad1ab8da" )]
         public IActionResult PostListFamilyMembers( [FromBody] ListFamilyMembersOptionsBag options )
         {
-            var configuration = GroupTypeCache.Get( options.ConfigurationGuid, _rockContext );
+            var configuration = GroupTypeCache.Get( options.ConfigurationGuid, _rockContext )?.GetCheckInConfiguration( _rockContext );
             var kiosk = DeviceCache.Get( options.KioskGuid, _rockContext );
-            var director = new CheckInDirector( _rockContext );
 
             if ( configuration == null )
             {
@@ -183,25 +182,27 @@ namespace Rock.Rest.v2.Controllers
 
             try
             {
-                var areas = options.AreaGuids.Select( guid => GroupTypeCache.Get( guid, _rockContext ) ).ToList();
-                var configData = configuration.GetCheckInConfiguration( _rockContext );
+                var director = new CheckInDirector( _rockContext );
+                var coordinator = director.GetCheckInCoordinator( configuration );
 
-                var familyMembersQry = director.GetFamilyMembersForFamilyQuery( options.FamilyGuid, configData );
-                var familyMembers = director.GetFamilyMemberBags( options.FamilyGuid, familyMembersQry, configData );
+                var areas = options.AreaGuids.Select( guid => GroupTypeCache.Get( guid, _rockContext ) ).ToList();
+
+                var familyMembersQry = coordinator.GetFamilyMembersForFamilyQuery( options.FamilyGuid );
+                var familyMembers = coordinator.GetFamilyMemberBags( options.FamilyGuid, familyMembersQry );
                 var checkInOptions = director.GetAllCheckInOptions( areas, kiosk, null );
 
-                var people = director.GetAttendeeItems( familyMembers, checkInOptions, configData );
-                var existingAttendance = director.GetCurrentAttendanceBags( people, configData );
+                var people = coordinator.GetAttendeeItems( familyMembers, checkInOptions );
+                var existingAttendance = coordinator.GetCurrentAttendanceBags( people );
 
                 foreach ( var person in people )
                 {
-                    director.FilterPersonOptions( person, configData );
-                    director.SetDefaultSelectionsForAttendee( person, configData );
+                    coordinator.FilterPersonOptions( person );
+                    coordinator.SetDefaultSelectionsForAttendee( person );
                 }
 
                 return Ok( new ListFamilyMembersResponseBag
                 {
-                    People = director.GetPotentialAttendeeBags( people, configData ),
+                    People = coordinator.GetPotentialAttendeeBags( people ),
                     ExistingAttendance = existingAttendance
                 } );
             }
@@ -275,10 +276,10 @@ namespace Rock.Rest.v2.Controllers
                         using ( var rockContext = new RockContext() )
                         {
                             var director = new CheckInDirector( rockContext );
+                            var coordinator = director.GetCheckInCoordinator( configuration );
 
-                            var families = director.SearchForFamilies( "5553322",
+                            var families = coordinator.SearchForFamilies( "5553322",
                                 Enums.CheckIn.FamilySearchMode.PhoneNumber,
-                                configuration,
                                 null );
                         }
                     } );
@@ -292,7 +293,8 @@ namespace Rock.Rest.v2.Controllers
                         using ( var rockContext = new RockContext() )
                         {
                             var director = new CheckInDirector( rockContext );
-                            var familyMembersQry = director.GetFamilyMembersForFamilyQuery( options.FamilyGuid, configuration );
+                            var coordinator = director.GetCheckInCoordinator( configuration );
+                            var familyMembersQry = coordinator.GetFamilyMembersForFamilyQuery( options.FamilyGuid );
                         }
                     } );
 
@@ -306,7 +308,8 @@ namespace Rock.Rest.v2.Controllers
                     using ( var rockContext = new RockContext() )
                     {
                         var director = new CheckInDirector( rockContext );
-                        var familyMembersQry = director.GetFamilyMembersForFamilyQuery( options.FamilyGuid, configuration );
+                        var coordinator = director.GetCheckInCoordinator( configuration );
+                        var familyMembersQry = coordinator.GetFamilyMembersForFamilyQuery( options.FamilyGuid );
 
                         familyMembers = familyMembersQry
                             .Include( fm => fm.Person )
@@ -314,7 +317,7 @@ namespace Rock.Rest.v2.Controllers
                             .Include( fm => fm.GroupRole )
                             .ToList();
 
-                        familyMemberBag = director.GetFamilyMemberBags( options.FamilyGuid, familyMembers, configuration ).First( fm => fm.FirstName == "Noah" );
+                        familyMemberBag = coordinator.GetFamilyMemberBags( options.FamilyGuid, familyMembers ).First( fm => fm.FirstName == "Noah" );
                     }
 
                     var result = bench.Benchmark( () =>
@@ -322,8 +325,9 @@ namespace Rock.Rest.v2.Controllers
                         using ( var rockContext = new RockContext() )
                         {
                             var director = new CheckInDirector( rockContext );
+                            var coordinator = director.GetCheckInCoordinator( configuration );
 
-                            var bags = director.GetFamilyMemberBags( options.FamilyGuid, familyMembers, configuration );
+                            var bags = coordinator.GetFamilyMemberBags( options.FamilyGuid, familyMembers );
                         }
                     } );
 
@@ -369,9 +373,10 @@ namespace Rock.Rest.v2.Controllers
                     using ( var rockContext = new RockContext() )
                     {
                         var director = new CheckInDirector( rockContext );
-                        var familyMembersQry = director.GetFamilyMembersForFamilyQuery( options.FamilyGuid, configuration );
+                        var coordinator = director.GetCheckInCoordinator( configuration );
+                        var familyMembersQry = coordinator.GetFamilyMembersForFamilyQuery( options.FamilyGuid );
 
-                        familyMemberBag = director.GetFamilyMemberBags( options.FamilyGuid, familyMembersQry, configuration ).First( fm => fm.FirstName == "Noah" );
+                        familyMemberBag = coordinator.GetFamilyMemberBags( options.FamilyGuid, familyMembersQry ).First( fm => fm.FirstName == "Noah" );
                         mainCheckInOptions = director.GetAllCheckInOptions( areas, kiosk, null );
                     }
 
@@ -380,6 +385,7 @@ namespace Rock.Rest.v2.Controllers
                         using ( var rockContext = new RockContext() )
                         {
                             var director = new CheckInDirector( rockContext );
+                            var coordinator = director.GetCheckInCoordinator( configuration );
 
                             var person = new CheckInAttendeeItem
                             {
@@ -387,7 +393,7 @@ namespace Rock.Rest.v2.Controllers
                                 Options = mainCheckInOptions.Clone()
                             };
 
-                            director.FilterPersonOptions( person, configuration );
+                            coordinator.FilterPersonOptions( person );
                         }
                     } );
 

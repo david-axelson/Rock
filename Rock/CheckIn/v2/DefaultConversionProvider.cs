@@ -37,13 +37,13 @@ namespace Rock.CheckIn.v2
         /// Gets or sets the check-in configuration in effect during filtering.
         /// </summary>
         /// <value>The check-in configuration.</value>
-        protected CheckInConfigurationData Configuration { get; }
+        protected CheckInConfigurationData Configuration => Coordinator.Configuration;
 
         /// <summary>
-        /// Gets or sets the check-in director.
+        /// Gets or sets the check-in coordinator.
         /// </summary>
-        /// <value>The check-in director.</value>
-        protected CheckInDirector Director { get; }
+        /// <value>The check-in coordinator.</value>
+        protected DefaultCheckInCoordinator Coordinator { get; }
 
         #endregion
 
@@ -52,12 +52,11 @@ namespace Rock.CheckIn.v2
         /// <summary>
         /// Initializes a new instance of the <see cref="DefaultConversionProvider"/> class.
         /// </summary>
-        /// <param name="director">The director.</param>
-        /// <param name="configuration">The configuration.</param>
-        public DefaultConversionProvider( CheckInDirector director, CheckInConfigurationData configuration )
+        /// <param name="coordinator">The check-in coordinator.</param>
+        /// <exception cref="System.ArgumentNullException"><paramref name="coordinator"/> is <c>null</c>.</exception>
+        public DefaultConversionProvider( DefaultCheckInCoordinator coordinator )
         {
-            Director = director;
-            Configuration = configuration;
+            Coordinator = coordinator ?? throw new ArgumentNullException( nameof( coordinator ) );
         }
 
         #endregion

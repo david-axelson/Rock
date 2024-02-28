@@ -67,13 +67,13 @@ namespace Rock.CheckIn.v2
         /// Gets or sets the check-in configuration in effect during filtering.
         /// </summary>
         /// <value>The check-in configuration.</value>
-        protected CheckInConfigurationData Configuration { get; }
+        protected CheckInConfigurationData Configuration => Coordinator.Configuration;
 
         /// <summary>
-        /// Gets or sets the check-in director.
+        /// Gets or sets the check-in coordinator.
         /// </summary>
-        /// <value>The check-in director.</value>
-        protected CheckInDirector Director { get; }
+        /// <value>The check-in coordinator.</value>
+        protected DefaultCheckInCoordinator Coordinator { get; }
 
         #endregion
 
@@ -82,24 +82,11 @@ namespace Rock.CheckIn.v2
         /// <summary>
         /// Initializes a new instance of the <see cref="DefaultOptionsFilterProvider"/> class.
         /// </summary>
-        /// <param name="director">The check-in director.</param>
-        /// <param name="configuration">The check-in configuration.</param>
-        /// <exception cref="System.ArgumentNullException"><paramref name="director"/> is <c>null</c>.</exception>
-        /// <exception cref="System.ArgumentNullException"><paramref name="configuration"/> is <c>null</c>.</exception>
-        public DefaultOptionsFilterProvider( CheckInDirector director, CheckInConfigurationData configuration )
+        /// <param name="coordinator">The check-in coordinator.</param>
+        /// <exception cref="System.ArgumentNullException"><paramref name="coordinator"/> is <c>null</c>.</exception>
+        public DefaultOptionsFilterProvider( DefaultCheckInCoordinator coordinator )
         {
-            if ( director == null )
-            {
-                throw new ArgumentNullException( nameof( director ) );
-            }
-
-            if ( configuration == null )
-            {
-                throw new ArgumentNullException( nameof( configuration ) );
-            }
-
-            Director = director;
-            Configuration = configuration;
+            Coordinator = coordinator ?? throw new ArgumentNullException( nameof( coordinator ) );
         }
 
         #endregion
@@ -236,7 +223,7 @@ namespace Rock.CheckIn.v2
                     var filter = ( ICheckInOptionsFilter ) Activator.CreateInstance( t );
 
                     filter.Configuration = Configuration;
-                    filter.RockContext = Director.RockContext;
+                    filter.RockContext = Coordinator.RockContext;
                     filter.Person = person;
 
                     return filter;
