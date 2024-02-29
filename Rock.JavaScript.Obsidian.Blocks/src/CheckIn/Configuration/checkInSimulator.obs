@@ -126,7 +126,12 @@
 
                         <ol>
                             <li v-for="item in selectFamilyData.people" :key="item.person!.guid!">
-                                {{ item.person?.fullName }}{{ getSelectedOptions(item) }}
+                                {{ item.person?.fullName }}
+                                <ul v-if="item.selectedOptions && item.selectedOptions.length > 0">
+                                    <li v-for="option in item.selectedOptions">
+                                        {{ getSelectedOptions(option) }}
+                                    </li>
+                                </ul>
                             </li>
                         </ol>
                     </div>
@@ -182,6 +187,7 @@
     import { useHttp } from "@Obsidian/Utility/http";
     import { Guid } from "@Obsidian/Types";
     import NumberUpDown from "@Obsidian/Controls/numberUpDown.obs";
+    import { SelectedOptionsBag } from "@Obsidian/ViewModels/CheckIn/selectedOptionsBag";
 
     // #region Types
 
@@ -418,34 +424,30 @@
         }
     }
 
-    function getSelectedOptions(item: PotentialAttendeeBag): string {
-        if (!item.selectedOptions) {
-            return "";
-        }
-
+    function getSelectedOptions(item: SelectedOptionsBag): string {
         const options: string[] = [];
 
-        if (item.selectedOptions.area) {
-            options.push(`Area="${item.selectedOptions.area.name}"`);
+        if (item.area) {
+            options.push(`Area="${item.area.name}"`);
         }
 
-        if (item.selectedOptions.group) {
-            options.push(`Group="${item.selectedOptions.group.name}"`);
+        if (item.group) {
+            options.push(`Group="${item.group.name}"`);
         }
 
-        if (item.selectedOptions.location) {
-            options.push(`Location="${item.selectedOptions.location.name}"`);
+        if (item.location) {
+            options.push(`Location="${item.location.name}"`);
         }
 
-        if (item.selectedOptions.schedule) {
-            options.push(`Schedule="${item.selectedOptions.schedule.name}"`);
+        if (item.schedule) {
+            options.push(`Schedule="${item.schedule.name}"`);
         }
 
         if (options.length === 0) {
             return "";
         }
 
-        return ` (${options.join("; ")})`;
+        return `Default: ${options.join("; ")}`;
     }
 
     async function executeFamilySearchStep(): Promise<void> {
