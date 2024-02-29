@@ -163,6 +163,25 @@ namespace Rock.CheckIn.v2
         }
 
         /// <summary>
+        /// Find the family member that matches the specified person unique
+        /// identifier for check-in. If the family unique identifier is specified
+        /// then it is used to sort the result so the GroupMember record
+        /// associated with that family is the one used. If the family unique
+        /// identifer is not specified or not found then the first family GroupMember
+        /// record will be returned.
+        /// </summary>
+        /// <param name="personGuid">The person unique identifier.</param>
+        /// <param name="familyGuid">The family unique identifier.</param>
+        /// <returns>A queryable that can be used to load this person from the family.</returns>
+        public IQueryable<GroupMember> GetPersonForFamilyQuery( Guid personGuid, Guid? familyGuid )
+        {
+            using ( var activity = ObservabilityHelper.StartActivity( "Get Person Query" ) )
+            {
+                return SearchProvider.GetPersonForFamilyQuery( personGuid, familyGuid );
+            }
+        }
+
+        /// <summary>
         /// Converts the family members into bags that represent the data
         /// required for check-in.
         /// </summary>
@@ -195,7 +214,7 @@ namespace Rock.CheckIn.v2
         /// <param name="familyMembers">The <see cref="FamilyMemberBag"/> to be used when constructing the <see cref="CheckInAttendeeItem"/> that willw rap it.</param>
         /// <param name="baseOptions">The <see cref="GroupMember"/> objects to be converted to bags.</param>
         /// <returns>A collection of <see cref="CheckInAttendeeItem"/> objects.</returns>
-        public List<CheckInAttendeeItem> GetAttendeeItems( IReadOnlyCollection<FamilyMemberBag> familyMembers, CheckInOptions baseOptions )
+        public List<CheckInAttendeeItem> GetAttendeeItems( IReadOnlyCollection<FamilyMemberBag> familyMembers, CheckInOpportunities baseOptions )
         {
             var preSelectCutoff = RockDateTime.Today.AddDays( Math.Min( -1, 0 - Configuration.AutoSelectDaysBack ) );
             var recentAttendance = GetRecentAttendance( preSelectCutoff, familyMembers.Select( fm => fm.Guid ) );
@@ -293,6 +312,16 @@ namespace Rock.CheckIn.v2
             return attendees
                 .Select( a => ConversionProvider.GetPotentialAttendeeBag( a ) )
                 .ToList();
+        }
+
+        /// <summary>
+        /// Gets the potential attendee bags from the set of attendee items.
+        /// </summary>
+        /// <param name="opportunityCollection">The opportunity collection to be converted to a bag.</param>
+        /// <returns>A list of bags that represent the attendees.</returns>
+        public OpportunityCollectionBag GetOpportunityCollectionBag( CheckInOpportunities opportunityCollection )
+        {
+            return ConversionProvider.GetOpportunityCollectionBag( opportunityCollection );
         }
 
         #endregion

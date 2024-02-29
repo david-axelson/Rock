@@ -20,10 +20,8 @@ using System.Collections.Generic;
 using System.Data.Entity;
 using System.Linq;
 
-using Rock.Data;
 using Rock.Enums.CheckIn;
 using Rock.Model;
-using Rock.Observability;
 using Rock.Utility;
 using Rock.ViewModels.CheckIn;
 using Rock.Web.Cache;
@@ -259,16 +257,67 @@ namespace Rock.CheckIn.v2
         /// </summary>
         /// <param name="familyGuid">The family unique identifier.</param>
         /// <returns>A queryable that can be used to load all the group members associated with the family.</returns>
-        /// <exception cref="ArgumentOutOfRangeException">Check-in configuration data is not valid.</exception>
         public virtual IQueryable<GroupMember> GetFamilyMembersForFamilyQuery( Guid familyGuid )
         {
-            using ( var activity = ObservabilityHelper.StartActivity( "Get Family Members Query" ) )
-            {
-                var familyMemberQry = GetImmediateFamilyMembersQuery( familyGuid, Configuration );
-                var canCheckInFamilyMemberQry = GetCanCheckInFamilyMembersQuery( familyGuid, Configuration );
+            var familyMemberQry = GetImmediateFamilyMembersQuery( familyGuid );
+            var canCheckInFamilyMemberQry = GetCanCheckInFamilyMembersQuery( familyGuid );
 
-                return familyMemberQry.Union( canCheckInFamilyMemberQry );
+            return familyMemberQry.Union( canCheckInFamilyMemberQry );
+        }
+
+        /// <summary>
+        /// Find the family member that matches the specified person unique
+        /// identifier for check-in. If the family unique identifier is specified
+        /// then it is used to sort the result so the GroupMember record
+        /// associated with that family is the one used. If the family unique
+        /// identifer is not specified or not found then the first family GroupMember
+        /// record will be returned.
+        /// </summary>
+        /// <param name="personGuid">The person unique identifier.</param>
+        /// <param name="familyGuid">The family unique identifier.</param>
+        /// <returns>A queryable that can be used to load this person from the family.</returns>
+        /// <exception cref="Exception">Inactive person record status was not found in the database, please check your installation.</exception>
+        /// <exception cref="Exception">Family group type was not found in the database, please check your installation.</exception>
+        public virtual IQueryable<GroupMember> GetPersonForFamilyQuery( Guid personGuid, Guid? familyGuid )
+        {
+            var groupMemberService = new GroupMemberService( Coordinator.RockContext );
+            var familyGroupTypeId = GroupTypeCache.Get( SystemGuid.GroupType.GROUPTYPE_FAMILY.AsGuid(), Coordinator.RockContext )?.Id;
+
+            if ( !familyGroupTypeId.HasValue )
+            {
+                throw new Exception( "Family group type was not found in the database, please check your installation." );
             }
+
+            var qry = groupMemberService.Queryable()
+                .Where( gm => gm.GroupTypeId == familyGroupTypeId.Value
+                    && gm.Person.Guid == personGuid );
+
+            if ( Configuration.IsInactivePersonExcluded )
+            {
+                var personRecordStatusInactiveId = DefinedValueCache.Get( SystemGuid.DefinedValue.PERSON_RECORD_STATUS_INACTIVE.AsGuid(), Coordinator.RockContext )?.Id;
+
+                if ( !personRecordStatusInactiveId.HasValue )
+                {
+                    throw new Exception( "Inactive person record status was not found in the database, please check your installation." );
+                }
+
+                qry = qry.Where( m => m.Person.RecordStatusValueId != personRecordStatusInactiveId.Value );
+            }
+
+            // Make the specified family the first one in the list.
+            if ( familyGuid.HasValue )
+            {
+                qry = qry.OrderByDescending( gm => gm.Guid == familyGuid.Value );
+            }
+            else
+            {
+                // Order by the primary family.
+                qry = qry.OrderByDescending( gm => gm.Person.PrimaryFamilyId.HasValue
+                    && gm.Guid == gm.Person.PrimaryFamily.Guid );
+            }
+
+            // We only want one result.
+            return qry.Take( 1 );
         }
 
         /// <summary>
@@ -421,15 +470,14 @@ namespace Rock.CheckIn.v2
         /// <paramref name="familyGuid"/> will be returned.
         /// </summary>
         /// <param name="familyGuid">The unique identifier of the family.</param>
-        /// <param name="configuration">The check-in configuration.</param>
         /// <returns>A queryable of matching <see cref="GroupMember"/> objects.</returns>
         /// <exception cref="Exception">Inactive person record status was not found in the database, please check your installation.</exception>
-        protected virtual IQueryable<GroupMember> GetImmediateFamilyMembersQuery( Guid familyGuid, CheckInConfigurationData configuration )
+        protected virtual IQueryable<GroupMember> GetImmediateFamilyMembersQuery( Guid familyGuid )
         {
             var groupMemberService = new GroupMemberService( Coordinator.RockContext );
             var qry = groupMemberService.GetByGroupGuid( familyGuid ).AsNoTracking();
 
-            if ( configuration.IsInactivePersonExcluded )
+            if ( Configuration.IsInactivePersonExcluded )
             {
                 var personRecordStatusInactiveId = DefinedValueCache.Get( SystemGuid.DefinedValue.PERSON_RECORD_STATUS_INACTIVE.AsGuid(), Coordinator.RockContext )?.Id;
 
@@ -450,12 +498,11 @@ namespace Rock.CheckIn.v2
         /// allowed can check-in roles defined on the configuration.
         /// </summary>
         /// <param name="familyGuid">The family unique identifier.</param>
-        /// <param name="configuration">The check-in configuration.</param>
         /// <returns>A queryable of matching <see cref="GroupMember"/> objects.</returns>
         /// <exception cref="Exception">Known relationship group type was not found in the database, please check your installation.</exception>
         /// <exception cref="Exception">Inactive person record status was not found in the database, please check your installation.</exception>
         /// <exception cref="Exception">Known relationship owner role was not found in the database, please check your installation.</exception>
-        protected virtual IQueryable<GroupMember> GetCanCheckInFamilyMembersQuery( Guid familyGuid, CheckInConfigurationData configuration )
+        protected virtual IQueryable<GroupMember> GetCanCheckInFamilyMembersQuery( Guid familyGuid )
         {
             var knownRelationshipGroupType = GroupTypeCache.Get( Rock.SystemGuid.GroupType.GROUPTYPE_KNOWN_RELATIONSHIPS.AsGuid(), Coordinator.RockContext );
             int? personRecordStatusInactiveId = null;
@@ -465,7 +512,7 @@ namespace Rock.CheckIn.v2
                 throw new Exception( "Known relationship group type was not found in the database, please check your installation." );
             }
 
-            if ( configuration.IsInactivePersonExcluded )
+            if ( Configuration.IsInactivePersonExcluded )
             {
                 personRecordStatusInactiveId = DefinedValueCache.Get( SystemGuid.DefinedValue.PERSON_RECORD_STATUS_INACTIVE.AsGuid(), Coordinator.RockContext )?.Id;
 
@@ -483,11 +530,11 @@ namespace Rock.CheckIn.v2
                 throw new Exception( "Known relationship owner role was not found in the database, please check your installation." );
             }
 
-            var familyMemberPersonIdQry = GetImmediateFamilyMembersQuery( familyGuid, configuration )
+            var familyMemberPersonIdQry = GetImmediateFamilyMembersQuery( familyGuid )
                 .Select( fm => fm.PersonId );
             var groupMemberService = new GroupMemberService( Coordinator.RockContext );
             var canCheckInRoleIds = knownRelationshipGroupType.Roles
-                .Where( r => configuration.CanCheckInKnownRelationshipRoleGuids.Contains( r.Guid ) )
+                .Where( r => Configuration.CanCheckInKnownRelationshipRoleGuids.Contains( r.Guid ) )
                 .Select( r => r.Id )
                 .ToList();
 
@@ -509,7 +556,7 @@ namespace Rock.CheckIn.v2
 
             // If check-in does not allow inactive people then add that
             // check now.
-            if ( configuration.IsInactivePersonExcluded )
+            if ( Configuration.IsInactivePersonExcluded )
             {
                 canCheckInFamilyMemberQry = canCheckInFamilyMemberQry
                     .Where( gm => gm.Person.RecordStatusReasonValueId != personRecordStatusInactiveId.Value );

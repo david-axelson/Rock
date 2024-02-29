@@ -817,7 +817,7 @@
     <Compile Include="CheckIn\v2\CheckInGroupItem.cs" />
     <Compile Include="CheckIn\v2\CheckInLocationItem.cs" />
     <Compile Include="CheckIn\v2\CheckInMessageException.cs" />
-    <Compile Include="CheckIn\v2\CheckInOptions.cs" />
+    <Compile Include="CheckIn\v2\CheckInOpportunities.cs" />
     <Compile Include="CheckIn\v2\DefaultOptionsSelectionProvider.cs" />
     <Compile Include="CheckIn\v2\DefaultOptionsFilterProvider.cs" />
     <Compile Include="CheckIn\v2\Filters\CheckInByAgeOptionsFilter.cs" />

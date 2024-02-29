@@ -23,23 +23,11 @@
 
 import { Guid } from "@Obsidian/Types";
 
-/** Defines a single location that can be used during check-in. */
-export type CheckInLocationItemBag = {
-    /** Gets or sets the maximum capacity of the location. */
-    capacity?: number | null;
-
-    /** Gets or sets the number of spots currently filled in the location. */
-    currentCount: number;
-
+/** Defines a single ability level that can be used during check-in. */
+export type AbilityLevelOpportunityBag = {
     /** Gets or sets the unique identifier of this option. */
     guid?: Guid | null;
 
     /** Gets or sets the display name of this option. */
     name?: string | null;
-
-    /**
-     * Gets or sets the schedule unique identifiers that this location
-     * is valid for.
-     */
-    scheduleGuids?: Guid[] | null;
 };

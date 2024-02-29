@@ -72,76 +72,73 @@ namespace Rock.CheckIn.v2
         /// <returns>A collection of <see cref="FamilyMemberBag"/> objects.</returns>
         public List<FamilyMemberBag> GetFamilyMemberBags( Guid familyGuid, IEnumerable<GroupMember> groupMembers )
         {
-            using ( var activity = ObservabilityHelper.StartActivity( "Get Family Member Bags" ) )
+            var familyMembers = new List<FamilyMemberBag>();
+
+            // Get the group members along with the person record in memory.
+            // Then sort by those that match the correct family first so that
+            // any duplicates (non family members) can be skipped. This ensures
+            // that a family member has precedence over the same person record
+            // that is also flagged as "can check-in".
+            //
+            // Even though the logic between the two cases below is the same,
+            // casting it to an IQueryable first will make sure the select
+            // happens at the SQL level instead of in C# code.
+            var members = groupMembers is IQueryable<GroupMember> groupMembersQry
+                ? groupMembersQry
+                    .Select( gm => new
+                    {
+                        GroupGuid = gm.Person.PrimaryFamily != null ? gm.Person.PrimaryFamily.Guid : familyGuid,
+                        RoleOrder = gm.GroupRole.Order,
+                        gm.Person
+                    } )
+                    .ToList()
+                    .OrderByDescending( gm => gm.GroupGuid == familyGuid )
+                    .ThenBy( gm => gm.RoleOrder )
+                : groupMembers
+                    .Select( gm => new
+                    {
+                        GroupGuid = gm.Person.PrimaryFamily != null ? gm.Person.PrimaryFamily.Guid : familyGuid,
+                        RoleOrder = gm.GroupRole.Order,
+                        gm.Person
+                    } )
+                    .ToList()
+                    .OrderByDescending( gm => gm.GroupGuid == familyGuid )
+                    .ThenBy( gm => gm.RoleOrder );
+
+            foreach ( var member in members )
             {
-                var familyMembers = new List<FamilyMemberBag>();
-
-                // Get the group members along with the person record in memory.
-                // Then sort by those that match the correct family first so that
-                // any duplicates (non family members) can be skipped. This ensures
-                // that a family member has precedence over the same person record
-                // that is also flagged as "can check-in".
-                //
-                // Even though the logic between the two cases below is the same,
-                // casting it to an IQueryable first will make sure the select
-                // happens at the SQL level instead of in C# code.
-                var members = groupMembers is IQueryable<GroupMember> groupMembersQry
-                    ? groupMembersQry
-                        .Select( gm => new
-                        {
-                            GroupGuid = gm.Person.PrimaryFamily != null ? gm.Person.PrimaryFamily.Guid : familyGuid,
-                            RoleOrder = gm.GroupRole.Order,
-                            gm.Person
-                        } )
-                        .ToList()
-                        .OrderByDescending( gm => gm.GroupGuid == familyGuid )
-                        .ThenBy( gm => gm.RoleOrder )
-                    : groupMembers
-                        .Select( gm => new
-                        {
-                            GroupGuid = gm.Person.PrimaryFamily != null ? gm.Person.PrimaryFamily.Guid : familyGuid,
-                            RoleOrder = gm.GroupRole.Order,
-                            gm.Person
-                        } )
-                        .ToList()
-                        .OrderByDescending( gm => gm.GroupGuid == familyGuid )
-                        .ThenBy( gm => gm.RoleOrder );
-
-                foreach ( var member in members )
+                // Skip any duplicates.
+                if ( familyMembers.Any( fm => fm.Guid == member.Person.Guid ) )
                 {
-                    // Skip any duplicates.
-                    if ( familyMembers.Any( fm => fm.Guid == member.Person.Guid ) )
-                    {
-                        continue;
-                    }
-
-                    var familyMember = new FamilyMemberBag
-                    {
-                        Guid = member.Person.Guid,
-                        IdKey = member.Person.IdKey,
-                        FamilyGuid = member.GroupGuid,
-                        FirstName = member.Person.FirstName,
-                        NickName = member.Person.NickName,
-                        LastName = member.Person.LastName,
-                        FullName = member.Person.FullName,
-                        PhotoUrl = member.Person.PhotoUrl,
-                        BirthYear = member.Person.BirthYear,
-                        BirthMonth = member.Person.BirthMonth,
-                        BirthDay = member.Person.BirthDay,
-                        BirthDate = member.Person.BirthYear.HasValue ? member.Person.BirthDate : null,
-                        Age = member.Person.Age,
-                        AgePrecise = member.Person.AgePrecise,
-                        GradeOffset = member.Person.GradeOffset,
-                        GradeFormatted = member.Person.GradeFormatted,
-                        Gender = member.Person.Gender,
-                        RoleOrder = member.RoleOrder
-                    };
-
-                    familyMembers.Add( familyMember );
+                    continue;
                 }
 
-                return familyMembers;
+                var familyMember = new FamilyMemberBag
+                {
+                    Guid = member.Person.Guid,
+                    IdKey = member.Person.IdKey,
+                    FamilyGuid = member.GroupGuid,
+                    FirstName = member.Person.FirstName,
+                    NickName = member.Person.NickName,
+                    LastName = member.Person.LastName,
+                    FullName = member.Person.FullName,
+                    PhotoUrl = member.Person.PhotoUrl,
+                    BirthYear = member.Person.BirthYear,
+                    BirthMonth = member.Person.BirthMonth,
+                    BirthDay = member.Person.BirthDay,
+                    BirthDate = member.Person.BirthYear.HasValue ? member.Person.BirthDate : null,
+                    Age = member.Person.Age,
+                    AgePrecise = member.Person.AgePrecise,
+                    GradeOffset = member.Person.GradeOffset,
+                    GradeFormatted = member.Person.GradeFormatted,
+                    Gender = member.Person.Gender,
+                    RoleOrder = member.RoleOrder
+                };
+
+                familyMembers.Add( familyMember );
             }
+
+            return familyMembers;
         }
 
         /// <summary>
@@ -153,7 +150,7 @@ namespace Rock.CheckIn.v2
         /// <param name="baseOptions">The <see cref="GroupMember"/> objects to be converted to bags.</param>
         /// <param name="recentAttendance">The recent attendance data for these family members.</param>
         /// <returns>A collection of <see cref="CheckInAttendeeItem"/> objects.</returns>
-        public virtual List<CheckInAttendeeItem> GetAttendeeItems( IReadOnlyCollection<FamilyMemberBag> familyMembers, CheckInOptions baseOptions, IReadOnlyCollection<RecentAttendanceItem> recentAttendance )
+        public virtual List<CheckInAttendeeItem> GetAttendeeItems( IReadOnlyCollection<FamilyMemberBag> familyMembers, CheckInOpportunities baseOptions, IReadOnlyCollection<RecentAttendanceItem> recentAttendance )
         {
             return familyMembers
                 .Select( fm =>
@@ -248,6 +245,109 @@ namespace Rock.CheckIn.v2
                 IsDisabled = attendee.IsDisabled,
                 DisabledMessage = attendee.DisabledMessage,
                 SelectedOptions = attendee.SelectedOptions
+            };
+        }
+
+        /// <summary>
+        /// Gets the opportunity collection bag from the opportunity collection item.
+        /// </summary>
+        /// <param name="opportunityCollection">The opportunity collection.</param>
+        /// <returns>A new instance of <see cref="OpportunityCollectionBag"/>.</returns>
+        public virtual OpportunityCollectionBag GetOpportunityCollectionBag( CheckInOpportunities opportunityCollection )
+        {
+            return new OpportunityCollectionBag
+            {
+                AbilityLevels = opportunityCollection.AbilityLevels
+                    .Select( GetAbilityLevelOpportunityBag )
+                    .ToList(),
+                Areas = opportunityCollection.Areas
+                    .Select( GetAreaOpportunityBag )
+                    .ToList(),
+                Groups = opportunityCollection.Groups
+                    .Select( GetGroupOpportunityBag )
+                    .ToList(),
+                Locations = opportunityCollection.Locations
+                    .Select( GetLocationOpportunityBag )
+                    .ToList(),
+                Schedules = opportunityCollection.Schedules
+                    .Select( GetScheduleOpportunityBag )
+                    .ToList()
+            };
+        }
+
+        /// <summary>
+        /// Gets the ability level opportunity bag from the ability level opportunity item.
+        /// </summary>
+        /// <param name="abilityLevel">The ability level.</param>
+        /// <returns>A new instance of <see cref="AbilityLevelOpportunityBag"/>.</returns>
+        public virtual AbilityLevelOpportunityBag GetAbilityLevelOpportunityBag( CheckInAbilityLevelItem abilityLevel )
+        {
+            return new AbilityLevelOpportunityBag
+            {
+                Guid = abilityLevel.Guid,
+                Name = abilityLevel.Name
+            };
+        }
+
+        /// <summary>
+        /// Gets the area opportunity bag from the area opportunity item.
+        /// </summary>
+        /// <param name="area">The area.</param>
+        /// <returns>A new instance of <see cref="AreaOpportunityBag"/>.</returns>
+        public virtual AreaOpportunityBag GetAreaOpportunityBag( CheckInAreaItem area )
+        {
+            return new AreaOpportunityBag
+            {
+                Guid = area.Guid,
+                Name = area.Name
+            };
+        }
+
+        /// <summary>
+        /// Gets the group opportunity bag from the group opportunity item.
+        /// </summary>
+        /// <param name="group">The group.</param>
+        /// <returns>A new instance of <see cref="GroupOpportunityBag"/>.</returns>
+        public virtual GroupOpportunityBag GetGroupOpportunityBag( CheckInGroupItem group )
+        {
+            return new GroupOpportunityBag
+            {
+                AbilityLevelGuid = group.AbilityLevelGuid,
+                AreaGuid = group.AreaGuid,
+                Guid = group.Guid,
+                LocationGuids = group.LocationGuids,
+                Name = group.Name
+            };
+        }
+
+        /// <summary>
+        /// Gets the location opportunity bag from the location opportunity item.
+        /// </summary>
+        /// <param name="location">The location.</param>
+        /// <returns>A new instance of <see cref="LocationOpportunityBag"/>.</returns>
+        public virtual LocationOpportunityBag GetLocationOpportunityBag( CheckInLocationItem location )
+        {
+            return new LocationOpportunityBag
+            {
+                Capacity = location.Capacity,
+                CurrentCount = location.CurrentCount,
+                Guid = location.Guid,
+                Name = location.Name,
+                ScheduleGuids = location.ScheduleGuids
+            };
+        }
+
+        /// <summary>
+        /// Gets the schedule opportunity bag from the schedule opportunity item.
+        /// </summary>
+        /// <param name="schedule">The schedule.</param>
+        /// <returns>A new instance of <see cref="ScheduleOpportunityBag"/>.</returns>
+        public virtual ScheduleOpportunityBag GetScheduleOpportunityBag( CheckInScheduleItem schedule )
+        {
+            return new ScheduleOpportunityBag
+            {
+                Guid = schedule.Guid,
+                Name = schedule.Name
             };
         }
 

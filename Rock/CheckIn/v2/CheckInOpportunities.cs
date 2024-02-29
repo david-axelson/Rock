@@ -18,11 +18,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Linq.Expressions;
 
 using Rock.Data;
 using Rock.Model;
-using Rock.ViewModels.CheckIn;
 using Rock.Web.Cache;
 
 namespace Rock.CheckIn.v2
@@ -32,7 +30,7 @@ namespace Rock.CheckIn.v2
     /// options or the options available for single individual depending
     /// on the use case.
     /// </summary>
-    internal class CheckInOptions
+    internal class CheckInOpportunities
     {
         #region Properties
 
@@ -86,9 +84,9 @@ namespace Rock.CheckIn.v2
         /// <param name="kiosk">The optional kiosk to use.</param>
         /// <param name="locations">The list of locations to use.</param>
         /// <param name="rockContext">The context to use when accessing the database.</param>
-        /// <returns>An instance of <see cref="CheckInOptions"/> that describes the available options.</returns>
+        /// <returns>An instance of <see cref="CheckInOpportunities"/> that describes the available options.</returns>
         /// <exception cref="System.ArgumentNullException">kiosk - Kiosk must be specified unless locations are specified.</exception>
-        internal static CheckInOptions Create( IReadOnlyCollection<GroupTypeCache> possibleAreas, DeviceCache kiosk, IReadOnlyCollection<NamedLocationCache> locations, RockContext rockContext )
+        internal static CheckInOpportunities Create( IReadOnlyCollection<GroupTypeCache> possibleAreas, DeviceCache kiosk, IReadOnlyCollection<NamedLocationCache> locations, RockContext rockContext )
         {
             if ( kiosk == null && locations == null )
             {
@@ -163,7 +161,7 @@ namespace Rock.CheckIn.v2
             var locationCounts = GetCurrentCountsForLocations( locationIdsForCount, now, rockContext );
 
             // Construct the initial options bag.
-            var options = new CheckInOptions
+            var options = new CheckInOpportunities
             {
                 AbilityLevels = DefinedTypeCache.Get( SystemGuid.DefinedType.PERSON_ABILITY_LEVEL_TYPE.AsGuid(), rockContext )
                     ?.DefinedValues
@@ -263,10 +261,10 @@ namespace Rock.CheckIn.v2
         /// like we are doing a lot, but this is insanely fast, clocking in at
         /// 6ns per call.
         /// </summary>
-        /// <returns>A new instance of <see cref="CheckInOptions"/>.</returns>
-        public CheckInOptions Clone()
+        /// <returns>A new instance of <see cref="CheckInOpportunities"/>.</returns>
+        public CheckInOpportunities Clone()
         {
-            var clonedOptions = new CheckInOptions
+            var clonedOptions = new CheckInOpportunities
             {
                 AbilityLevels = AbilityLevels
                     .Select( al => new CheckInAbilityLevelItem

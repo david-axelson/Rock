@@ -23,26 +23,26 @@
 
 import { Guid } from "@Obsidian/Types";
 
-/** Defines a single group that can be used during check-in. */
-export type CheckInGroupItemBag = {
+/**
+ * The request parameters to use when requesting the options available
+ * for a single person.
+ */
+export type PersonOpportunitiesOptionsBag = {
     /**
-     * Gets or sets the ability level unique identifier required to
-     * attend this group.
+     * Gets or sets the area unique identifiers that will be used to
+     * determine which options are available for each family member.
      */
-    abilityLevelGuid?: Guid | null;
+    areaGuids?: Guid[] | null;
 
-    /** Gets or sets the area unique identifier that this group belongs to. */
-    areaGuid?: Guid | null;
+    /** Gets or sets the configuration unique identifier. */
+    configurationGuid?: Guid | null;
 
-    /** Gets or sets the unique identifier of this option. */
-    guid?: Guid | null;
+    /** Gets or sets the family unique identifier. */
+    familyGuid?: Guid | null;
 
-    /**
-     * Gets or sets the location unique identifiers. These are in proper
-     * order of location priority.
-     */
-    locationGuids?: Guid[] | null;
+    /** Gets or sets the kiosk unique identifier. */
+    kioskGuid?: Guid | null;
 
-    /** Gets or sets the display name of this option. */
-    name?: string | null;
+    /** Gets or sets the person unique identifier. */
+    personGuid?: Guid | null;
 };

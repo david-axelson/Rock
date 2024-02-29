@@ -170,10 +170,10 @@ namespace Rock.CheckIn.v2
         /// <param name="possibleAreas">The possible areas that are to be considered when generating the options.</param>
         /// <param name="kiosk">The optional kiosk to use.</param>
         /// <param name="locations">The list of locations to use.</param>
-        /// <returns>An instance of <see cref="CheckInOptions"/> that describes the available options.</returns>
+        /// <returns>An instance of <see cref="CheckInOpportunities"/> that describes the available options.</returns>
         /// <exception cref="System.ArgumentNullException"><paramref name="possibleAreas"/> is <c>null</c>.</exception>
         /// <exception cref="System.ArgumentNullException"><paramref name="kiosk"/> - Kiosk must be specified unless locations are specified.</exception>
-        public CheckInOptions GetAllCheckInOptions( IReadOnlyCollection<GroupTypeCache> possibleAreas, DeviceCache kiosk, IReadOnlyCollection<NamedLocationCache> locations )
+        public CheckInOpportunities GetAllCheckInOptions( IReadOnlyCollection<GroupTypeCache> possibleAreas, DeviceCache kiosk, IReadOnlyCollection<NamedLocationCache> locations )
         {
             using ( var activity = ObservabilityHelper.StartActivity( "Get All Options" ) )
             {
@@ -187,7 +187,7 @@ namespace Rock.CheckIn.v2
                     throw new ArgumentNullException( nameof( possibleAreas ) );
                 }
 
-                return CheckInOptions.Create( possibleAreas, kiosk, locations, RockContext );
+                return CheckInOpportunities.Create( possibleAreas, kiosk, locations, RockContext );
             }
         }
 

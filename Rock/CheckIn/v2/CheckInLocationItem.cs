@@ -25,7 +25,7 @@ namespace Rock.CheckIn.v2
     /// <summary>
     /// A representation of a single location that can be used for check-in.
     /// </summary>
-    internal class CheckInLocationItem : CheckInLocationItemBag
+    internal class CheckInLocationItem : LocationOpportunityBag
     {
         public HashSet<Guid> CurrentPersonGuids { get; set; }
     }

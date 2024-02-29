@@ -20,27 +20,28 @@ using System.Collections.Generic;
 namespace Rock.ViewModels.CheckIn
 {
     /// <summary>
-    /// Defines a single location that can be used during check-in.
+    /// Defines a single group that can be used during check-in.
     /// </summary>
-    public class CheckInLocationItemBag : CheckInItemBag
+    public class GroupOpportunityBag : CheckInItemBag
     {
         /// <summary>
-        /// Gets or sets the maximum capacity of the location.
+        /// Gets or sets the area unique identifier that this group belongs to.
         /// </summary>
-        /// <value>The maximum capacity; or <c>null</c> if not available.</value>
-        public int? Capacity { get; set; }
+        /// <value>The area unique identifier.</value>
+        public Guid AreaGuid { get; set; }
 
         /// <summary>
-        /// Gets or sets the number of spots currently filled in the location.
+        /// Gets or sets the ability level unique identifier required to
+        /// attend this group.
         /// </summary>
-        /// <value>The number of spots filled.</value>
-        public int CurrentCount { get; set; }
+        /// <value>The required ability level unique identifier; or <c>null</c> if not required.</value>
+        public Guid? AbilityLevelGuid { get; set; }
 
         /// <summary>
-        /// Gets or sets the schedule unique identifiers that this location
-        /// is valid for.
+        /// Gets or sets the location unique identifiers. These are in proper
+        /// order of location priority.
         /// </summary>
-        /// <value>The schedule unique identifiers.</value>
-        public List<Guid> ScheduleGuids { get; set; }
+        /// <value>The location unique identifiers.</value>
+        public List<Guid> LocationGuids { get; set; }
     }
 }

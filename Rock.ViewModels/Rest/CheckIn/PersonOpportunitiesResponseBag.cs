@@ -14,26 +14,21 @@
 // limitations under the License.
 // </copyright>
 //
-
 using Rock.ViewModels.CheckIn;
 
-namespace Rock.CheckIn.v2
+namespace Rock.ViewModels.Rest.CheckIn
 {
     /// <summary>
-    /// A representation of a single group that can be used for check-in.
+    /// The response that will be returned by the get person opportunities check-in
+    /// REST endpoint.
     /// </summary>
-    internal class CheckInGroupItem : GroupOpportunityBag
+    public class PersonOpportunitiesResponseBag
     {
         /// <summary>
-        /// Gets or sets the check in data for this group.
+        /// Gets or sets the opportunities available to the individual for
+        /// check-in.
         /// </summary>
-        /// <value>The check in data.</value>
-        public CheckInGroupData CheckInData { get; set; }
-
-        /// <summary>
-        /// Gets or sets the check in area data for this group.
-        /// </summary>
-        /// <value>The check in area data.</value>
-        public CheckInAreaData CheckInAreaData { get; set; }
+        /// <value>The opportunities.</value>
+        public OpportunityCollectionBag Opportunities { get; set; }
     }
 }

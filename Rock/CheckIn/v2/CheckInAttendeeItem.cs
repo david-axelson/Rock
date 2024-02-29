@@ -40,7 +40,7 @@ namespace Rock.CheckIn.v2
         /// Gets or sets the options that are available to be selected from.
         /// </summary>
         /// <value>The options that are available to be selected from.</value>
-        public CheckInOptions Options { get; set; }
+        public CheckInOpportunities Options { get; set; }
 
         /// <summary>
         /// Gets or sets the last date and time the person checked in.

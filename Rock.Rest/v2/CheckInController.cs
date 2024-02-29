@@ -15,6 +15,7 @@
 // </copyright>
 //
 
+using System;
 using System.Collections.Generic;
 using System.Data.Entity;
 using System.Linq;
@@ -212,6 +213,62 @@ namespace Rock.Rest.v2.Controllers
             }
         }
 
+        /// <summary>
+        /// Gets the available check-in opportunities for a single individual.
+        /// </summary>
+        /// <param name="options">The options that describe the request.</param>
+        /// <returns>A bag that contains all the opportunities.</returns>
+        [HttpPost]
+        [Authenticate]
+        //[Secured]
+        [Route( "PersonOpportunities" )]
+        [ProducesResponseType( HttpStatusCode.OK, Type = typeof( PersonOpportunitiesResponseBag ) )]
+        [SystemGuid.RestActionGuid( "2bd5afdf-da57-48bb-a6db-7dd9ad1ab8da" )]
+        public IActionResult PostPersonOpportunities( [FromBody] PersonOpportunitiesOptionsBag options )
+        {
+            var configuration = GroupTypeCache.Get( options.ConfigurationGuid, _rockContext )?.GetCheckInConfiguration( _rockContext );
+            var areas = options.AreaGuids.Select( guid => GroupTypeCache.Get( guid, _rockContext ) ).ToList();
+            var kiosk = DeviceCache.Get( options.KioskGuid, _rockContext );
+
+            if ( configuration == null )
+            {
+                return BadRequest( "Configuration was not found." );
+            }
+
+            if ( kiosk == null )
+            {
+                return BadRequest( "Kiosk was not found." );
+            }
+
+            try
+            {
+                var director = new CheckInDirector( _rockContext );
+                var coordinator = director.GetCheckInCoordinator( configuration );
+
+                var familyMembersQry = coordinator.GetPersonForFamilyQuery( options.PersonGuid, options.FamilyGuid );
+                var familyMembers = coordinator.GetFamilyMemberBags( Guid.Empty, familyMembersQry );
+                var checkInOpportunities = director.GetAllCheckInOptions( areas, kiosk, null );
+
+                var people = coordinator.GetAttendeeItems( familyMembers, checkInOpportunities );
+
+                if ( people.Count == 0 )
+                {
+                    return BadRequest( "Person was not found or is not available for check-in." );
+                }
+
+                coordinator.FilterPersonOptions( people[0] );
+
+                return Ok( new PersonOpportunitiesResponseBag
+                {
+                    Opportunities = coordinator.GetOpportunityCollectionBag( people[0].Options )
+                } );
+            }
+            catch ( CheckInMessageException ex )
+            {
+                return BadRequest( ex.Message );
+            }
+        }
+
         #region Temporary Benchmark
 
         /// <summary>
@@ -349,7 +406,7 @@ namespace Rock.Rest.v2.Controllers
                 }
                 else if ( benchmark == "cloneOptions" )
                 {
-                    CheckInOptions mainCheckInOptions;
+                    CheckInOpportunities mainCheckInOptions;
 
                     using ( var rockContext = new RockContext() )
                     {
@@ -367,7 +424,7 @@ namespace Rock.Rest.v2.Controllers
                 }
                 else if ( benchmark == "filterOptions" )
                 {
-                    CheckInOptions mainCheckInOptions;
+                    CheckInOpportunities mainCheckInOptions;
                     FamilyMemberBag familyMemberBag;
 
                     using ( var rockContext = new RockContext() )
