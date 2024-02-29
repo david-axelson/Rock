@@ -27,6 +27,9 @@ import { CheckInItemBag } from "@Obsidian/ViewModels/CheckIn/checkInItemBag";
 
 /** A single attendance record used by the check-in system. */
 export type AttendanceBag = {
+    /** Gets or sets the area for this attendance record. */
+    area?: CheckInItemBag | null;
+
     /** Gets or sets the first name. */
     firstName?: string | null;
 

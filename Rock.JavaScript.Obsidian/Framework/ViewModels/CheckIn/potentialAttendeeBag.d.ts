@@ -39,5 +39,5 @@ export type PotentialAttendeeBag = {
     person?: FamilyMemberBag | null;
 
     /** Gets or sets the selected options for this potential attendee. */
-    selectedOptions?: SelectedOptionsBag | null;
+    selectedOptions?: SelectedOptionsBag[] | null;
 };

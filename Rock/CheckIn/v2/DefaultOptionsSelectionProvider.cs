@@ -62,14 +62,14 @@ namespace Rock.CheckIn.v2
         #endregion
 
         /// <summary>
-        /// Gets the default selection for the person. This uses recent
+        /// Gets the default selections for the person. This uses recent
         /// attendance to try and put them in the same location they were in
         /// last time but will fall back to other methods if that is not
         /// available.
         /// </summary>
         /// <param name="person">The person to get the default selection for.</param>
-        /// <returns>A new instance of <see cref="SelectedOptionsBag"/> or <c>null</c> if no defaults could be determined.</returns>
-        public virtual SelectedOptionsBag GetDefaultSelectionForPerson( CheckInAttendeeItem person )
+        /// <returns>A collection of <see cref="SelectedOptionsBag"/> objects.</returns>
+        public virtual List<SelectedOptionsBag> GetDefaultSelectionsForPerson( CheckInAttendeeItem person )
         {
             person.LastCheckIn = person.RecentAttendances.Max( a => ( DateTime? ) a.StartDateTime );
 
@@ -91,26 +91,37 @@ namespace Rock.CheckIn.v2
                 }
             }
 
-            // First try to find a valid exact match against a previous check-in.
-            if ( TryGetExactMatch( person, previousCheckIns, out var selectedOptions ) )
+            var selectedOptions = new List<SelectedOptionsBag>();
+
+            foreach ( var previousCheckIn in previousCheckIns )
             {
-                return selectedOptions;
+                // First try to find a valid exact match against a previous check-in.
+                if ( TryGetExactMatch( person, previousCheckIn, out var options ) )
+                {
+                    selectedOptions.Add( options );
+
+                    continue;
+                }
+
+                // Next, try to find a matching group and then just take the first
+                // available location and schedule.
+                if ( TryGetBestMatchingGroup( person, previousCheckIn, out options ) )
+                {
+                    selectedOptions.Add( options );
+
+                    continue;
+                }
+
+                // Finally just try to pick anything valid.
+                if ( TryGetAnyValidSelection( person, out options ) )
+                {
+                    selectedOptions.Add( options );
+
+                    continue;
+                }
             }
 
-            // Next, try to find a matching group and then just take the first
-            // available location and schedule.
-            if ( TryGetBestMatchingGroup( person, previousCheckIns, out selectedOptions ) )
-            {
-                return selectedOptions;
-            }
-
-            // Finally just try to pick anything valid.
-            if ( TryGetAnyValidSelection( person, out selectedOptions ) )
-            {
-                return selectedOptions;
-            }
-
-            return null;
+            return selectedOptions;
         }
 
         /// <summary>
@@ -118,53 +129,48 @@ namespace Rock.CheckIn.v2
         /// for exact matches to group, location and schedule.
         /// </summary>
         /// <param name="person">The person to be checked in.</param>
-        /// <param name="previousCheckIns">The previous check-in records.</param>
+        /// <param name="previousCheckIn">The previous check-in record.</param>
         /// <param name="selectedOptions">On return contains an instance of <see cref="SelectedOptionsBag"/> or <c>null</c>.</param>
         /// <returns><c>true</c> if a match was found and <paramref name="selectedOptions"/> is valid, <c>false</c> otherwise.</returns>
-        protected virtual bool TryGetExactMatch( CheckInAttendeeItem person, List<RecentAttendanceItem> previousCheckIns, out SelectedOptionsBag selectedOptions )
+        protected virtual bool TryGetExactMatch( CheckInAttendeeItem person, RecentAttendanceItem previousCheckIn, out SelectedOptionsBag selectedOptions )
         {
-            foreach ( var previousCheckIn in previousCheckIns )
-            {
-                var group = person.Options.Groups
-                    .FirstOrDefault( g => g.Guid == previousCheckIn.GroupGuid );
-
-                if ( group == null || !group.LocationGuids.Contains( previousCheckIn.LocationGuid ) )
-                {
-                    continue;
-                }
-
-                var area = person.Options.Areas
-                    .FirstOrDefault( a => a.Guid == group.AreaGuid );
-
-                if ( area == null )
-                {
-                    continue;
-                }
-
-                var location = person.Options.Locations
-                    .FirstOrDefault( l => l.Guid == previousCheckIn.LocationGuid );
-
-                if ( location == null || !location.ScheduleGuids.Contains( previousCheckIn.ScheduleGuid ) )
-                {
-                    continue;
-                }
-
-                var schedule = person.Options.Schedules
-                    .FirstOrDefault( s => s.Guid == previousCheckIn.ScheduleGuid );
-
-                if ( schedule == null )
-                {
-                    continue;
-                }
-
-                selectedOptions = GetSelectedOptions( area, group, location, schedule );
-
-                return true;
-            }
-
             selectedOptions = null;
 
-            return false;
+            var group = person.Options.Groups
+                .FirstOrDefault( g => g.Guid == previousCheckIn.GroupGuid );
+
+            if ( group == null || !group.LocationGuids.Contains( previousCheckIn.LocationGuid ) )
+            {
+                return false;
+            }
+
+            var area = person.Options.Areas
+                .FirstOrDefault( a => a.Guid == group.AreaGuid );
+
+            if ( area == null )
+            {
+                return false;
+            }
+
+            var location = person.Options.Locations
+                .FirstOrDefault( l => l.Guid == previousCheckIn.LocationGuid );
+
+            if ( location == null || !location.ScheduleGuids.Contains( previousCheckIn.ScheduleGuid ) )
+            {
+                return false;
+            }
+
+            var schedule = person.Options.Schedules
+                .FirstOrDefault( s => s.Guid == previousCheckIn.ScheduleGuid );
+
+            if ( schedule == null )
+            {
+                return false;
+            }
+
+            selectedOptions = GetSelectedOptions( area, group, location, schedule );
+
+            return true;
         }
 
         /// <summary>
@@ -173,36 +179,34 @@ namespace Rock.CheckIn.v2
         /// schedule currently supported for that group.
         /// </summary>
         /// <param name="person">The person to be checked in.</param>
-        /// <param name="previousCheckIns">The previous check-in records.</param>
+        /// <param name="previousCheckIn">The previous check-in record.</param>
         /// <param name="selectedOptions">On return contains an instance of <see cref="SelectedOptionsBag"/> or <c>null</c>.</param>
         /// <returns><c>true</c> if a match was found and <paramref name="selectedOptions"/> is valid, <c>false</c> otherwise.</returns>
-        protected virtual bool TryGetBestMatchingGroup( CheckInAttendeeItem person, List<RecentAttendanceItem> previousCheckIns, out SelectedOptionsBag selectedOptions )
+        protected virtual bool TryGetBestMatchingGroup( CheckInAttendeeItem person, RecentAttendanceItem previousCheckIn, out SelectedOptionsBag selectedOptions )
         {
-            foreach ( var previousCheckIn in previousCheckIns )
+            selectedOptions = null;
+
+            var group = person.Options.Groups
+                .FirstOrDefault( g => g.Guid == previousCheckIn.GroupGuid );
+
+            if ( group == null )
             {
-                var group = person.Options.Groups
-                    .FirstOrDefault( g => g.Guid == previousCheckIn.GroupGuid );
-
-                if ( group == null )
-                {
-                    continue;
-                }
-
-                var area = person.Options.Areas
-                    .FirstOrDefault( a => a.Guid == group.AreaGuid );
-
-                if ( area == null )
-                {
-                    continue;
-                }
-
-                if ( TryGetFirstValidSelectionForGroup( area, group, person, out selectedOptions ) )
-                {
-                    return true;
-                }
+                return false;
             }
 
-            selectedOptions = null;
+            var area = person.Options.Areas
+                .FirstOrDefault( a => a.Guid == group.AreaGuid );
+
+            if ( area == null )
+            {
+                return false;
+            }
+
+            if ( TryGetFirstValidSelectionForGroup( area, group, person, out selectedOptions ) )
+            {
+                return true;
+            }
+
 
             return false;
         }

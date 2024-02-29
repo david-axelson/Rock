@@ -14,6 +14,8 @@
 // limitations under the License.
 // </copyright>
 //
+using System.Collections.Generic;
+
 namespace Rock.ViewModels.CheckIn
 {
     /// <summary>
@@ -49,6 +51,6 @@ namespace Rock.ViewModels.CheckIn
         /// Gets or sets the selected options for this potential attendee.
         /// </summary>
         /// <value>The selected options.</value>
-        public SelectedOptionsBag SelectedOptions { get; set; }
+        public List<SelectedOptionsBag> SelectedOptions { get; set; }
     }
 }

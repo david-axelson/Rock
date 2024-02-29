@@ -216,7 +216,7 @@ namespace Rock.CheckIn.v2
             {
                 if ( Configuration.AutoSelect == AutoSelectMode.PeopleAndAreaGroupLocation )
                 {
-                    attendee.SelectedOptions = OptionsSelectionProvider.GetDefaultSelectionForPerson( attendee );
+                    attendee.SelectedOptions = OptionsSelectionProvider.GetDefaultSelectionsForPerson( attendee );
                 }
 
                 attendee.IsPreSelected = Configuration.AutoSelectDaysBack > 0 && attendee.RecentAttendances.Count > 0;
