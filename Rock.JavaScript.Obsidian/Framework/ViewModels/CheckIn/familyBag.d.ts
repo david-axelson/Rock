@@ -21,20 +21,23 @@
 // </copyright>
 //
 
-import { AttendanceBag } from "@Obsidian/ViewModels/CheckIn/attendanceBag";
-import { PotentialAttendeeBag } from "@Obsidian/ViewModels/CheckIn/potentialAttendeeBag";
+import { Guid } from "@Obsidian/Types";
+import { PersonBag } from "@Obsidian/ViewModels/CheckIn/personBag";
 
 /**
- * The response that will be returned by the list family members check-in
- * REST endpoint.
+ * A search result item representing a single family in check-in
+ * family search.
  */
-export type ListFamilyMembersResponseBag = {
-    /** Gets or sets the existing attendance bags that can be checked out. */
-    existingAttendance?: AttendanceBag[] | null;
+export type FamilyBag = {
+    /** Gets or sets the family campus unique identifier. */
+    campusGuid?: Guid | null;
 
-    /**
-     * Gets or sets the people that can be potentially checked in for
-     * the family.
-     */
-    people?: PotentialAttendeeBag[] | null;
+    /** Gets or sets the unique identifier of the family Group. */
+    guid?: Guid | null;
+
+    /** Gets or sets the family members. */
+    members?: PersonBag[] | null;
+
+    /** Gets or sets the name of the family. */
+    name?: string | null;
 };

@@ -34,7 +34,7 @@ export type GroupOpportunityBag = {
     /** Gets or sets the area unique identifier that this group belongs to. */
     areaGuid?: Guid | null;
 
-    /** Gets or sets the unique identifier of this option. */
+    /** Gets or sets the unique identifier of this item. */
     guid?: Guid | null;
 
     /**
@@ -43,6 +43,6 @@ export type GroupOpportunityBag = {
      */
     locationGuids?: Guid[] | null;
 
-    /** Gets or sets the display name of this option. */
+    /** Gets or sets the display name of this item. */
     name?: string | null;
 };

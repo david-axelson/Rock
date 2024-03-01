@@ -21,23 +21,16 @@
 // </copyright>
 //
 
-import { FamilyMemberBag } from "@Obsidian/ViewModels/CheckIn/familyMemberBag";
-import { SelectedOptionsBag } from "@Obsidian/ViewModels/CheckIn/selectedOptionsBag";
+import { OpportunityCollectionBag } from "@Obsidian/ViewModels/CheckIn/opportunityCollectionBag";
 
-/** A potential attendee item bag. */
-export type PotentialAttendeeBag = {
-    /** Gets or sets the message describing why this person is not available. */
-    disabledMessage?: string | null;
-
-    /** Gets or sets a value indicating whether this person is disabled. */
-    isDisabled: boolean;
-
-    /** Gets or sets a value indicating whether this instance is already selected. */
-    isPreSelected: boolean;
-
-    /** Gets or sets the person represented by this item. */
-    person?: FamilyMemberBag | null;
-
-    /** Gets or sets the selected options for this potential attendee. */
-    selectedOptions?: SelectedOptionsBag[] | null;
+/**
+ * The response that will be returned by the get attendee opportunities check-in
+ * REST endpoint.
+ */
+export type AttendeeOpportunitiesResponseBag = {
+    /**
+     * Gets or sets the opportunities available to the attendee for
+     * check-in.
+     */
+    opportunities?: OpportunityCollectionBag | null;
 };

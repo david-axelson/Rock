@@ -31,10 +31,10 @@ export type LocationOpportunityBag = {
     /** Gets or sets the number of spots currently filled in the location. */
     currentCount: number;
 
-    /** Gets or sets the unique identifier of this option. */
+    /** Gets or sets the unique identifier of this item. */
     guid?: Guid | null;
 
-    /** Gets or sets the display name of this option. */
+    /** Gets or sets the display name of this item. */
     name?: string | null;
 
     /**

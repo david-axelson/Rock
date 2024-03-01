@@ -25,17 +25,17 @@ import { Guid } from "@Obsidian/Types";
 
 /**
  * The request parameters to use when requesting the options available
- * for a single person.
+ * for a single attendee.
  */
-export type PersonOpportunitiesOptionsBag = {
+export type AttendeeOpportunitiesOptionsBag = {
     /**
      * Gets or sets the area unique identifiers that will be used to
      * determine which options are available for each family member.
      */
     areaGuids?: Guid[] | null;
 
-    /** Gets or sets the configuration unique identifier. */
-    configurationGuid?: Guid | null;
+    /** Gets or sets the configuration template unique identifier. */
+    configurationTemplateGuid?: Guid | null;
 
     /** Gets or sets the family unique identifier. */
     familyGuid?: Guid | null;

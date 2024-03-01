@@ -21,16 +21,20 @@
 // </copyright>
 //
 
-import { OpportunityCollectionBag } from "@Obsidian/ViewModels/CheckIn/opportunityCollectionBag";
+import { Guid } from "@Obsidian/Types";
 
-/**
- * The response that will be returned by the get person opportunities check-in
- * REST endpoint.
- */
-export type PersonOpportunitiesResponseBag = {
+/** The summary information about a single check-in area. */
+export type ConfigurationAreaBag = {
+    /** Gets or sets the unique identifier of this check-in area. */
+    guid?: Guid | null;
+
+    /** Gets or sets the name of this check-in area. */
+    name?: string | null;
+
     /**
-     * Gets or sets the opportunities available to the individual for
-     * check-in.
+     * Gets or sets the configuration template unique identifiers that are
+     * considered primary for this area. A primary configuration template
+     * is one that this area is a descendant of.
      */
-    opportunities?: OpportunityCollectionBag | null;
+    primaryTemplateGuids?: Guid[] | null;
 };

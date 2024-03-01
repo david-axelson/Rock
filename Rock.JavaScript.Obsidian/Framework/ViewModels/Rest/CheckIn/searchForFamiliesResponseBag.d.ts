@@ -21,7 +21,7 @@
 // </copyright>
 //
 
-import { FamilySearchItemBag } from "@Obsidian/ViewModels/CheckIn/familySearchItemBag";
+import { FamilyBag } from "@Obsidian/ViewModels/CheckIn/familyBag";
 
 /**
  * The response that will be returned by the SearchForFamilies check-in
@@ -29,5 +29,5 @@ import { FamilySearchItemBag } from "@Obsidian/ViewModels/CheckIn/familySearchIt
  */
 export type SearchForFamiliesResponseBag = {
     /** Gets or sets the families that matched the search request. */
-    families?: FamilySearchItemBag[] | null;
+    families?: FamilyBag[] | null;
 };

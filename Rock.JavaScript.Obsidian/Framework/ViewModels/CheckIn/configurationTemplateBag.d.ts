@@ -23,9 +23,12 @@
 
 import { Guid } from "@Obsidian/Types";
 
-/** The summary information about a single check-in configuration. */
-export type ConfigurationItemSummaryBag = {
-    /** Gets or sets the unique identifier of this check-in configuration. */
+/** The summary information about a single check-in configuration template. */
+export type ConfigurationTemplateBag = {
+    /**
+     * Gets or sets the unique identifier of this check-in configuration
+     * template.
+     */
     guid?: Guid | null;
 
     /** Gets or sets the icon CSS class defined on the check-in configuration. */

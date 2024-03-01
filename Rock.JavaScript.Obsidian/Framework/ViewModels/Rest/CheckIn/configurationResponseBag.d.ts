@@ -21,16 +21,14 @@
 // </copyright>
 //
 
-import { Guid } from "@Obsidian/Types";
+import { ConfigurationAreaBag } from "@Obsidian/ViewModels/CheckIn/configurationAreaBag";
+import { ConfigurationTemplateBag } from "@Obsidian/ViewModels/CheckIn/configurationTemplateBag";
 
-/**
- * The request parameters to use when requesting the list of valid
- * check-in configurations.
- */
-export type ListConfigurationsOptionsBag = {
-    /**
-     * Gets or sets the kiosk unique identifier to use when filtering
-     * the configuration list.
-     */
-    kioskGuid?: Guid | null;
+/** The response to the request to get all check-in configuration data. */
+export type ConfigurationResponseBag = {
+    /** Gets or sets the areas that are valid for use with check-in. */
+    areas?: ConfigurationAreaBag[] | null;
+
+    /** Gets or sets the templates that are valid for use with check-in. */
+    templates?: ConfigurationTemplateBag[] | null;
 };

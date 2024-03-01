@@ -23,11 +23,14 @@
 
 import { Guid } from "@Obsidian/Types";
 
-/**
- * A search result item that represents a single family member in check-in
- * family search.
- */
-export type FamilyMemberSearchItemBag = {
+/** A family member that identifies a single individual for check-in. */
+export type PersonBag = {
+    /** Gets or sets the age. */
+    age?: number | null;
+
+    /** Gets or sets the precise age as a floating point number. */
+    agePrecise?: number | null;
+
     /**
      * Gets or sets the birth date. If this date is used, the time zone
      * information should be thrown away so that just the raw date is
@@ -45,8 +48,29 @@ export type FamilyMemberSearchItemBag = {
     /** Gets or sets the birth year. */
     birthYear?: number | null;
 
+    /**
+     * Gets or sets the primary family unique identifier this person
+     * belongs to.
+     */
+    familyGuid?: Guid | null;
+
+    /** Gets or sets the first name. */
+    firstName?: string | null;
+
+    /** Gets or sets the full name. */
+    fullName?: string | null;
+
     /** Gets or sets the person's gender. */
     gender: number;
+
+    /** Gets or sets the grade formatted for display purposes. */
+    gradeFormatted?: string | null;
+
+    /**
+     * Gets or sets the grade offset, this should only be used for sorting
+     * purposes. To display the grade use the GradeFormatted property.
+     */
+    gradeOffset?: number | null;
 
     /** Gets or sets the unique identifier of the Person. */
     guid?: Guid | null;
@@ -59,6 +83,9 @@ export type FamilyMemberSearchItemBag = {
 
     /** Gets or sets the person's nick name. */
     nickName?: string | null;
+
+    /** Gets or sets the photo URL. */
+    photoUrl?: string | null;
 
     /** Gets or sets the group role order. */
     roleOrder: number;

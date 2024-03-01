@@ -39,7 +39,7 @@
                 </div>
             </div>
 
-            <hr style="margin-left: calc(var(--panel-body-padding, 0px) * -1); margin-right: calc(var(--panel-body-padding, 0px) * -1);" />
+            <hr style="margin-left: calc(var(--panel-body-padding, 0) * -1); margin-right: calc(var(--panel-body-padding, 0) * -1);" />
 
             <div>
                 <div class="col-md-6">
@@ -127,8 +127,8 @@
                         <ol>
                             <li v-for="item in selectFamilyData.people" :key="item.person!.guid!">
                                 {{ item.person?.fullName }}
-                                <ul v-if="item.selectedOptions && item.selectedOptions.length > 0">
-                                    <li v-for="option in item.selectedOptions">
+                                <ul v-if="item.selectedOpportunities && item.selectedOpportunities.length > 0">
+                                    <li v-for="option in item.selectedOpportunities">
                                         {{ getSelectedOptions(option) }}
                                     </li>
                                 </ul>
@@ -136,11 +136,11 @@
                         </ol>
                     </div>
 
-                    <div v-if="selectFamilyData.existingAttendance">
+                    <div v-if="selectFamilyData.currentlyCheckedInAttendances">
                         <div>Already checked in:</div>
 
                         <ol>
-                            <li v-for="item in selectFamilyData.existingAttendance" :key="item.guid!">
+                            <li v-for="item in selectFamilyData.currentlyCheckedInAttendances" :key="item.guid!">
                                 {{ item.fullName }} (Group="{{ item.group!.name }}"; Location="{{ item.location!.name }}"; Schedule="{{ item.schedule!.name }}")
                             </li>
                         </ol>
@@ -169,16 +169,15 @@
     import TextBox from "@Obsidian/Controls/textBox.obs";
     import { useConfigurationValues, useInvokeBlockAction } from "@Obsidian/Utility/block";
     import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
-    import { ConfigurationItemSummaryBag } from "@Obsidian/ViewModels/CheckIn/configurationItemSummaryBag";
+    import { ConfigurationTemplateBag } from "@Obsidian/ViewModels/CheckIn/configurationTemplateBag";
     import { FamilySearchMode, FamilySearchModeDescription } from "@Obsidian/Enums/CheckIn/familySearchMode";
-    import { FamilySearchItemBag } from "@Obsidian/ViewModels/CheckIn/familySearchItemBag";
-    import { PotentialAttendeeBag } from "@Obsidian/ViewModels/CheckIn/potentialAttendeeBag";
-    import { ListConfigurationsOptionsBag } from "@Obsidian/ViewModels/Rest/CheckIn/listConfigurationsOptionsBag";
-    import { ListConfigurationsResponseBag } from "@Obsidian/ViewModels/Rest/CheckIn/listConfigurationsResponseBag";
+    import { FamilyBag } from "@Obsidian/ViewModels/CheckIn/familyBag";
+    import { ConfigurationOptionsBag } from "@Obsidian/ViewModels/Rest/CheckIn/configurationOptionsBag";
+    import { ConfigurationResponseBag } from "@Obsidian/ViewModels/Rest/CheckIn/configurationResponseBag";
     import { SearchForFamiliesOptionsBag } from "@Obsidian/ViewModels/Rest/CheckIn/searchForFamiliesOptionsBag";
     import { SearchForFamiliesResponseBag } from "@Obsidian/ViewModels/Rest/CheckIn/searchForFamiliesResponseBag";
-    import { ListFamilyMembersOptionsBag } from "@Obsidian/ViewModels/Rest/CheckIn/listFamilyMembersOptionsBag";
-    import { ListFamilyMembersResponseBag } from "@Obsidian/ViewModels/Rest/CheckIn/listFamilyMembersResponseBag";
+    import { FamilyMembersOptionsBag } from "@Obsidian/ViewModels/Rest/CheckIn/familyMembersOptionsBag";
+    import { FamilyMembersResponseBag } from "@Obsidian/ViewModels/Rest/CheckIn/familyMembersResponseBag";
     import { computed, ref, watch } from "vue";
     import { enumToListItemBag } from "@Obsidian/Utility/enumUtils";
     import { toNumber, toNumberOrNull } from "@Obsidian/Utility/numberUtils";
@@ -187,12 +186,12 @@
     import { useHttp } from "@Obsidian/Utility/http";
     import { Guid } from "@Obsidian/Types";
     import NumberUpDown from "@Obsidian/Controls/numberUpDown.obs";
-    import { SelectedOptionsBag } from "@Obsidian/ViewModels/CheckIn/selectedOptionsBag";
+    import { OpportunitySelectionBag } from "@Obsidian/ViewModels/CheckIn/opportunitySelectionBag";
 
     // #region Types
 
     type CheckInSimulatorOptionsBag = {
-        configurations: ConfigurationItemSummaryBag[] | null;
+        configurations: ConfigurationTemplateBag[] | null;
 
         kiosks: ListItemBag[] | null;
     };
@@ -232,11 +231,11 @@
     const familySearchTypeItems = enumToListItemBag(FamilySearchModeDescription);
     const familySearchType = ref(familySearchTypeItems[0]);
     const familySearchStep = new CheckInStep(executeFamilySearchStep);
-    const familySearchData = ref<FamilySearchItemBag[]>();
+    const familySearchData = ref<FamilyBag[]>();
 
     const selectFamilyStep = new CheckInStep(executeSelectFamilyStep, familySearchStep);
     const selectFamilyNumber = ref(1);
-    const selectFamilyData = ref<ListFamilyMembersResponseBag>();
+    const selectFamilyData = ref<FamilyMembersResponseBag>();
 
     // #endregion
 
@@ -381,19 +380,19 @@
             return;
         }
 
-        const request: ListConfigurationsOptionsBag = {
+        const request: ConfigurationOptionsBag = {
             kioskGuid: kioskGuid.value
         };
 
-        const response = await http.post<ListConfigurationsResponseBag>("/api/v2/checkin/ListConfigurations", undefined, request);
+        const response = await http.post<ConfigurationResponseBag>("/api/v2/checkin/Configuration", undefined, request);
 
         if (response.isSuccess && response.data?.areas) {
             primaryAreas.value = response.data.areas
-                .filter(a => (a.primaryConfigurationGuids ?? []).includes(configurationGuid.value))
+                .filter(a => (a.primaryTemplateGuids ?? []).includes(configurationGuid.value))
                 .map(a => ({ value: a.guid, text: a.name }));
 
             secondaryAreas.value = response.data.areas
-                .filter(a => !(a.primaryConfigurationGuids ?? []).includes(configurationGuid.value))
+                .filter(a => !(a.primaryTemplateGuids ?? []).includes(configurationGuid.value))
                 .map(a => ({ value: a.guid, text: a.name }));
         }
     }
@@ -424,7 +423,7 @@
         }
     }
 
-    function getSelectedOptions(item: SelectedOptionsBag): string {
+    function getSelectedOptions(item: OpportunitySelectionBag): string {
         const options: string[] = [];
 
         if (item.area) {
@@ -475,14 +474,14 @@
             throw new Error("Invalid family selected.");
         }
 
-        const request: ListFamilyMembersOptionsBag = {
+        const request: FamilyMembersOptionsBag = {
             configurationTemplateGuid: configurationGuid.value,
             kioskGuid: kioskGuid.value,
             areaGuids: areaGuids.value,
             familyGuid: familySearchData.value[selectFamilyNumber.value - 1].guid
         };
 
-        const response = await http.post<ListFamilyMembersResponseBag>("/api/v2/checkin/FamilyMembers", undefined, request);
+        const response = await http.post<FamilyMembersResponseBag>("/api/v2/checkin/FamilyMembers", undefined, request);
 
         if (response.isSuccess && response.data) {
             selectFamilyData.value = response.data;

@@ -21,23 +21,23 @@
 // </copyright>
 //
 
-import { Guid } from "@Obsidian/Types";
-import { FamilyMemberSearchItemBag } from "@Obsidian/ViewModels/CheckIn/familyMemberSearchItemBag";
+import { OpportunitySelectionBag } from "@Obsidian/ViewModels/CheckIn/opportunitySelectionBag";
+import { PersonBag } from "@Obsidian/ViewModels/CheckIn/personBag";
 
-/**
- * A search result item representing a single family in check-in
- * family search.
- */
-export type FamilySearchItemBag = {
-    /** Gets or sets the family campus unique identifier. */
-    campusGuid?: Guid | null;
+/** Details about a single attendee being considered for check-in. */
+export type AttendeeBag = {
+    /** Gets or sets the message describing why this person is not available. */
+    disabledMessage?: string | null;
 
-    /** Gets or sets the unique identifier of the family Group. */
-    guid?: Guid | null;
+    /** Gets or sets a value indicating whether this person is disabled. */
+    isDisabled: boolean;
 
-    /** Gets or sets the family members. */
-    members?: FamilyMemberSearchItemBag[] | null;
+    /** Gets or sets a value indicating whether this instance is already selected. */
+    isPreSelected: boolean;
 
-    /** Gets or sets the name of the family. */
-    name?: string | null;
+    /** Gets or sets the person represented by this item. */
+    person?: PersonBag | null;
+
+    /** Gets or sets the selected opportunities for this attendee. */
+    selectedOpportunities?: OpportunitySelectionBag[] | null;
 };

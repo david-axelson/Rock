@@ -21,14 +21,22 @@
 // </copyright>
 //
 
-import { AreaItemSummaryBag } from "@Obsidian/ViewModels/CheckIn/areaItemSummaryBag";
-import { ConfigurationItemSummaryBag } from "@Obsidian/ViewModels/CheckIn/configurationItemSummaryBag";
+import { CheckInItemBag } from "@Obsidian/ViewModels/CheckIn/checkInItemBag";
 
-/** The configurations that are valid for use with check-in. */
-export type ListConfigurationsResponseBag = {
-    /** Gets or sets the areas that are valid for use with check-in. */
-    areas?: AreaItemSummaryBag[] | null;
+/**
+ * A set of items that represent the current selections that should be
+ * made for a person.
+ */
+export type OpportunitySelectionBag = {
+    /** Gets or sets the area. */
+    area?: CheckInItemBag | null;
 
-    /** Gets or sets the configurations that are valid for use with check-in. */
-    configurations?: ConfigurationItemSummaryBag[] | null;
+    /** Gets or sets the group. */
+    group?: CheckInItemBag | null;
+
+    /** Gets or sets the location. */
+    location?: CheckInItemBag | null;
+
+    /** Gets or sets the schedule. */
+    schedule?: CheckInItemBag | null;
 };

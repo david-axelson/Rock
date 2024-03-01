@@ -21,20 +21,20 @@
 // </copyright>
 //
 
-import { Guid } from "@Obsidian/Types";
+import { AttendanceBag } from "@Obsidian/ViewModels/CheckIn/attendanceBag";
+import { AttendeeBag } from "@Obsidian/ViewModels/CheckIn/attendeeBag";
 
-/** The summary information about a single check-in area. */
-export type AreaItemSummaryBag = {
-    /** Gets or sets the unique identifier of this check-in area. */
-    guid?: Guid | null;
-
-    /** Gets or sets the name of this check-in area. */
-    name?: string | null;
+/**
+ * The response that will be returned by the list family members check-in
+ * REST endpoint.
+ */
+export type FamilyMembersResponseBag = {
+    /** Gets or sets the current attendance records that can be checked out. */
+    currentlyCheckedInAttendances?: AttendanceBag[] | null;
 
     /**
-     * Gets or sets the configuration unique identifiers that are
-     * considered primary for this area. A primary configuration is
-     * one that this area is a descendant of.
+     * Gets or sets the people that can be potentially checked in for
+     * the family.
      */
-    primaryConfigurationGuids?: Guid[] | null;
+    people?: AttendeeBag[] | null;
 };

@@ -30,11 +30,11 @@ import { Guid } from "@Obsidian/Types";
  */
 export type SearchForFamiliesOptionsBag = {
     /**
-     * Gets or sets the check-in configuration unique identifier. This
-     * identifies the configuration that should be used when validating
-     * the search and compiling results.
+     * Gets or sets the check-in configuration template unique identifier.
+     * This identifies the configuration that should be used when
+     * validating the search and compiling results.
      */
-    configurationGuid?: Guid | null;
+    configurationTemplateGuid?: Guid | null;
 
     /** Gets or sets the optional kiosk unique identifier. */
     kioskGuid?: Guid | null;

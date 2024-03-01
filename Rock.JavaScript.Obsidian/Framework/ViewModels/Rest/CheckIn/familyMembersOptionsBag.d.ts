@@ -21,22 +21,25 @@
 // </copyright>
 //
 
-import { CheckInItemBag } from "@Obsidian/ViewModels/CheckIn/checkInItemBag";
+import { Guid } from "@Obsidian/Types";
 
 /**
- * A set of items that represent the current selections that should be
- * made for a person.
+ * The request parameters to use when requesting the list of
+ * members for a family.
  */
-export type SelectedOptionsBag = {
-    /** Gets or sets the area. */
-    area?: CheckInItemBag | null;
+export type FamilyMembersOptionsBag = {
+    /**
+     * Gets or sets the area unique identifiers that will be used to
+     * determine which options are available for each family member.
+     */
+    areaGuids?: Guid[] | null;
 
-    /** Gets or sets the group. */
-    group?: CheckInItemBag | null;
+    /** Gets or sets the configuration template unique identifier. */
+    configurationTemplateGuid?: Guid | null;
 
-    /** Gets or sets the location. */
-    location?: CheckInItemBag | null;
+    /** Gets or sets the family unique identifier. */
+    familyGuid?: Guid | null;
 
-    /** Gets or sets the schedule. */
-    schedule?: CheckInItemBag | null;
+    /** Gets or sets the kiosk unique identifier. */
+    kioskGuid?: Guid | null;
 };
