@@ -56,8 +56,15 @@ namespace Rock.CheckIn.v2
         public TemplateConfigurationData TemplateConfiguration { get; }
 
         /// <summary>
+        /// <para>
         /// Gets the attendees that have been loaded as part of this session.
         /// This is set after calling one of the LoadAttendees methods.
+        /// </para>
+        /// <para>
+        /// This property does not persist between API calls since a new session
+        /// object is created each time. So the list of attendees would not be
+        /// available when, for example, saving attendance.
+        /// </para>
         /// </summary>
         /// <value>The attendees.</value>
         public IReadOnlyList<Attendee> Attendees { get; private set; }
