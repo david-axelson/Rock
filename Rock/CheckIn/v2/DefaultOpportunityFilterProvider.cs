@@ -20,7 +20,6 @@ using System.Collections.Generic;
 using System.Linq;
 
 using Rock.CheckIn.v2.Filters;
-using Rock.Observability;
 
 namespace Rock.CheckIn.v2
 {
@@ -99,31 +98,28 @@ namespace Rock.CheckIn.v2
         /// <param name="person">The person to use when filtering opportunities.</param>
         public virtual void FilterPersonOpportunities( Attendee person )
         {
-            using ( var activity = ObservabilityHelper.StartActivity( $"Filter Opportunities For {person.Person.NickName}" ) )
+            var groupFilters = GetGroupFilters( person );
+
+            if ( groupFilters.Count > 0 )
             {
-                var groupFilters = GetGroupFilters( person );
+                person.Opportunities.Groups
+                    .RemoveAll( g => groupFilters.Any( f => !f.IsGroupValid( g ) ) );
+            }
 
-                if ( groupFilters.Count > 0 )
-                {
-                    person.Opportunities.Groups
-                        .RemoveAll( g => groupFilters.Any( f => !f.IsGroupValid( g ) ) );
-                }
+            var locationFilters = GetLocationFilters(  person );
 
-                var locationFilters = GetLocationFilters(  person );
+            if ( locationFilters.Count > 0 )
+            {
+                person.Opportunities.Locations
+                    .RemoveAll( l => locationFilters.Any( f => !f.IsLocationValid( l ) ) );
+            }
 
-                if ( locationFilters.Count > 0 )
-                {
-                    person.Opportunities.Locations
-                        .RemoveAll( l => locationFilters.Any( f => !f.IsLocationValid( l ) ) );
-                }
+            var scheduleFilters = GetScheduleFilters(  person );
 
-                var scheduleFilters = GetScheduleFilters(  person );
-
-                if ( scheduleFilters.Count > 0 )
-                {
-                    person.Opportunities.Schedules
-                        .RemoveAll( l => scheduleFilters.Any( f => !f.IsScheduleValid( l ) ) );
-                }
+            if ( scheduleFilters.Count > 0 )
+            {
+                person.Opportunities.Schedules
+                    .RemoveAll( l => scheduleFilters.Any( f => !f.IsScheduleValid( l ) ) );
             }
         }
 

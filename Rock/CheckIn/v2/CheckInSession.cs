@@ -56,6 +56,13 @@ namespace Rock.CheckIn.v2
         public TemplateConfigurationData TemplateConfiguration { get; }
 
         /// <summary>
+        /// Gets the attendees that have been loaded as part of this session.
+        /// This is set after calling one of the LoadAttendees methods.
+        /// </summary>
+        /// <value>The attendees.</value>
+        public IReadOnlyList<Attendee> Attendees { get; private set; }
+
+        /// <summary>
         /// Gets the conversion provider to be used with this instance.
         /// </summary>
         /// <value>The conversion provider.</value>
@@ -142,31 +149,77 @@ namespace Rock.CheckIn.v2
                 throw new CheckInMessageException( "Search term must not be empty." );
             }
 
-            var familyQry = SearchProvider.GetFamilySearchQuery( searchTerm, searchType );
-            var familyIdQry = SearchProvider.GetSortedFamilyIdSearchQuery( familyQry, sortByCampus );
-            var familyMemberQry = SearchProvider.GetFamilyMemberSearchQuery( familyIdQry );
+            using ( var activity = ObservabilityHelper.StartActivity( "Search for Families" ) )
+            {
+                activity?.AddTag( "rock.checkin.search_provider", SearchProvider.GetType().FullName );
 
-            return SearchProvider.GetFamilySearchItemBags( familyMemberQry );
+                var familyQry = SearchProvider.GetFamilySearchQuery( searchTerm, searchType );
+                var familyIdQry = SearchProvider.GetSortedFamilyIdSearchQuery( familyQry, sortByCampus );
+                var familyMemberQry = SearchProvider.GetFamilyMemberSearchQuery( familyIdQry );
+
+                return SearchProvider.GetFamilySearchItemBags( familyMemberQry );
+            }
         }
 
         /// <summary>
-        /// Find all family members that match the specified family unique
+        /// Loads the attendee information for the specified family. This will
+        /// populate the <see cref="Attendees"/> property and perform all
+        /// filtering and default selections.
+        /// </summary>
+        /// <param name="familyGuid">The family unique identifier to load.</param>
+        /// <param name="possibleAreas">The possible areas that are to be considered when generating the opportunities.</param>
+        /// <param name="kiosk">The optional kiosk to use.</param>
+        /// <param name="locations">The list of locations to use.</param>
+        public void LoadAndPrepareAttendeesForFamily( Guid familyGuid, IReadOnlyCollection<GroupTypeCache> possibleAreas, DeviceCache kiosk, IReadOnlyCollection<NamedLocationCache> locations )
+        {
+            var opportunities = Director.GetAllOpportunities( possibleAreas, kiosk, locations );
+            var groupMemberQry = GetGroupMembersQueryForFamily( familyGuid );
+            var people = GetPersonBags( familyGuid, groupMemberQry );
+
+            LoadAttendees( people, opportunities );
+            PrepareAttendees();
+        }
+
+        /// <summary>
+        /// Loads the attendee information for the specified family. This will
+        /// populate the <see cref="Attendees"/> property and perform all
+        /// filtering and default selections.
+        /// </summary>
+        /// <param name="personGuid"></param>
+        /// <param name="familyGuid">The family unique identifier to load.</param>
+        /// <param name="possibleAreas">The possible areas that are to be considered when generating the opportunities.</param>
+        /// <param name="kiosk">The optional kiosk to use.</param>
+        /// <param name="locations">The list of locations to use.</param>
+        public void LoadAndPrepareAttendeesForPerson( Guid personGuid, Guid? familyGuid, IReadOnlyCollection<GroupTypeCache> possibleAreas, DeviceCache kiosk, IReadOnlyCollection<NamedLocationCache> locations )
+        {
+            var checkInOpportunities = Director.GetAllOpportunities( possibleAreas, kiosk, locations );
+            var familyMembersQry = GetGroupMemberQueryForPerson( personGuid, familyGuid );
+            var people = GetPersonBags( Guid.Empty, familyMembersQry );
+
+            LoadAttendees( people, checkInOpportunities );
+            PrepareAttendees();
+        }
+
+        /// <summary>
+        /// Find all group members that match the specified family unique
         /// identifier for check-in. This normally includes immediate family
         /// members as well as people associated to the family with one of
         /// the configured "can check-in" known relationships.
         /// </summary>
         /// <param name="familyGuid">The family unique identifier.</param>
         /// <returns>A queryable that can be used to load all the group members associated with the family.</returns>
-        public IQueryable<GroupMember> GetFamilyMembersForFamilyQuery( Guid familyGuid )
+        public IQueryable<GroupMember> GetGroupMembersQueryForFamily( Guid familyGuid )
         {
-            using ( var activity = ObservabilityHelper.StartActivity( "Get Family Members Query" ) )
+            using ( var activity = ObservabilityHelper.StartActivity( "Get Group Members Query For Family" ) )
             {
-                return SearchProvider.GetFamilyMembersForFamilyQuery( familyGuid );
+                activity?.AddTag( "rock.checkin.search_provider", SearchProvider.GetType().FullName );
+
+                return SearchProvider.GetGroupMembersForFamilyQuery( familyGuid );
             }
         }
 
         /// <summary>
-        /// Find the family member that matches the specified person unique
+        /// Find the group member that matches the specified person unique
         /// identifier for check-in. If the family unique identifier is specified
         /// then it is used to sort the result so the GroupMember record
         /// associated with that family is the one used. If the family unique
@@ -174,27 +227,31 @@ namespace Rock.CheckIn.v2
         /// record will be returned.
         /// </summary>
         /// <param name="personGuid">The person unique identifier.</param>
-        /// <param name="familyGuid">The family unique identifier.</param>
-        /// <returns>A queryable that can be used to load this person from the family.</returns>
-        public IQueryable<GroupMember> GetPersonForFamilyQuery( Guid personGuid, Guid? familyGuid )
+        /// <param name="familyGuid">The family unique identifier used to sort the records.</param>
+        /// <returns>A queryable that can be used to load this person.</returns>
+        public IQueryable<GroupMember> GetGroupMemberQueryForPerson( Guid personGuid, Guid? familyGuid )
         {
-            using ( var activity = ObservabilityHelper.StartActivity( "Get Person Query" ) )
+            using ( var activity = ObservabilityHelper.StartActivity( "Get Group Member Query For Person" ) )
             {
+                activity?.AddTag( "rock.checkin.search_provider", SearchProvider.GetType().FullName );
+
                 return SearchProvider.GetPersonForFamilyQuery( personGuid, familyGuid );
             }
         }
 
         /// <summary>
-        /// Converts the family members into bags that represent the data
-        /// required for check-in.
+        /// Converts the group members into bags that represent the people
+        /// for check-in.
         /// </summary>
         /// <param name="familyGuid">The primary family unique identifier, this is used to resolve duplicates where a family member is also marked as can check-in.</param>
         /// <param name="groupMembers">The <see cref="GroupMember"/> objects to be converted to bags.</param>
         /// <returns>A collection of <see cref="PersonBag"/> objects.</returns>
-        public List<PersonBag> GetFamilyMemberBags( Guid familyGuid, IEnumerable<GroupMember> groupMembers )
+        public List<PersonBag> GetPersonBags( Guid familyGuid, IEnumerable<GroupMember> groupMembers )
         {
-            using ( var activity = ObservabilityHelper.StartActivity( "Get Family Member Bags" ) )
+            using ( var activity = ObservabilityHelper.StartActivity( "Get Person Bags" ) )
             {
+                activity?.AddTag( "rock.checkin.conversion_provider", ConversionProvider.GetType().FullName );
+
                 return ConversionProvider.GetFamilyMemberBags( familyGuid, groupMembers );
             }
         }
@@ -205,24 +262,48 @@ namespace Rock.CheckIn.v2
         /// <param name="person">The person whose opportunities will be filtered.</param>
         public void FilterPersonOpportunities( Attendee person )
         {
-            OpportunityFilterProvider.FilterPersonOpportunities( person );
-            OpportunityFilterProvider.RemoveEmptyOpportunities( person );
+            using ( var activity = ObservabilityHelper.StartActivity( $"Filter Opportunities For {person.Person.NickName}" ) )
+            {
+                activity?.AddTag( "rock.checkin.opportunity_filter_provider", OpportunityFilterProvider.GetType().FullName );
+
+                OpportunityFilterProvider.FilterPersonOpportunities( person );
+                OpportunityFilterProvider.RemoveEmptyOpportunities( person );
+            }
         }
 
         /// <summary>
-        /// Gets the attendee item information for the family members. This also
+        /// Loads the attendee information for the family members. This also
         /// gathers all required information to later perform filtering on the
         /// attendees.
         /// </summary>
         /// <param name="people">The <see cref="PersonBag"/> objects to be used when constructing the <see cref="Attendee"/> objects that will wrap them.</param>
         /// <param name="baseOpportunities">The opportunity collection to clone onto each attendee.</param>
-        /// <returns>A collection of <see cref="Attendee"/> objects.</returns>
-        public List<Attendee> GetAttendeeItems( IReadOnlyCollection<PersonBag> people, OpportunityCollection baseOpportunities )
+        public void LoadAttendees( IReadOnlyCollection<PersonBag> people, OpportunityCollection baseOpportunities )
         {
-            var preSelectCutoff = RockDateTime.Today.AddDays( Math.Min( -1, 0 - TemplateConfiguration.AutoSelectDaysBack ) );
-            var recentAttendance = GetRecentAttendance( preSelectCutoff, people.Select( fm => fm.Guid ) );
+            using ( var activity = ObservabilityHelper.StartActivity( $"Get Attendee Items" ) )
+            {
+                activity?.AddTag( "rock.checkin.conversion_provider", ConversionProvider.GetType().FullName );
 
-            return ConversionProvider.GetAttendeeItems( people, baseOpportunities, recentAttendance );
+                var preSelectCutoff = RockDateTime.Today.AddDays( Math.Min( -1, 0 - TemplateConfiguration.AutoSelectDaysBack ) );
+                var recentAttendance = GetRecentAttendance( preSelectCutoff, people.Select( fm => fm.Guid ) );
+
+                var attendees = ConversionProvider.GetAttendeeItems( people, baseOpportunities, recentAttendance );
+
+                Attendees = attendees;
+            }
+        }
+
+        /// <summary>
+        /// Prepares all of the <see cref="Attendees"/> by filtering and
+        /// applying all default selections.
+        /// </summary>
+        public void PrepareAttendees()
+        {
+            foreach ( var attendee in Attendees )
+            {
+                FilterPersonOpportunities( attendee );
+                SetDefaultSelectionsForAttendee( attendee );
+            }
         }
 
         /// <summary>
@@ -236,6 +317,8 @@ namespace Rock.CheckIn.v2
         {
             using ( var activity = ObservabilityHelper.StartActivity( $"Set Defaults for {attendee.Person.NickName}" ) )
             {
+                activity?.AddTag( "rock.checkin.selection_provider", SelectionProvider.GetType().FullName );
+
                 if ( TemplateConfiguration.AutoSelect == AutoSelectMode.PeopleAndAreaGroupLocation )
                 {
                     attendee.SelectedOpportunities = SelectionProvider.GetDefaultSelectionsForPerson( attendee );
@@ -252,69 +335,78 @@ namespace Rock.CheckIn.v2
         /// <see cref="Attendee.RecentAttendances"/> property has
         /// been populated for each attendee.
         /// </summary>
-        /// <param name="attendees">The attendees.</param>
         /// <returns>A list of attendance bags.</returns>
-        public List<AttendanceBag> GetCurrentAttendanceBags( IReadOnlyCollection<Attendee> attendees )
+        public List<AttendanceBag> GetCurrentAttendanceBags()
         {
-            var checkedInAttendances = new List<AttendanceBag>();
-            var today = RockDateTime.Today;
-
-            foreach ( var attendee in attendees )
+            using ( var activity = ObservabilityHelper.StartActivity( "Get Current Attendance Bags" ) )
             {
-                var activeAttendances = attendee.RecentAttendances
-                    .Where( a => a.StartDateTime >= today
-                        && !a.EndDateTime.HasValue )
-                    .ToList();
+                activity?.AddTag( "rock.checkin.conversion_provider", ConversionProvider.GetType().FullName );
 
-                // We could get fancy and group things to try to improve
-                // performance a tiny bit, but it would be extremely unsual
-                // for a person to be checked into more than one thing so we
-                // will just do a simple loop.
-                foreach ( var attendance in activeAttendances )
+                var checkedInAttendances = new List<AttendanceBag>();
+                var today = RockDateTime.Today;
+
+                foreach ( var attendee in Attendees )
                 {
-                    var area = GroupTypeCache.Get( attendance.GroupTypeGuid, RockContext );
-                    var group = GroupCache.Get( attendance.GroupGuid, RockContext );
-                    var location = NamedLocationCache.Get( attendance.LocationGuid, RockContext );
-                    var schedule = NamedScheduleCache.Get( attendance.ScheduleGuid, RockContext );
+                    var activeAttendances = attendee.RecentAttendances
+                        .Where( a => a.StartDateTime >= today
+                            && !a.EndDateTime.HasValue )
+                        .ToList();
 
-                    if ( area == null || group == null || location == null || schedule == null )
+                    // We could get fancy and group things to try to improve
+                    // performance a tiny bit, but it would be extremely unsual
+                    // for a person to be checked into more than one thing so we
+                    // will just do a simple loop.
+                    foreach ( var attendance in activeAttendances )
                     {
-                        continue;
+                        var area = GroupTypeCache.Get( attendance.GroupTypeGuid, RockContext );
+                        var group = GroupCache.Get( attendance.GroupGuid, RockContext );
+                        var location = NamedLocationCache.Get( attendance.LocationGuid, RockContext );
+                        var schedule = NamedScheduleCache.Get( attendance.ScheduleGuid, RockContext );
+
+                        if ( area == null || group == null || location == null || schedule == null )
+                        {
+                            continue;
+                        }
+
+                        var campusId = location.GetCampusIdForLocation();
+                        var now = campusId.HasValue
+                            ? CampusCache.Get( campusId.Value )?.CurrentDateTime ?? RockDateTime.Now
+                            : RockDateTime.Now;
+
+                        if ( !schedule.WasScheduleOrCheckInActiveForCheckOut( now ) )
+                        {
+                            continue;
+                        }
+
+                        checkedInAttendances.Add( ConversionProvider.GetAttendanceBag(
+                            attendance,
+                            attendee,
+                            area,
+                            group,
+                            location,
+                            schedule ) );
                     }
-
-                    var campusId = location.GetCampusIdForLocation();
-                    var now = campusId.HasValue
-                        ? CampusCache.Get( campusId.Value )?.CurrentDateTime ?? RockDateTime.Now
-                        : RockDateTime.Now;
-
-                    if ( !schedule.WasScheduleOrCheckInActiveForCheckOut( now ) )
-                    {
-                        continue;
-                    }
-
-                    checkedInAttendances.Add( ConversionProvider.GetAttendanceBag(
-                        attendance,
-                        attendee,
-                        area,
-                        group,
-                        location,
-                        schedule ) );
                 }
-            }
 
-            return checkedInAttendances;
+                return checkedInAttendances;
+            }
         }
 
         /// <summary>
-        /// Gets the potential attendee bags from the set of attendee items.
+        /// Gets the attendee bags from the <see cref="Attendees"/> loaded in
+        /// this session.
         /// </summary>
-        /// <param name="attendees">The attendees to be converted to bags.</param>
         /// <returns>A list of bags that represent the attendees.</returns>
-        public List<AttendeeBag> GetPotentialAttendeeBags( IEnumerable<Attendee> attendees )
+        public List<AttendeeBag> GetAttendeeBags()
         {
-            return attendees
-                .Select( a => ConversionProvider.GetPotentialAttendeeBag( a ) )
-                .ToList();
+            using ( var activity = ObservabilityHelper.StartActivity( "Get Attendee Bags" ) )
+            {
+                activity?.AddTag( "rock.checkin.conversion_provider", ConversionProvider.GetType().FullName );
+
+                return Attendees
+                    .Select( a => ConversionProvider.GetAttendeeBag( a ) )
+                    .ToList();
+            }
         }
 
         /// <summary>
@@ -324,7 +416,12 @@ namespace Rock.CheckIn.v2
         /// <returns>A list of bags that represent the attendees.</returns>
         public OpportunityCollectionBag GetOpportunityCollectionBag( OpportunityCollection opportunityCollection )
         {
-            return ConversionProvider.GetOpportunityCollectionBag( opportunityCollection );
+            using ( var activity = ObservabilityHelper.StartActivity( "Get Opportunity Collection Bag" ) )
+            {
+                activity?.AddTag( "rock.checkin.conversion_provider", ConversionProvider.GetType().FullName );
+
+                return ConversionProvider.GetOpportunityCollectionBag( opportunityCollection );
+            }
         }
 
         #endregion

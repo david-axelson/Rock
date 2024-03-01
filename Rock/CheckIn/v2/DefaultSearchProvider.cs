@@ -249,14 +249,14 @@ namespace Rock.CheckIn.v2
         }
 
         /// <summary>
-        /// Find all family members that match the specified family unique
+        /// Find all group members that match the specified family unique
         /// identifier for check-in. This normally includes immediate family
         /// members as well as people associated to the family with one of
         /// the configured "can check-in" known relationships.
         /// </summary>
         /// <param name="familyGuid">The family unique identifier.</param>
         /// <returns>A queryable that can be used to load all the group members associated with the family.</returns>
-        public virtual IQueryable<GroupMember> GetFamilyMembersForFamilyQuery( Guid familyGuid )
+        public virtual IQueryable<GroupMember> GetGroupMembersForFamilyQuery( Guid familyGuid )
         {
             var familyMemberQry = GetImmediateFamilyMembersQuery( familyGuid );
             var canCheckInFamilyMemberQry = GetCanCheckInFamilyMembersQuery( familyGuid );

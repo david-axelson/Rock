@@ -818,8 +818,8 @@
     <Compile Include="CheckIn\v2\LocationOpportunity.cs" />
     <Compile Include="CheckIn\v2\CheckInMessageException.cs" />
     <Compile Include="CheckIn\v2\OpportunityCollection.cs" />
-    <Compile Include="CheckIn\v2\DefaultOptionsSelectionProvider.cs" />
-    <Compile Include="CheckIn\v2\DefaultOptionsFilterProvider.cs" />
+    <Compile Include="CheckIn\v2\DefaultSelectionProvider.cs" />
+    <Compile Include="CheckIn\v2\DefaultOpportunityFilterProvider.cs" />
     <Compile Include="CheckIn\v2\Filters\AgeOpportunityFilter.cs" />
     <Compile Include="CheckIn\v2\Filters\DataViewOpportunityFilter.cs" />
     <Compile Include="CheckIn\v2\Filters\GenderOpportunityFilter.cs" />

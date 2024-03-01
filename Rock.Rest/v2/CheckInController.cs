@@ -170,6 +170,7 @@ namespace Rock.Rest.v2.Controllers
         {
             var configuration = GroupTypeCache.Get( options.ConfigurationTemplateGuid, _rockContext )?.GetCheckInConfiguration( _rockContext );
             var kiosk = DeviceCache.Get( options.KioskGuid, _rockContext );
+            var areas = options.AreaGuids.Select( guid => GroupTypeCache.Get( guid, _rockContext ) ).ToList();
 
             if ( configuration == null )
             {
@@ -186,25 +187,12 @@ namespace Rock.Rest.v2.Controllers
                 var director = new CheckInDirector( _rockContext );
                 var session = director.CreateSession( configuration );
 
-                var areas = options.AreaGuids.Select( guid => GroupTypeCache.Get( guid, _rockContext ) ).ToList();
-
-                var familyMembersQry = session.GetFamilyMembersForFamilyQuery( options.FamilyGuid );
-                var familyMembers = session.GetFamilyMemberBags( options.FamilyGuid, familyMembersQry );
-                var opportunities = director.GetAllOpportunities( areas, kiosk, null );
-
-                var people = session.GetAttendeeItems( familyMembers, opportunities );
-                var existingAttendance = session.GetCurrentAttendanceBags( people );
-
-                foreach ( var person in people )
-                {
-                    session.FilterPersonOpportunities( person );
-                    session.SetDefaultSelectionsForAttendee( person );
-                }
+                session.LoadAndPrepareAttendeesForFamily( options.FamilyGuid, areas, kiosk, null );
 
                 return Ok( new FamilyMembersResponseBag
                 {
-                    People = session.GetPotentialAttendeeBags( people ),
-                    CurrentlyCheckedInAttendances = existingAttendance
+                    People = session.GetAttendeeBags(),
+                    CurrentlyCheckedInAttendances = session.GetCurrentAttendanceBags()
                 } );
             }
             catch ( CheckInMessageException ex )
@@ -245,22 +233,16 @@ namespace Rock.Rest.v2.Controllers
                 var director = new CheckInDirector( _rockContext );
                 var session = director.CreateSession( configuration );
 
-                var familyMembersQry = session.GetPersonForFamilyQuery( options.PersonGuid, options.FamilyGuid );
-                var familyMembers = session.GetFamilyMemberBags( Guid.Empty, familyMembersQry );
-                var checkInOpportunities = director.GetAllOpportunities( areas, kiosk, null );
+                session.LoadAndPrepareAttendeesForPerson( options.PersonGuid, options.FamilyGuid, areas, kiosk, null );
 
-                var people = session.GetAttendeeItems( familyMembers, checkInOpportunities );
-
-                if ( people.Count == 0 )
+                if ( session.Attendees.Count == 0 )
                 {
-                    return BadRequest( "Person was not found or is not available for check-in." );
+                    return BadRequest( "Individual was not found or is not available for check-in." );
                 }
-
-                session.FilterPersonOpportunities( people[0] );
 
                 return Ok( new AttendeeOpportunitiesResponseBag
                 {
-                    Opportunities = session.GetOpportunityCollectionBag( people[0].Opportunities )
+                    Opportunities = session.GetOpportunityCollectionBag( session.Attendees[0].Opportunities )
                 } );
             }
             catch ( CheckInMessageException ex )
@@ -351,7 +333,7 @@ namespace Rock.Rest.v2.Controllers
                         {
                             var director = new CheckInDirector( rockContext );
                             var session = director.CreateSession( configuration );
-                            var familyMembersQry = session.GetFamilyMembersForFamilyQuery( options.FamilyGuid );
+                            var familyMembersQry = session.GetGroupMembersQueryForFamily( options.FamilyGuid );
                         }
                     } );
 
@@ -366,7 +348,7 @@ namespace Rock.Rest.v2.Controllers
                     {
                         var director = new CheckInDirector( rockContext );
                         var session = director.CreateSession( configuration );
-                        var familyMembersQry = session.GetFamilyMembersForFamilyQuery( options.FamilyGuid );
+                        var familyMembersQry = session.GetGroupMembersQueryForFamily( options.FamilyGuid );
 
                         familyMembers = familyMembersQry
                             .Include( fm => fm.Person )
@@ -374,7 +356,7 @@ namespace Rock.Rest.v2.Controllers
                             .Include( fm => fm.GroupRole )
                             .ToList();
 
-                        familyMemberBag = session.GetFamilyMemberBags( options.FamilyGuid, familyMembers ).First( fm => fm.FirstName == "Noah" );
+                        familyMemberBag = session.GetPersonBags( options.FamilyGuid, familyMembers ).First( fm => fm.FirstName == "Noah" );
                     }
 
                     var result = bench.Benchmark( () =>
@@ -384,7 +366,7 @@ namespace Rock.Rest.v2.Controllers
                             var director = new CheckInDirector( rockContext );
                             var session = director.CreateSession( configuration );
 
-                            var bags = session.GetFamilyMemberBags( options.FamilyGuid, familyMembers );
+                            var bags = session.GetPersonBags( options.FamilyGuid, familyMembers );
                         }
                     } );
 
@@ -431,9 +413,9 @@ namespace Rock.Rest.v2.Controllers
                     {
                         var director = new CheckInDirector( rockContext );
                         var session = director.CreateSession( configuration );
-                        var familyMembersQry = session.GetFamilyMembersForFamilyQuery( options.FamilyGuid );
+                        var familyMembersQry = session.GetGroupMembersQueryForFamily( options.FamilyGuid );
 
-                        familyMemberBag = session.GetFamilyMemberBags( options.FamilyGuid, familyMembersQry ).First( fm => fm.FirstName == "Noah" );
+                        familyMemberBag = session.GetPersonBags( options.FamilyGuid, familyMembersQry ).First( fm => fm.FirstName == "Noah" );
                         mainOpportunities = director.GetAllOpportunities( areas, kiosk, null );
                     }
 

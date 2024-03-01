@@ -235,7 +235,7 @@ namespace Rock.CheckIn.v2
         /// </summary>
         /// <param name="attendee">The attendee.</param>
         /// <returns>A new instance of <see cref="AttendeeBag"/>.</returns>
-        public virtual AttendeeBag GetPotentialAttendeeBag( Attendee attendee )
+        public virtual AttendeeBag GetAttendeeBag( Attendee attendee )
         {
             return new AttendeeBag
             {
