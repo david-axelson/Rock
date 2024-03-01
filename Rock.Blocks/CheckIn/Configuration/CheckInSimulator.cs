@@ -57,7 +57,7 @@ namespace Rock.Blocks.CheckIn.Configuration
 
                 return new CheckInSimulatorOptionsBag
                 {
-                    Configurations = director.GetConfigurationSummaries(),
+                    Configurations = director.GetConfigurationTemplateBags(),
                     Kiosks = DeviceCache.All()
                         .Where( d => d.DeviceTypeValueId == kioskDeviceValueId )
                         .OrderBy( d => d.Name )
@@ -73,7 +73,7 @@ namespace Rock.Blocks.CheckIn.Configuration
 
         private class CheckInSimulatorOptionsBag
         {
-            public List<ConfigurationItemSummaryBag> Configurations { get; set; }
+            public List<ConfigurationTemplateBag> Configurations { get; set; }
 
             public List<ListItemBag> Kiosks { get; set; }
         }

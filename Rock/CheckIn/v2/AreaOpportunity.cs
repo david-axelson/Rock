@@ -14,22 +14,20 @@
 // limitations under the License.
 // </copyright>
 //
-using System.Collections.Generic;
 
 using Rock.ViewModels.CheckIn;
 
-namespace Rock.ViewModels.Rest.CheckIn
+namespace Rock.CheckIn.v2
 {
     /// <summary>
-    /// The response that will be returned by the SearchForFamilies check-in
-    /// REST endpoint.
+    /// A representation of a single area that can be used for check-in.
     /// </summary>
-    public class SearchForFamiliesResponseBag
+    /// <remarks>
+    /// This exists for future compatibility so if we need to add any
+    /// properties we don't need to create a new type and invalidate all
+    /// existing method signatures.
+    /// </remarks>
+    internal class AreaOpportunity : AreaOpportunityBag
     {
-        /// <summary>
-        /// Gets or sets the families that matched the search request.
-        /// </summary>
-        /// <value>The families that matched the search request.</value>
-        public List<FamilyBag> Families { get; set; }
     }
 }

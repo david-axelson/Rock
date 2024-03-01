@@ -15,24 +15,38 @@
 // </copyright>
 //
 using System;
+using System.Collections.Generic;
 
 namespace Rock.ViewModels.CheckIn
 {
     /// <summary>
-    /// Defines a single generic check-in item.
+    /// A search result item representing a single family in check-in
+    /// family search.
     /// </summary>
-    public class CheckInItemBag
+    public class FamilyBag
     {
         /// <summary>
-        /// Gets or sets the unique identifier of this item.
+        /// Gets or sets the unique identifier of the family Group.
         /// </summary>
-        /// <value>The unique identifier.</value>
+        /// <value>The unique identifier of the family Group.</value>
         public Guid Guid { get; set; }
 
         /// <summary>
-        /// Gets or sets the display name of this item.
+        /// Gets or sets the name of the family.
         /// </summary>
-        /// <value>The display name.</value>
+        /// <value>The name of the family.</value>
         public string Name { get; set; }
+
+        /// <summary>
+        /// Gets or sets the family campus unique identifier.
+        /// </summary>
+        /// <value>The family campus unique identifier.</value>
+        public Guid? CampusGuid { get; set; }
+
+        /// <summary>
+        /// Gets or sets the family members.
+        /// </summary>
+        /// <value>The family members.</value>
+        public List<PersonBag> Members { get; set; }
     }
 }

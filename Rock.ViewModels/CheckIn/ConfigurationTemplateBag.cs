@@ -19,20 +19,27 @@ using System;
 namespace Rock.ViewModels.CheckIn
 {
     /// <summary>
-    /// Defines a single generic check-in item.
+    /// The summary information about a single check-in configuration template.
     /// </summary>
-    public class CheckInItemBag
+    public class ConfigurationTemplateBag
     {
         /// <summary>
-        /// Gets or sets the unique identifier of this item.
+        /// Gets or sets the unique identifier of this check-in configuration
+        /// template.
         /// </summary>
         /// <value>The unique identifier.</value>
         public Guid Guid { get; set; }
 
         /// <summary>
-        /// Gets or sets the display name of this item.
+        /// Gets or sets the name of this check-in configuration.
         /// </summary>
-        /// <value>The display name.</value>
+        /// <value>The name.</value>
         public string Name { get; set; }
+
+        /// <summary>
+        /// Gets or sets the icon CSS class defined on the check-in configuration.
+        /// </summary>
+        /// <value>The icon CSS class.</value>
+        public string IconCssClass { get; set; }
     }
 }

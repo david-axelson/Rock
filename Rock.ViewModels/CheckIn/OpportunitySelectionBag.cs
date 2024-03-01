@@ -14,25 +14,37 @@
 // limitations under the License.
 // </copyright>
 //
-using System;
 
 namespace Rock.ViewModels.CheckIn
 {
     /// <summary>
-    /// Defines a single generic check-in item.
+    /// A set of items that represent the current selections that should be
+    /// made for a person.
     /// </summary>
-    public class CheckInItemBag
+    public class OpportunitySelectionBag
     {
         /// <summary>
-        /// Gets or sets the unique identifier of this item.
+        /// Gets or sets the area.
         /// </summary>
-        /// <value>The unique identifier.</value>
-        public Guid Guid { get; set; }
+        /// <value>The area.</value>
+        public CheckInItemBag Area { get; set; }
 
         /// <summary>
-        /// Gets or sets the display name of this item.
+        /// Gets or sets the group.
         /// </summary>
-        /// <value>The display name.</value>
-        public string Name { get; set; }
+        /// <value>The group.</value>
+        public CheckInItemBag Group { get; set; }
+
+        /// <summary>
+        /// Gets or sets the location.
+        /// </summary>
+        /// <value>The location.</value>
+        public CheckInItemBag Location { get; set; }
+
+        /// <summary>
+        /// Gets or sets the schedule.
+        /// </summary>
+        /// <value>The schedule.</value>
+        public CheckInItemBag Schedule { get; set; }
     }
 }

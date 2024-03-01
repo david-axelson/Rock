@@ -20,7 +20,6 @@ using System.Collections.Generic;
 using System.Linq;
 
 using Rock.Model;
-using Rock.Observability;
 using Rock.ViewModels.CheckIn;
 using Rock.Web.Cache;
 
@@ -34,16 +33,16 @@ namespace Rock.CheckIn.v2
         #region Properties
 
         /// <summary>
-        /// Gets or sets the check-in configuration in effect during filtering.
+        /// Gets or sets the check-in template configuration in effect during filtering.
         /// </summary>
-        /// <value>The check-in configuration.</value>
-        protected CheckInConfigurationData Configuration => Coordinator.Configuration;
+        /// <value>The check-in template configuration.</value>
+        protected TemplateConfigurationData TemplateConfiguration => Session.TemplateConfiguration;
 
         /// <summary>
-        /// Gets or sets the check-in coordinator.
+        /// Gets or sets the check-in session.
         /// </summary>
-        /// <value>The check-in coordinator.</value>
-        protected DefaultCheckInCoordinator Coordinator { get; }
+        /// <value>The check-in session.</value>
+        protected CheckInSession Session { get; }
 
         #endregion
 
@@ -52,11 +51,11 @@ namespace Rock.CheckIn.v2
         /// <summary>
         /// Initializes a new instance of the <see cref="DefaultConversionProvider"/> class.
         /// </summary>
-        /// <param name="coordinator">The check-in coordinator.</param>
-        /// <exception cref="System.ArgumentNullException"><paramref name="coordinator"/> is <c>null</c>.</exception>
-        public DefaultConversionProvider( DefaultCheckInCoordinator coordinator )
+        /// <param name="session">The check-in session.</param>
+        /// <exception cref="System.ArgumentNullException"><paramref name="session"/> is <c>null</c>.</exception>
+        public DefaultConversionProvider( CheckInSession session )
         {
-            Coordinator = coordinator ?? throw new ArgumentNullException( nameof( coordinator ) );
+            Session = session ?? throw new ArgumentNullException( nameof( session ) );
         }
 
         #endregion
@@ -69,10 +68,10 @@ namespace Rock.CheckIn.v2
         /// </summary>
         /// <param name="familyGuid">The primary family unique identifier, this is used to resolve duplicates where a family member is also marked as can check-in.</param>
         /// <param name="groupMembers">The <see cref="GroupMember"/> objects to be converted to bags.</param>
-        /// <returns>A collection of <see cref="FamilyMemberBag"/> objects.</returns>
-        public List<FamilyMemberBag> GetFamilyMemberBags( Guid familyGuid, IEnumerable<GroupMember> groupMembers )
+        /// <returns>A collection of <see cref="PersonBag"/> objects.</returns>
+        public List<PersonBag> GetFamilyMemberBags( Guid familyGuid, IEnumerable<GroupMember> groupMembers )
         {
-            var familyMembers = new List<FamilyMemberBag>();
+            var familyMembers = new List<PersonBag>();
 
             // Get the group members along with the person record in memory.
             // Then sort by those that match the correct family first so that
@@ -87,7 +86,7 @@ namespace Rock.CheckIn.v2
                 ? groupMembersQry
                     .Select( gm => new
                     {
-                        GroupGuid = gm.Person.PrimaryFamily != null ? gm.Person.PrimaryFamily.Guid : familyGuid,
+                        GroupGuid = gm.Person.PrimaryFamilyId.HasValue ? gm.Person.PrimaryFamily.Guid : ( Guid? ) null,
                         RoleOrder = gm.GroupRole.Order,
                         gm.Person
                     } )
@@ -97,7 +96,7 @@ namespace Rock.CheckIn.v2
                 : groupMembers
                     .Select( gm => new
                     {
-                        GroupGuid = gm.Person.PrimaryFamily != null ? gm.Person.PrimaryFamily.Guid : familyGuid,
+                        GroupGuid = gm.Person.PrimaryFamilyId.HasValue ? gm.Person.PrimaryFamily.Guid : ( Guid? ) null,
                         RoleOrder = gm.GroupRole.Order,
                         gm.Person
                     } )
@@ -113,11 +112,11 @@ namespace Rock.CheckIn.v2
                     continue;
                 }
 
-                var familyMember = new FamilyMemberBag
+                var familyMember = new PersonBag
                 {
                     Guid = member.Person.Guid,
                     IdKey = member.Person.IdKey,
-                    FamilyGuid = member.GroupGuid,
+                    FamilyGuid = member.GroupGuid ?? Guid.Empty,
                     FirstName = member.Person.FirstName,
                     NickName = member.Person.NickName,
                     LastName = member.Person.LastName,
@@ -142,28 +141,28 @@ namespace Rock.CheckIn.v2
         }
 
         /// <summary>
-        /// Gets the attendee item information for the family members. This also
+        /// Gets the attendee item information for the person bags. This also
         /// gathers all required information to later perform filtering on the
         /// attendees.
         /// </summary>
-        /// <param name="familyMembers">The <see cref="FamilyMemberBag"/> to be used when constructing the <see cref="CheckInAttendeeItem"/> that willw rap it.</param>
-        /// <param name="baseOptions">The <see cref="GroupMember"/> objects to be converted to bags.</param>
+        /// <param name="people">The <see cref="PersonBag"/> objects to be used when constructing the <see cref="Attendee"/> objects that will wrap them.</param>
+        /// <param name="baseOpportunities">The opportunities collection to be cloned onto each attendee.</param>
         /// <param name="recentAttendance">The recent attendance data for these family members.</param>
-        /// <returns>A collection of <see cref="CheckInAttendeeItem"/> objects.</returns>
-        public virtual List<CheckInAttendeeItem> GetAttendeeItems( IReadOnlyCollection<FamilyMemberBag> familyMembers, CheckInOpportunities baseOptions, IReadOnlyCollection<RecentAttendanceItem> recentAttendance )
+        /// <returns>A collection of <see cref="Attendee"/> objects.</returns>
+        public virtual List<Attendee> GetAttendeeItems( IReadOnlyCollection<PersonBag> people, OpportunityCollection baseOpportunities, IReadOnlyCollection<RecentAttendance> recentAttendance )
         {
-            return familyMembers
+            return people
                 .Select( fm =>
                 {
                     var attendeeAttendances = recentAttendance
                         .Where( a => a.PersonGuid == fm.Guid )
                         .ToList();
 
-                    return new CheckInAttendeeItem
+                    return new Attendee
                     {
                         Person = fm,
                         RecentAttendances = attendeeAttendances,
-                        Options = baseOptions.Clone()
+                        Opportunities = baseOpportunities.Clone()
                     };
                 } )
                 .ToList();
@@ -179,7 +178,7 @@ namespace Rock.CheckIn.v2
         /// <param name="location">The check-in location.</param>
         /// <param name="schedule">The check-in schedule.</param>
         /// <returns>A new instance of <see cref="AttendanceBag"/>.</returns>
-        public virtual AttendanceBag GetAttendanceBag( RecentAttendanceItem attendance, CheckInAttendeeItem attendee, GroupTypeCache area, GroupCache group, NamedLocationCache location, NamedScheduleCache schedule )
+        public virtual AttendanceBag GetAttendanceBag( RecentAttendance attendance, Attendee attendee, GroupTypeCache area, GroupCache group, NamedLocationCache location, NamedScheduleCache schedule )
         {
             var bag = new AttendanceBag
             {
@@ -235,16 +234,16 @@ namespace Rock.CheckIn.v2
         /// Gets the potential attendee bag from the attendee item.
         /// </summary>
         /// <param name="attendee">The attendee.</param>
-        /// <returns>A new instance of <see cref="PotentialAttendeeBag"/>.</returns>
-        public virtual PotentialAttendeeBag GetPotentialAttendeeBag( CheckInAttendeeItem attendee )
+        /// <returns>A new instance of <see cref="AttendeeBag"/>.</returns>
+        public virtual AttendeeBag GetPotentialAttendeeBag( Attendee attendee )
         {
-            return new PotentialAttendeeBag
+            return new AttendeeBag
             {
                 Person = attendee.Person,
                 IsPreSelected = attendee.IsPreSelected,
                 IsDisabled = attendee.IsDisabled,
                 DisabledMessage = attendee.DisabledMessage,
-                SelectedOptions = attendee.SelectedOptions
+                SelectedOpportunities = attendee.SelectedOpportunities
             };
         }
 
@@ -253,7 +252,7 @@ namespace Rock.CheckIn.v2
         /// </summary>
         /// <param name="opportunityCollection">The opportunity collection.</param>
         /// <returns>A new instance of <see cref="OpportunityCollectionBag"/>.</returns>
-        public virtual OpportunityCollectionBag GetOpportunityCollectionBag( CheckInOpportunities opportunityCollection )
+        public virtual OpportunityCollectionBag GetOpportunityCollectionBag( OpportunityCollection opportunityCollection )
         {
             return new OpportunityCollectionBag
             {
@@ -280,7 +279,7 @@ namespace Rock.CheckIn.v2
         /// </summary>
         /// <param name="abilityLevel">The ability level.</param>
         /// <returns>A new instance of <see cref="AbilityLevelOpportunityBag"/>.</returns>
-        public virtual AbilityLevelOpportunityBag GetAbilityLevelOpportunityBag( CheckInAbilityLevelItem abilityLevel )
+        public virtual AbilityLevelOpportunityBag GetAbilityLevelOpportunityBag( AbilityLevelOpportunity abilityLevel )
         {
             return new AbilityLevelOpportunityBag
             {
@@ -294,7 +293,7 @@ namespace Rock.CheckIn.v2
         /// </summary>
         /// <param name="area">The area.</param>
         /// <returns>A new instance of <see cref="AreaOpportunityBag"/>.</returns>
-        public virtual AreaOpportunityBag GetAreaOpportunityBag( CheckInAreaItem area )
+        public virtual AreaOpportunityBag GetAreaOpportunityBag( AreaOpportunity area )
         {
             return new AreaOpportunityBag
             {
@@ -308,7 +307,7 @@ namespace Rock.CheckIn.v2
         /// </summary>
         /// <param name="group">The group.</param>
         /// <returns>A new instance of <see cref="GroupOpportunityBag"/>.</returns>
-        public virtual GroupOpportunityBag GetGroupOpportunityBag( CheckInGroupItem group )
+        public virtual GroupOpportunityBag GetGroupOpportunityBag( GroupOpportunity group )
         {
             return new GroupOpportunityBag
             {
@@ -325,7 +324,7 @@ namespace Rock.CheckIn.v2
         /// </summary>
         /// <param name="location">The location.</param>
         /// <returns>A new instance of <see cref="LocationOpportunityBag"/>.</returns>
-        public virtual LocationOpportunityBag GetLocationOpportunityBag( CheckInLocationItem location )
+        public virtual LocationOpportunityBag GetLocationOpportunityBag( LocationOpportunity location )
         {
             return new LocationOpportunityBag
             {
@@ -342,7 +341,7 @@ namespace Rock.CheckIn.v2
         /// </summary>
         /// <param name="schedule">The schedule.</param>
         /// <returns>A new instance of <see cref="ScheduleOpportunityBag"/>.</returns>
-        public virtual ScheduleOpportunityBag GetScheduleOpportunityBag( CheckInScheduleItem schedule )
+        public virtual ScheduleOpportunityBag GetScheduleOpportunityBag( ScheduleOpportunity schedule )
         {
             return new ScheduleOpportunityBag
             {

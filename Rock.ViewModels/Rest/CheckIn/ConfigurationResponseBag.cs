@@ -21,15 +21,20 @@ using Rock.ViewModels.CheckIn;
 namespace Rock.ViewModels.Rest.CheckIn
 {
     /// <summary>
-    /// The response that will be returned by the SearchForFamilies check-in
-    /// REST endpoint.
+    /// The response to the request to get all check-in configuration data.
     /// </summary>
-    public class SearchForFamiliesResponseBag
+    public class ConfigurationResponseBag
     {
         /// <summary>
-        /// Gets or sets the families that matched the search request.
+        /// Gets or sets the templates that are valid for use with check-in.
         /// </summary>
-        /// <value>The families that matched the search request.</value>
-        public List<FamilyBag> Families { get; set; }
+        /// <value>The templates.</value>
+        public List<ConfigurationTemplateBag> Templates { get; set; }
+
+        /// <summary>
+        /// Gets or sets the areas that are valid for use with check-in.
+        /// </summary>
+        /// <value>The areas items.</value>
+        public List<ConfigurationAreaBag> Areas { get; set; }
     }
 }

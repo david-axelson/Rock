@@ -14,22 +14,21 @@
 // limitations under the License.
 // </copyright>
 //
-using System.Collections.Generic;
-
-using Rock.ViewModels.CheckIn;
+using System;
 
 namespace Rock.ViewModels.Rest.CheckIn
 {
     /// <summary>
-    /// The response that will be returned by the SearchForFamilies check-in
-    /// REST endpoint.
+    /// The request parameters to use when requesting the list of valid
+    /// check-in configurations.
     /// </summary>
-    public class SearchForFamiliesResponseBag
+    public class ConfigurationOptionsBag
     {
         /// <summary>
-        /// Gets or sets the families that matched the search request.
+        /// Gets or sets the kiosk unique identifier to use when filtering
+        /// the configuration list.
         /// </summary>
-        /// <value>The families that matched the search request.</value>
-        public List<FamilyBag> Families { get; set; }
+        /// <value>The kiosk unique identifier.</value>
+        public Guid? KioskGuid { get; set; }
     }
 }

@@ -67,15 +67,15 @@ namespace Rock.CheckIn.v2
         #region Public Methods
 
         /// <summary>
-        /// Gets the configuration summary bags for all valid check-in
+        /// Gets the configuration template bags for all valid check-in
         /// configurations.
         /// </summary>
-        /// <returns>A colleciton of <see cref="ConfigurationItemSummaryBag"/> objects.</returns>
-        public virtual List<ConfigurationItemSummaryBag> GetConfigurationSummaries()
+        /// <returns>A colleciton of <see cref="ConfigurationTemplateBag"/> objects.</returns>
+        public virtual List<ConfigurationTemplateBag> GetConfigurationTemplateBags()
         {
             return GetConfigurationTemplates( RockContext )
                 .OrderBy( t => t.Name )
-                .Select( t => new ConfigurationItemSummaryBag
+                .Select( t => new ConfigurationTemplateBag
                 {
                     Guid = t.Guid,
                     Name = t.Name,
@@ -92,23 +92,23 @@ namespace Rock.CheckIn.v2
         /// </summary>
         /// <param name="kiosk">The optional kiosk to filter the results for.</param>
         /// <param name="checkinTemplate">The optional check-in template to filter all areas to.</param>
-        /// <returns>A collection of <see cref="AreaItemSummaryBag"/> objects.</returns>
-        public virtual List<AreaItemSummaryBag> GetCheckInAreaSummaries( DeviceCache kiosk, GroupTypeCache checkinTemplate )
+        /// <returns>A collection of <see cref="ConfigurationAreaBag"/> objects.</returns>
+        public virtual List<ConfigurationAreaBag> GetCheckInAreaSummaries( DeviceCache kiosk, GroupTypeCache checkinTemplate )
         {
-            var areas = new Dictionary<Guid, AreaItemSummaryBag>();
-            List<GroupTypeCache> configurations;
+            var areas = new Dictionary<Guid, ConfigurationAreaBag>();
+            List<GroupTypeCache> templates;
             HashSet<int> kioskGroupTypeIds = null;
 
-            // If the caller specified a configuration, then we return areas for
-            // only that primary configuration. Otherwise we include areas from
-            // all configurations.
+            // If the caller specified a template, then we return areas for
+            // only that primary template. Otherwise we include areas from
+            // all templates.
             if ( checkinTemplate != null )
             {
-                configurations = new List<GroupTypeCache> { checkinTemplate };
+                templates = new List<GroupTypeCache> { checkinTemplate };
             }
             else
             {
-                configurations = GetConfigurationTemplates( RockContext ).ToList();
+                templates = GetConfigurationTemplates( RockContext ).ToList();
             }
 
             if ( kiosk != null )
@@ -116,10 +116,10 @@ namespace Rock.CheckIn.v2
                 kioskGroupTypeIds = new HashSet<int>( GetKioskAreas( kiosk ).Select( gt => gt.Id ) );
             }
 
-            // Go through each configuration and get all areas that belong to
+            // Go through each template and get all areas that belong to
             // it. Then either add them to the list of areas or update the
-            // primary configuration guids of the existing area.
-            foreach ( var cfg in configurations )
+            // primary template guids of the existing area.
+            foreach ( var cfg in templates )
             {
                 foreach ( var areaGroupType in cfg.GetDescendentGroupTypes() )
                 {
@@ -138,26 +138,26 @@ namespace Rock.CheckIn.v2
 
                     if ( areas.TryGetValue( areaGroupType.Guid, out var area ) )
                     {
-                        area.PrimaryConfigurationGuids.Add( cfg.Guid );
+                        area.PrimaryTemplateGuids.Add( cfg.Guid );
                     }
                     else
                     {
-                        areas.Add( areaGroupType.Guid, new AreaItemSummaryBag
+                        areas.Add( areaGroupType.Guid, new ConfigurationAreaBag
                         {
                             Guid = areaGroupType.Guid,
                             Name = areaGroupType.Name,
-                            PrimaryConfigurationGuids = new List<Guid> { cfg.Guid }
+                            PrimaryTemplateGuids = new List<Guid> { cfg.Guid }
                         } );
                     }
                 }
             }
 
-            return new List<AreaItemSummaryBag>( areas.Values );
+            return new List<ConfigurationAreaBag>( areas.Values );
         }
 
         /// <summary>
         /// <para>
-        /// Gets all the check-in options that are possible for the kiosk or
+        /// Gets all the check-in opportunities that are possible for the kiosk or
         /// locations. 
         /// </para>
         /// <para>
@@ -167,15 +167,15 @@ namespace Rock.CheckIn.v2
         /// checking if locations are open or not.
         /// </para>
         /// </summary>
-        /// <param name="possibleAreas">The possible areas that are to be considered when generating the options.</param>
+        /// <param name="possibleAreas">The possible areas that are to be considered when generating the opportunities.</param>
         /// <param name="kiosk">The optional kiosk to use.</param>
         /// <param name="locations">The list of locations to use.</param>
-        /// <returns>An instance of <see cref="CheckInOpportunities"/> that describes the available options.</returns>
+        /// <returns>An instance of <see cref="OpportunityCollection"/> that describes the available opportunities.</returns>
         /// <exception cref="System.ArgumentNullException"><paramref name="possibleAreas"/> is <c>null</c>.</exception>
         /// <exception cref="System.ArgumentNullException"><paramref name="kiosk"/> - Kiosk must be specified unless locations are specified.</exception>
-        public CheckInOpportunities GetAllCheckInOptions( IReadOnlyCollection<GroupTypeCache> possibleAreas, DeviceCache kiosk, IReadOnlyCollection<NamedLocationCache> locations )
+        public OpportunityCollection GetAllOpportunities( IReadOnlyCollection<GroupTypeCache> possibleAreas, DeviceCache kiosk, IReadOnlyCollection<NamedLocationCache> locations )
         {
-            using ( var activity = ObservabilityHelper.StartActivity( "Get All Options" ) )
+            using ( var activity = ObservabilityHelper.StartActivity( "Get All Opportunities" ) )
             {
                 if ( kiosk == null && locations == null )
                 {
@@ -187,18 +187,18 @@ namespace Rock.CheckIn.v2
                     throw new ArgumentNullException( nameof( possibleAreas ) );
                 }
 
-                return CheckInOpportunities.Create( possibleAreas, kiosk, locations, RockContext );
+                return OpportunityCollection.Create( possibleAreas, kiosk, locations, RockContext );
             }
         }
 
         /// <summary>
-        /// Gets the check in coordinator that will be used for the specified configuration.
+        /// Creates the check in session that will be used for the specified template.
         /// </summary>
-        /// <param name="configuration">The configuration.</param>
-        /// <returns>DefaultCheckInCoordinator.</returns>
-        public virtual DefaultCheckInCoordinator GetCheckInCoordinator( CheckInConfigurationData configuration )
+        /// <param name="templateConfiguration">The configuration template.</param>
+        /// <returns>An instance of <see cref="CheckInSession"/>.</returns>
+        public virtual CheckInSession CreateSession( TemplateConfigurationData templateConfiguration )
         {
-            return new DefaultCheckInCoordinator( this, configuration );
+            return new CheckInSession( this, templateConfiguration );
         }
 
         #endregion
@@ -240,7 +240,7 @@ namespace Rock.CheckIn.v2
         }
 
         /// <summary>
-        /// Gets the configuration group types that are defined in the system.
+        /// Gets the configuration template group types that are defined in the system.
         /// </summary>
         /// <param name="rockContext">The rock context to use if database access is required.</param>
         /// <returns>An enumeration of <see cref="GroupTypeCache"/> objects.</returns>

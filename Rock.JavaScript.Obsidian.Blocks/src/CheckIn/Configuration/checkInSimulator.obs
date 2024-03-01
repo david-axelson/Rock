@@ -452,7 +452,7 @@
 
     async function executeFamilySearchStep(): Promise<void> {
         const request: SearchForFamiliesOptionsBag = {
-            configurationGuid: configurationGuid.value,
+            configurationTemplateGuid: configurationGuid.value,
             kioskGuid: kioskGuid.value,
             prioritizeKioskCampus: false,
             searchTerm: familySearchTerm.value,
@@ -476,13 +476,13 @@
         }
 
         const request: ListFamilyMembersOptionsBag = {
-            configurationGuid: configurationGuid.value,
+            configurationTemplateGuid: configurationGuid.value,
             kioskGuid: kioskGuid.value,
             areaGuids: areaGuids.value,
             familyGuid: familySearchData.value[selectFamilyNumber.value - 1].guid
         };
 
-        const response = await http.post<ListFamilyMembersResponseBag>("/api/v2/checkin/ListFamilyMembers", undefined, request);
+        const response = await http.post<ListFamilyMembersResponseBag>("/api/v2/checkin/FamilyMembers", undefined, request);
 
         if (response.isSuccess && response.data) {
             selectFamilyData.value = response.data;

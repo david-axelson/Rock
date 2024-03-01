@@ -15,24 +15,33 @@
 // </copyright>
 //
 using System;
+using System.Collections.Generic;
 
 namespace Rock.ViewModels.CheckIn
 {
     /// <summary>
-    /// Defines a single generic check-in item.
+    /// The summary information about a single check-in area.
     /// </summary>
-    public class CheckInItemBag
+    public class ConfigurationAreaBag
     {
         /// <summary>
-        /// Gets or sets the unique identifier of this item.
+        /// Gets or sets the unique identifier of this check-in area.
         /// </summary>
         /// <value>The unique identifier.</value>
         public Guid Guid { get; set; }
 
         /// <summary>
-        /// Gets or sets the display name of this item.
+        /// Gets or sets the name of this check-in area.
         /// </summary>
-        /// <value>The display name.</value>
+        /// <value>The name.</value>
         public string Name { get; set; }
+
+        /// <summary>
+        /// Gets or sets the configuration template unique identifiers that are
+        /// considered primary for this area. A primary configuration template
+        /// is one that this area is a descendant of.
+        /// </summary>
+        /// <value>The primary configuration template unique identifiers.</value>
+        public List<Guid> PrimaryTemplateGuids { get; set; }
     }
 }

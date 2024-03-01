@@ -27,12 +27,12 @@ namespace Rock.ViewModels.Rest.CheckIn
     public class SearchForFamiliesOptionsBag
     {
         /// <summary>
-        /// Gets or sets the check-in configuration unique identifier. This
-        /// identifies the configuration that should be used when validating
-        /// the search and compiling results.
+        /// Gets or sets the check-in configuration template unique identifier.
+        /// This identifies the configuration that should be used when
+        /// validating the search and compiling results.
         /// </summary>
-        /// <value>The check-in configuration unique identifier.</value>
-        public Guid ConfigurationGuid { get; set; }
+        /// <value>The check-in configuration template unique identifier.</value>
+        public Guid ConfigurationTemplateGuid { get; set; }
 
         /// <summary>
         /// Gets or sets the optional kiosk unique identifier.

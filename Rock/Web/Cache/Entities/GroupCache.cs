@@ -34,7 +34,7 @@ namespace Rock.Web.Cache
     [DataContract]
     public class GroupCache : ModelCache<GroupCache, Rock.Model.Group>
     {
-        private CheckInGroupData _checkInData;
+        private GroupConfigurationData _checkInData;
 
         #region Properties
 
@@ -245,8 +245,8 @@ namespace Rock.Web.Cache
         /// values of this group.
         /// </summary>
         /// <param name="rockContext">The context to use if access to the database is required.</param>
-        /// <returns>An instance of <see cref="CheckInGroupData"/> or <c>null</c>.</returns>
-        internal CheckInGroupData GetCheckInData( RockContext rockContext )
+        /// <returns>An instance of <see cref="GroupConfigurationData"/> or <c>null</c>.</returns>
+        internal GroupConfigurationData GetCheckInData( RockContext rockContext )
         {
             if ( rockContext == null )
             {
@@ -255,7 +255,7 @@ namespace Rock.Web.Cache
 
             if ( _checkInData == null )
             {
-                _checkInData = new CheckInGroupData( this, rockContext );
+                _checkInData = new GroupConfigurationData( this, rockContext );
             }
 
             return _checkInData;

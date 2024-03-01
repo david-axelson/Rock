@@ -21,15 +21,22 @@ using Rock.ViewModels.CheckIn;
 namespace Rock.ViewModels.Rest.CheckIn
 {
     /// <summary>
-    /// The response that will be returned by the SearchForFamilies check-in
+    /// The response that will be returned by the list family members check-in
     /// REST endpoint.
     /// </summary>
-    public class SearchForFamiliesResponseBag
+    public class FamilyMembersResponseBag
     {
         /// <summary>
-        /// Gets or sets the families that matched the search request.
+        /// Gets or sets the people that can be potentially checked in for
+        /// the family.
         /// </summary>
-        /// <value>The families that matched the search request.</value>
-        public List<FamilyBag> Families { get; set; }
+        /// <value>The people.</value>
+        public List<AttendeeBag> People { get; set; }
+
+        /// <summary>
+        /// Gets or sets the current attendance records that can be checked out.
+        /// </summary>
+        /// <value>The current attendance.</value>
+        public List<AttendanceBag> CurrentlyCheckedInAttendances { get; set; }
     }
 }

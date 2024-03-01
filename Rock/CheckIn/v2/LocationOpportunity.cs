@@ -14,22 +14,19 @@
 // limitations under the License.
 // </copyright>
 //
+
+using System;
 using System.Collections.Generic;
 
 using Rock.ViewModels.CheckIn;
 
-namespace Rock.ViewModels.Rest.CheckIn
+namespace Rock.CheckIn.v2
 {
     /// <summary>
-    /// The response that will be returned by the SearchForFamilies check-in
-    /// REST endpoint.
+    /// A representation of a single location that can be used for check-in.
     /// </summary>
-    public class SearchForFamiliesResponseBag
+    internal class LocationOpportunity : LocationOpportunityBag
     {
-        /// <summary>
-        /// Gets or sets the families that matched the search request.
-        /// </summary>
-        /// <value>The families that matched the search request.</value>
-        public List<FamilyBag> Families { get; set; }
+        public HashSet<Guid> CurrentPersonGuids { get; set; }
     }
 }

@@ -14,22 +14,27 @@
 // limitations under the License.
 // </copyright>
 //
-using System.Collections.Generic;
 
-using Rock.ViewModels.CheckIn;
-
-namespace Rock.ViewModels.Rest.CheckIn
+namespace Rock.CheckIn.v2.Filters
 {
     /// <summary>
-    /// The response that will be returned by the SearchForFamilies check-in
-    /// REST endpoint.
+    /// Performs filtering of check-in opportunities based on the person's gender.
     /// </summary>
-    public class SearchForFamiliesResponseBag
+    internal class GenderOpportunityFilter : OpportunityFilter
     {
-        /// <summary>
-        /// Gets or sets the families that matched the search request.
-        /// </summary>
-        /// <value>The families that matched the search request.</value>
-        public List<FamilyBag> Families { get; set; }
+        #region Methods
+
+        /// <inheritdoc/>
+        public override bool IsGroupValid( GroupOpportunity group )
+        {
+            if ( !group.CheckInData.Gender.HasValue )
+            {
+                return true;
+            }
+
+            return group.CheckInData.Gender.Value == Person.Person.Gender;
+        }
+
+        #endregion
     }
 }

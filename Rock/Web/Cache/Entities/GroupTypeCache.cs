@@ -34,9 +34,9 @@ namespace Rock.Web.Cache
     [DataContract]
     public class GroupTypeCache : ModelCache<GroupTypeCache, GroupType>
     {
-        private CheckInConfigurationData _checkInConfiguration;
+        private TemplateConfigurationData _checkInConfiguration;
 
-        private CheckInAreaData _checkInAreaData;
+        private AreaConfigurationData _checkInAreaData;
 
         #region Properties
 
@@ -928,8 +928,8 @@ namespace Rock.Web.Cache
         /// configuration group type then <c>null</c> will be returned.
         /// </summary>
         /// <param name="rockContext">The context to use if access to the database is required.</param>
-        /// <returns>An instance of <see cref="CheckInConfigurationData"/> or <c>null</c>.</returns>
-        internal CheckInConfigurationData GetCheckInConfiguration( RockContext rockContext )
+        /// <returns>An instance of <see cref="TemplateConfigurationData"/> or <c>null</c>.</returns>
+        internal TemplateConfigurationData GetCheckInConfiguration( RockContext rockContext )
         {
             if ( rockContext == null )
             {
@@ -945,7 +945,7 @@ namespace Rock.Web.Cache
                     return null;
                 }
 
-                _checkInConfiguration = new CheckInConfigurationData( this, rockContext );
+                _checkInConfiguration = new TemplateConfigurationData( this, rockContext );
             }
 
             return _checkInConfiguration;
@@ -956,8 +956,8 @@ namespace Rock.Web.Cache
         /// values of this area group type.
         /// </summary>
         /// <param name="rockContext">The context to use if access to the database is required.</param>
-        /// <returns>An instance of <see cref="CheckInAreaData"/>.</returns>
-        internal CheckInAreaData GetCheckInAreaData( RockContext rockContext )
+        /// <returns>An instance of <see cref="AreaConfigurationData"/>.</returns>
+        internal AreaConfigurationData GetCheckInAreaData( RockContext rockContext )
         {
             if ( rockContext == null )
             {
@@ -966,7 +966,7 @@ namespace Rock.Web.Cache
 
             if ( _checkInAreaData == null )
             {
-                _checkInAreaData = new CheckInAreaData( this, rockContext );
+                _checkInAreaData = new AreaConfigurationData( this, rockContext );
             }
 
             return _checkInAreaData;

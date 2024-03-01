@@ -14,22 +14,26 @@
 // limitations under the License.
 // </copyright>
 //
-using System.Collections.Generic;
 
 using Rock.ViewModels.CheckIn;
 
-namespace Rock.ViewModels.Rest.CheckIn
+namespace Rock.CheckIn.v2
 {
     /// <summary>
-    /// The response that will be returned by the SearchForFamilies check-in
-    /// REST endpoint.
+    /// A representation of a single group that can be used for check-in.
     /// </summary>
-    public class SearchForFamiliesResponseBag
+    internal class GroupOpportunity : GroupOpportunityBag
     {
         /// <summary>
-        /// Gets or sets the families that matched the search request.
+        /// Gets or sets the check in data for this group.
         /// </summary>
-        /// <value>The families that matched the search request.</value>
-        public List<FamilyBag> Families { get; set; }
+        /// <value>The check in data.</value>
+        public GroupConfigurationData CheckInData { get; set; }
+
+        /// <summary>
+        /// Gets or sets the check in area data for this group.
+        /// </summary>
+        /// <value>The check in area data.</value>
+        public AreaConfigurationData CheckInAreaData { get; set; }
     }
 }
