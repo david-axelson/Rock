@@ -62,7 +62,7 @@ BEGIN
 			WHERE 
 				gm.[PersonId] = p.[Id] 
 				AND p.[GivingGroupId] IS NOT NULL
-				
+				AND gm.IsArchived = 0
 			) fr
 		WHERE
 			[RecordStatusValueId] = @ActiveRecordStatusValueId -- record is active
@@ -105,7 +105,7 @@ BEGIN
 			WHERE 
 				gm.[PersonId] = p.[Id] 
 				AND p.[GivingGroupId] IS NULL
-				
+				AND gm.IsArchived = 0
 			) fr
 		WHERE
 			[RecordStatusValueId] = @ActiveRecordStatusValueId -- record is active
@@ -151,7 +151,7 @@ BEGIN
 			WHERE 
 				gm.[PersonId] = p.[Id] 
 				AND p.[GivingGroupId] IS NOT NULL
-				
+				AND gm.IsArchived = 0
 			) fr
 		WHERE
 			[RecordStatusValueId] = @ActiveRecordStatusValueId -- record is active
@@ -194,7 +194,7 @@ BEGIN
 			WHERE 
 				gm.[PersonId] = p.[Id] -- match by person id
 				AND p.[GivingGroupId] IS NULL
-				
+				AND gm.IsArchived = 0
 			) fr
 		WHERE
 			[RecordStatusValueId] = @ActiveRecordStatusValueId -- record is active
@@ -239,7 +239,7 @@ BEGIN
 			WHERE 
 				gm.[PersonId] = p.[Id] 
 				AND p.[GivingGroupId] IS NOT NULL
-				
+				AND gm.IsArchived = 0
 			) fr
 		WHERE
 			[RecordStatusValueId] = @ActiveRecordStatusValueId -- record is active
@@ -285,7 +285,7 @@ BEGIN
 			WHERE 
 				gm.[PersonId] = p.[Id] 
 				AND p.[GivingGroupId] IS NULL
-				
+				AND gm.IsArchived = 0
 			) fr
 		WHERE
 			[RecordStatusValueId] = @ActiveRecordStatusValueId -- record is active
@@ -333,7 +333,7 @@ BEGIN
 			WHERE 
 				gm.[PersonId] = p.[Id] 
 				AND p.[GivingGroupId] IS NOT NULL
-				
+				AND gm.IsArchived = 0
 			) fr
 		WHERE
 			[RecordStatusValueId] = @ActiveRecordStatusValueId -- record is active
@@ -380,7 +380,7 @@ BEGIN
 			WHERE 
 				gm.[PersonId] = p.[Id] 
 				AND p.[GivingGroupId] IS NULL
-				
+				AND gm.IsArchived = 0
 			) fr
 		WHERE
 			[RecordStatusValueId] = @ActiveRecordStatusValueId -- record is active
