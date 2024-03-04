@@ -155,6 +155,82 @@
                              @click="executeAction($event, selectFamilyStep)" />
             </div>
         </Panel>
+
+        <Panel title="Select Attendee">
+            <template #headerActions>
+                <div class="d-flex gap action">
+                    <StepStatus :step="selectAttendeeStep" />
+                </div>
+            </template>
+
+            <div class="row">
+                <div class="col-md-4">
+                    <NumberUpDown label="Attendee Number"
+                                  v-model="selectAttendeeNumber"
+                                  :min="1" />
+                </div>
+
+                <div v-if="selectAttendeeData" class="col-md-8">
+                    <div v-if="selectAttendeeData.opportunities">
+                        <div>Opportunities:</div>
+
+                        <ul>
+                            <li v-if="selectAttendeeData.opportunities.abilityLevels && selectAttendeeData.opportunities.abilityLevels.length > 0">
+                                Ability Levels
+                                <ol>
+                                    <li v-for="item in selectAttendeeData.opportunities.abilityLevels" :key="item.guid!">
+                                        {{ item.name }}
+                                    </li>
+                                </ol>
+                            </li>
+
+                            <li v-if="selectAttendeeData.opportunities.areas && selectAttendeeData.opportunities.areas.length > 0">
+                                Areas
+                                <ol>
+                                    <li v-for="item in selectAttendeeData.opportunities.areas" :key="item.guid!">
+                                        {{ item.name }}
+                                    </li>
+                                </ol>
+                            </li>
+
+                            <li v-if="selectAttendeeData.opportunities.groups && selectAttendeeData.opportunities.groups.length > 0">
+                                Groups
+                                <ol>
+                                    <li v-for="item in selectAttendeeData.opportunities.groups" :key="item.guid!">
+                                        {{ item.name }}
+                                    </li>
+                                </ol>
+                            </li>
+
+                            <li v-if="selectAttendeeData.opportunities.locations && selectAttendeeData.opportunities.locations.length > 0">
+                                Locations
+                                <ol>
+                                    <li v-for="item in selectAttendeeData.opportunities.locations" :key="item.guid!">
+                                        {{ item.name }}
+                                    </li>
+                                </ol>
+                            </li>
+
+                            <li v-if="selectAttendeeData.opportunities.schedules && selectAttendeeData.opportunities.schedules.length > 0">
+                                Schedules
+                                <ol>
+                                    <li v-for="item in selectAttendeeData.opportunities.schedules" :key="item.guid!">
+                                        {{ item.name }}
+                                    </li>
+                                </ol>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="actions">
+                <SplitButton btnType="primary"
+                             :items="selectAttendeeActions"
+                             autoDisable
+                             @click="executeAction($event, selectAttendeeStep)" />
+            </div>
+        </Panel>
     </Panel>
 </template>
 
@@ -178,6 +254,8 @@
     import { SearchForFamiliesResponseBag } from "@Obsidian/ViewModels/Rest/CheckIn/searchForFamiliesResponseBag";
     import { FamilyMembersOptionsBag } from "@Obsidian/ViewModels/Rest/CheckIn/familyMembersOptionsBag";
     import { FamilyMembersResponseBag } from "@Obsidian/ViewModels/Rest/CheckIn/familyMembersResponseBag";
+    import { AttendeeOpportunitiesOptionsBag } from "@Obsidian/ViewModels/Rest/CheckIn/attendeeOpportunitiesOptionsBag";
+    import { AttendeeOpportunitiesResponseBag } from "@Obsidian/ViewModels/Rest/CheckIn/attendeeOpportunitiesResponseBag";
     import { computed, ref, watch } from "vue";
     import { enumToListItemBag } from "@Obsidian/Utility/enumUtils";
     import { toNumber, toNumberOrNull } from "@Obsidian/Utility/numberUtils";
@@ -237,6 +315,10 @@
     const selectFamilyNumber = ref(1);
     const selectFamilyData = ref<FamilyMembersResponseBag>();
 
+    const selectAttendeeStep = new CheckInStep(executeSelectAttendeeStep, selectFamilyStep);
+    const selectAttendeeNumber = ref(1);
+    const selectAttendeeData = ref<AttendeeOpportunitiesResponseBag>();
+
     // #endregion
 
     // #region Computed Values
@@ -293,15 +375,29 @@
     /**
      * Determines if we have all the data required for the second step.
      */
-    const isSecondStepDataReady = computed((): boolean => {
+    const isSelectFamilyDataReady = computed((): boolean => {
         return isFamilySearchDataReady.value && !!familySearchData.value;
     });
 
     /**
-     * Gets the button actions available to family search.
+     * Gets the button actions available to selecting a family.
      */
     const selectFamilyActions = computed((): ListItemBag[] => {
-        return getStepActions(isSecondStepDataReady.value);
+        return getStepActions(isSelectFamilyDataReady.value);
+    });
+
+    /**
+     * Determines if we have all the data required for the second step.
+     */
+     const isSelectAttendeeDataReady = computed((): boolean => {
+        return isSelectFamilyDataReady.value && !!selectFamilyData.value;
+    });
+
+    /**
+     * Gets the button actions available to selecting an attendee.
+     */
+     const selectAttendeeActions = computed((): ListItemBag[] => {
+        return getStepActions(isSelectAttendeeDataReady.value);
     });
 
     // #endregion
@@ -485,6 +581,30 @@
 
         if (response.isSuccess && response.data) {
             selectFamilyData.value = response.data;
+        }
+        else {
+            selectFamilyData.value = undefined;
+            throw new Error(response.errorMessage ?? undefined);
+        }
+    }
+
+    async function executeSelectAttendeeStep(): Promise<void> {
+        if (!selectFamilyData.value?.people || selectAttendeeNumber.value > selectFamilyData.value.people.length) {
+            throw new Error("Invalid attendee selected.");
+        }
+
+        const request: AttendeeOpportunitiesOptionsBag = {
+            configurationTemplateGuid: configurationGuid.value,
+            kioskGuid: kioskGuid.value,
+            areaGuids: areaGuids.value,
+            familyGuid: selectFamilyData.value.familyGuid,
+            personGuid: selectFamilyData.value.people[selectAttendeeNumber.value - 1].person?.guid ?? ""
+        };
+
+        const response = await http.post<AttendeeOpportunitiesResponseBag>("/api/v2/checkin/AttendeeOpportunities", undefined, request);
+
+        if (response.isSuccess && response.data) {
+            selectAttendeeData.value = response.data;
         }
         else {
             selectFamilyData.value = undefined;

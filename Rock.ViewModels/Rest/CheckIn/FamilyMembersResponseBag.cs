@@ -14,6 +14,7 @@
 // limitations under the License.
 // </copyright>
 //
+using System;
 using System.Collections.Generic;
 
 using Rock.ViewModels.CheckIn;
@@ -26,6 +27,12 @@ namespace Rock.ViewModels.Rest.CheckIn
     /// </summary>
     public class FamilyMembersResponseBag
     {
+        /// <summary>
+        /// Gets or sets the family unique identifier.
+        /// </summary>
+        /// <value>The family unique identifier.</value>
+        public Guid FamilyGuid { get; set; }
+
         /// <summary>
         /// Gets or sets the people that can be potentially checked in for
         /// the family.
