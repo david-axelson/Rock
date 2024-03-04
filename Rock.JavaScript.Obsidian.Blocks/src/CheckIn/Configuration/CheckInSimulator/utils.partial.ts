@@ -1,5 +1,37 @@
 import { RockDateTime } from "@Obsidian/Utility/rockDateTime";
+import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
 import { Ref, reactive, ref } from "vue";
+
+export const executeToHereAction: ListItemBag = { value: "executeToHere", text: "Execute" };
+export const executeThisStepAction: ListItemBag = { value: "executeThisStep", text: "Execute This Step" };
+export const benchmarkToHereAction: ListItemBag = { value: "benchmarkToHere", text: "Benchmark" };
+export const bencharkThisStepAction: ListItemBag = { value: "benchmarkThisStep", text: "Benchmark This Step" };
+
+/**
+ * Executes the specified action on the step.
+ *
+ * @param action The name of the action from the split button.
+ * @param step The step to execute the action on.
+ */
+export async function executeStepAction(action: string, step: CheckInStep, benchmarkIterations: number | undefined, benchmarkDuration: number | undefined): Promise<void> {
+    try {
+        if (action === executeToHereAction.value) {
+            await step.execute(true);
+        }
+        else if (action === executeThisStepAction.value) {
+            await step.execute(false);
+        }
+        else if (action === benchmarkToHereAction.value) {
+            await step.executeBatch(benchmarkIterations, benchmarkDuration, true);
+        }
+        else if (action === bencharkThisStepAction.value) {
+            await step.executeBatch(benchmarkIterations, benchmarkDuration, false);
+        }
+    }
+    catch (error) {
+        console.error(error);
+    }
+}
 
 export class CheckInStep {
     /** The current state of the step. */
@@ -18,7 +50,7 @@ export class CheckInStep {
     public readonly targetExecutionCount: Ref<number | undefined>;
 
     /** The funciton that will execute the step. */
-    private executor: () => Promise<void>;
+    private executor: () => Promise<unknown>;
 
     /** The previous step to use when chaining steps. */
     private previousStep?: CheckInStep;
@@ -26,13 +58,16 @@ export class CheckInStep {
     /** True if the current execution is inside a batch. */
     private isBatchExecution: boolean;
 
+    /** Contains the data from the step execution. */
+    private data: unknown | undefined;
+
     /**
      * Creates a new step to be executed.
      *
      * @param executor The function to call to execute the step logic.
      * @param previousStep The previous step when chaining is enabled.
      */
-    public constructor(executor: () => Promise<void>, previousStep?: CheckInStep) {
+    public constructor(executor: () => Promise<unknown>, previousStep?: CheckInStep) {
         this.state = ref("NotRun");
         this.errorMessage = ref(undefined);
         this.lastExecution = ref(undefined);
@@ -102,7 +137,7 @@ export class CheckInStep {
         const startTime = performance.now();
 
         try {
-            await this.executor();
+            this.data = await this.executor();
 
             if (!this.isBatchExecution) {
                 this.state.value = "OK";
@@ -110,6 +145,7 @@ export class CheckInStep {
             }
         }
         catch (error) {
+            this.data = undefined;
             this.state.value = "Error";
             this.errorMessage.value = error instanceof Error ? error.message : `${error}`;
 

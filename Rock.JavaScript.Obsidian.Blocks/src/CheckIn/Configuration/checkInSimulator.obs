@@ -1,3 +1,4 @@
+<!-- Copyright by the Spark Development Network; Licensed under the Rock Community License -->
 <template>
     <Panel title="Check-in Simulator"
            type="block"
@@ -58,195 +59,49 @@
             </div>
         </Panel>
 
-        <Panel title="Family Search">
-            <template #headerActions>
-                <div class="d-flex gap action">
-                    <StepStatus :step="familySearchStep" />
-                </div>
-            </template>
+        <StepPanel title="Family Search"
+            :step="familySearchStep"
+            :isDataReady="isFamilySearchDataReady"
+            :isBenchmarkReady="isBenchmarkReady"
+            @executeAction="executeAction($event, familySearchStep)">
+            <FamilySearchPanel
+                v-model:searchTerm="familySearchTerm"
+                v-model:searchType="familySearchType"
+                :families="familySearchData" />
+        </StepPanel>
 
-            <div class="row">
-                <div class="col-md-4">
-                    <TextBox label="Search Term"
-                             v-model="familySearchTerm"
-                             rules="required">
-                        <template #inputGroupPrepend>
-                            <div class="input-group-btn">
-                                <button type="button"
-                                        class="btn btn-default dropdown-toggle"
-                                        data-toggle="dropdown">
-                                    {{ familySearchType.text }} <span class="caret"></span>
-                                </button>
-                                <ul class="dropdown-menu dropdown-menu-right">
-                                    <li v-for="item in familySearchTypeItems">
-                                        <a href="#" title="test"
-                                           @click.prevent="familySearchType = item">{{ item.text }}</a>
-                                    </li>
-                                </ul>
-                            </div>
-                        </template>
-                    </TextBox>
-                </div>
+        <StepPanel title="Select Family"
+            :step="selectFamilyStep"
+            :isDataReady="isSelectFamilyDataReady"
+            :isBenchmarkReady="isBenchmarkReady"
+            @executeAction="executeAction($event, selectFamilyStep)">
+            <SelectFamilyPanel
+                v-model:familyNumber="selectFamilyNumber"
+                :family="selectFamilyData" />
+        </StepPanel>
 
-                <div class="col-md-8">
-                    <ol v-if="familySearchData">
-                        <li v-for="item in familySearchData" :key="item.guid ?? undefined">
-                            {{ item.name }} ({{ item.members?.map(m => m.nickName).join(", ") }})
-                        </li>
-                    </ol>
-                </div>
-            </div>
-
-            <div class="actions">
-                <SplitButton btnType="primary"
-                             :items="familySearchActions"
-                             :disabled="!isFamilySearchReady"
-                             autoDisable
-                             @click="executeAction($event, familySearchStep)" />
-            </div>
-        </Panel>
-
-        <Panel title="Select Family">
-            <template #headerActions>
-                <div class="d-flex gap action">
-                    <StepStatus :step="selectFamilyStep" />
-                </div>
-            </template>
-
-            <div class="row">
-                <div class="col-md-4">
-                    <NumberUpDown label="Family Number"
-                                  v-model="selectFamilyNumber"
-                                  :min="1" />
-                </div>
-
-                <div v-if="selectFamilyData" class="col-md-8">
-                    <div v-if="selectFamilyData.people">
-                        <div>People:</div>
-
-                        <ol>
-                            <li v-for="item in selectFamilyData.people" :key="item.person!.guid!">
-                                {{ item.person?.fullName }}
-                                <ul v-if="item.selectedOpportunities && item.selectedOpportunities.length > 0">
-                                    <li v-for="option in item.selectedOpportunities">
-                                        {{ getSelectedOptions(option) }}
-                                    </li>
-                                </ul>
-                            </li>
-                        </ol>
-                    </div>
-
-                    <div v-if="selectFamilyData.currentlyCheckedInAttendances">
-                        <div>Already checked in:</div>
-
-                        <ol>
-                            <li v-for="item in selectFamilyData.currentlyCheckedInAttendances" :key="item.guid!">
-                                {{ item.fullName }} (Group="{{ item.group!.name }}"; Location="{{ item.location!.name }}"; Schedule="{{ item.schedule!.name }}")
-                            </li>
-                        </ol>
-                    </div>
-                </div>
-            </div>
-
-            <div class="actions">
-                <SplitButton btnType="primary"
-                             :items="selectFamilyActions"
-                             autoDisable
-                             @click="executeAction($event, selectFamilyStep)" />
-            </div>
-        </Panel>
-
-        <Panel title="Select Attendee">
-            <template #headerActions>
-                <div class="d-flex gap action">
-                    <StepStatus :step="selectAttendeeStep" />
-                </div>
-            </template>
-
-            <div class="row">
-                <div class="col-md-4">
-                    <NumberUpDown label="Attendee Number"
-                                  v-model="selectAttendeeNumber"
-                                  :min="1" />
-                </div>
-
-                <div v-if="selectAttendeeData" class="col-md-8">
-                    <div v-if="selectAttendeeData.opportunities">
-                        <div>Opportunities:</div>
-
-                        <ul>
-                            <li v-if="selectAttendeeData.opportunities.abilityLevels && selectAttendeeData.opportunities.abilityLevels.length > 0">
-                                Ability Levels
-                                <ol>
-                                    <li v-for="item in selectAttendeeData.opportunities.abilityLevels" :key="item.guid!">
-                                        {{ item.name }}
-                                    </li>
-                                </ol>
-                            </li>
-
-                            <li v-if="selectAttendeeData.opportunities.areas && selectAttendeeData.opportunities.areas.length > 0">
-                                Areas
-                                <ol>
-                                    <li v-for="item in selectAttendeeData.opportunities.areas" :key="item.guid!">
-                                        {{ item.name }}
-                                    </li>
-                                </ol>
-                            </li>
-
-                            <li v-if="selectAttendeeData.opportunities.groups && selectAttendeeData.opportunities.groups.length > 0">
-                                Groups
-                                <ol>
-                                    <li v-for="item in selectAttendeeData.opportunities.groups" :key="item.guid!">
-                                        {{ item.name }}
-                                    </li>
-                                </ol>
-                            </li>
-
-                            <li v-if="selectAttendeeData.opportunities.locations && selectAttendeeData.opportunities.locations.length > 0">
-                                Locations
-                                <ol>
-                                    <li v-for="item in selectAttendeeData.opportunities.locations" :key="item.guid!">
-                                        {{ item.name }}
-                                    </li>
-                                </ol>
-                            </li>
-
-                            <li v-if="selectAttendeeData.opportunities.schedules && selectAttendeeData.opportunities.schedules.length > 0">
-                                Schedules
-                                <ol>
-                                    <li v-for="item in selectAttendeeData.opportunities.schedules" :key="item.guid!">
-                                        {{ item.name }}
-                                    </li>
-                                </ol>
-                            </li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-
-            <div class="actions">
-                <SplitButton btnType="primary"
-                             :items="selectAttendeeActions"
-                             autoDisable
-                             @click="executeAction($event, selectAttendeeStep)" />
-            </div>
-        </Panel>
+        <StepPanel title="Select Attendee"
+            :step="selectAttendeeStep"
+            :isDataReady="isSelectAttendeeDataReady"
+            :isBenchmarkReady="isBenchmarkReady"
+            @executeAction="executeAction($event, selectAttendeeStep)">
+            <SelectAttendeePanel
+                v-model:attendeeNumber="selectAttendeeNumber"
+                :attendee="selectAttendeeData" />
+        </StepPanel>
     </Panel>
 </template>
 
 <style scoped></style>
 
 <script setup lang="ts">
-    import SplitButton from "./CheckInSimulator/splitButton.partial.obs";
-    import StepStatus from "./CheckInSimulator/stepStatus.partial.obs";
     import CheckBoxList from "@Obsidian/Controls/checkBoxList.obs";
     import DropDownList from "@Obsidian/Controls/dropDownList.obs";
     import Panel from "@Obsidian/Controls/panel.obs";
-    import TextBox from "@Obsidian/Controls/textBox.obs";
-    import { useConfigurationValues, useInvokeBlockAction } from "@Obsidian/Utility/block";
+    import { useConfigurationValues } from "@Obsidian/Utility/block";
     import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
     import { ConfigurationTemplateBag } from "@Obsidian/ViewModels/CheckIn/configurationTemplateBag";
-    import { FamilySearchMode, FamilySearchModeDescription } from "@Obsidian/Enums/CheckIn/familySearchMode";
+    import { FamilySearchMode } from "@Obsidian/Enums/CheckIn/familySearchMode";
     import { FamilyBag } from "@Obsidian/ViewModels/CheckIn/familyBag";
     import { ConfigurationOptionsBag } from "@Obsidian/ViewModels/Rest/CheckIn/configurationOptionsBag";
     import { ConfigurationResponseBag } from "@Obsidian/ViewModels/Rest/CheckIn/configurationResponseBag";
@@ -257,14 +112,15 @@
     import { AttendeeOpportunitiesOptionsBag } from "@Obsidian/ViewModels/Rest/CheckIn/attendeeOpportunitiesOptionsBag";
     import { AttendeeOpportunitiesResponseBag } from "@Obsidian/ViewModels/Rest/CheckIn/attendeeOpportunitiesResponseBag";
     import { computed, ref, watch } from "vue";
-    import { enumToListItemBag } from "@Obsidian/Utility/enumUtils";
     import { toNumber, toNumberOrNull } from "@Obsidian/Utility/numberUtils";
-    import { CheckInStep } from "./CheckInSimulator/utils.partial";
+    import { CheckInStep, executeStepAction } from "./CheckInSimulator/utils.partial";
     import NumberBox from "@Obsidian/Controls/numberBox.obs";
     import { useHttp } from "@Obsidian/Utility/http";
     import { Guid } from "@Obsidian/Types";
-    import NumberUpDown from "@Obsidian/Controls/numberUpDown.obs";
-    import { OpportunitySelectionBag } from "@Obsidian/ViewModels/CheckIn/opportunitySelectionBag";
+    import StepPanel from "./CheckInSimulator/stepPanel.partial.obs";
+    import SelectAttendeePanel from "./CheckInSimulator/selectAttendeePanel.partial.obs";
+    import FamilySearchPanel from "./CheckInSimulator/familySearchPanel.partial.obs";
+    import SelectFamilyPanel from "./CheckInSimulator/selectFamilyPanel.partial.obs";
 
     // #region Types
 
@@ -277,7 +133,6 @@
     // #endregion
 
     const config = useConfigurationValues<CheckInSimulatorOptionsBag>();
-    const invokeBlockAction = useInvokeBlockAction();
     const http = useHttp();
 
     // #region Values
@@ -293,11 +148,6 @@
     const benchmarkIterations = ref<number>();
     const benchmarkDuration = ref<number>();
 
-    const executeToHereAction: ListItemBag = { value: "executeToHere", text: "Execute" };
-    const executeThisStepAction: ListItemBag = { value: "executeThisStep", text: "Execute This Step" };
-    const benchmarkToHereAction: ListItemBag = { value: "benchmarkToHere", text: "Benchmark" };
-    const bencharkThisStepAction: ListItemBag = { value: "benchmarkThisStep", text: "Benchmark This Step" };
-
     const kioskGuid = ref("");
 
     const primaryAreaGuids = ref<string[]>([]);
@@ -306,8 +156,7 @@
     const secondaryAreas = ref<ListItemBag[]>([]);
 
     const familySearchTerm = ref("");
-    const familySearchTypeItems = enumToListItemBag(FamilySearchModeDescription);
-    const familySearchType = ref(familySearchTypeItems[0]);
+    const familySearchType = ref("");
     const familySearchStep = new CheckInStep(executeFamilySearchStep);
     const familySearchData = ref<FamilyBag[]>();
 
@@ -351,25 +200,11 @@
     });
 
     /**
-     * Determines if we are ready to run any of the family search actions.
-     */
-    const isFamilySearchReady = computed((): boolean => {
-        return isConfigurationReady.value && !!familySearchTerm.value;
-    });
-
-    /**
      * Determines if we have all the data required to run a family search
      * without running any previous steps.
      */
     const isFamilySearchDataReady = computed((): boolean => {
-        return isConfigurationReady.value;
-    });
-
-    /**
-     * Gets the button actions available to family search.
-     */
-    const familySearchActions = computed((): ListItemBag[] => {
-        return getStepActions(isFamilySearchDataReady.value);
+        return isConfigurationReady.value && !!familySearchTerm.value;
     });
 
     /**
@@ -380,24 +215,10 @@
     });
 
     /**
-     * Gets the button actions available to selecting a family.
-     */
-    const selectFamilyActions = computed((): ListItemBag[] => {
-        return getStepActions(isSelectFamilyDataReady.value);
-    });
-
-    /**
      * Determines if we have all the data required for the second step.
      */
      const isSelectAttendeeDataReady = computed((): boolean => {
         return isSelectFamilyDataReady.value && !!selectFamilyData.value;
-    });
-
-    /**
-     * Gets the button actions available to selecting an attendee.
-     */
-     const selectAttendeeActions = computed((): ListItemBag[] => {
-        return getStepActions(isSelectAttendeeDataReady.value);
     });
 
     // #endregion
@@ -420,7 +241,7 @@
             benchmarkDuration.value = toNumberOrNull(originalUrl.searchParams.get("benchmarkDuration")) ?? undefined;
 
             familySearchTerm.value = originalUrl.searchParams.get("familySearchTerm") ?? "";
-            familySearchType.value = familySearchTypeItems.find(item => item.value === originalUrl.searchParams.get("familySearchType")) ?? familySearchTypeItems[0];
+            familySearchType.value = originalUrl.searchParams.get("familySearchType") ?? "";
 
             selectFamilyNumber.value = toNumberOrNull(originalUrl.searchParams.get("selectFamilyNumber")) ?? 1;
 
@@ -436,30 +257,6 @@
         finally {
             disableUrlUpdate = false;
         }
-    }
-
-    /**
-     * Gets the actions available to a step. This uses the parameters and other
-     * data to determine which actions can be used.
-     *
-     * @param isDataReady True if enough data is ready to execute just this step.
-     */
-    function getStepActions(isDataReady: boolean): ListItemBag[] {
-        const actions: ListItemBag[] = [executeToHereAction];
-
-        if (isBenchmarkReady.value) {
-            actions.push(benchmarkToHereAction);
-        }
-
-        if (isDataReady) {
-            actions.push(executeThisStepAction);
-
-            if (isBenchmarkReady.value) {
-                actions.push(bencharkThisStepAction);
-            }
-        }
-
-        return actions;
     }
 
     /**
@@ -500,49 +297,7 @@
      * @param step The step to execute the action on.
      */
     async function executeAction(action: string, step: CheckInStep): Promise<void> {
-        try {
-            if (action === executeToHereAction.value) {
-                await step.execute(true);
-            }
-            else if (action === executeThisStepAction.value) {
-                await step.execute(false);
-            }
-            else if (action === benchmarkToHereAction.value) {
-                await step.executeBatch(benchmarkIterations.value, benchmarkDuration.value, true);
-            }
-            else if (action === bencharkThisStepAction.value) {
-                await step.executeBatch(benchmarkIterations.value, benchmarkDuration.value, false);
-            }
-        }
-        catch (error) {
-            console.error(error);
-        }
-    }
-
-    function getSelectedOptions(item: OpportunitySelectionBag): string {
-        const options: string[] = [];
-
-        if (item.area) {
-            options.push(`Area="${item.area.name}"`);
-        }
-
-        if (item.group) {
-            options.push(`Group="${item.group.name}"`);
-        }
-
-        if (item.location) {
-            options.push(`Location="${item.location.name}"`);
-        }
-
-        if (item.schedule) {
-            options.push(`Schedule="${item.schedule.name}"`);
-        }
-
-        if (options.length === 0) {
-            return "";
-        }
-
-        return `Default: ${options.join("; ")}`;
+        return executeStepAction(action, step, benchmarkIterations.value, benchmarkDuration.value);
     }
 
     async function executeFamilySearchStep(): Promise<void> {
@@ -551,7 +306,7 @@
             kioskGuid: kioskGuid.value,
             prioritizeKioskCampus: false,
             searchTerm: familySearchTerm.value,
-            searchType: <FamilySearchMode>toNumber(familySearchType.value.value)
+            searchType: <FamilySearchMode>toNumber(familySearchType.value)
         };
 
         const response = await http.post<SearchForFamiliesResponseBag>("/api/v2/checkin/SearchForFamilies", undefined, request);
@@ -666,8 +421,8 @@
             url.searchParams.append("familySearchTerm", familySearchTerm.value);
         }
 
-        if (familySearchType.value.value && familySearchType.value.value !== FamilySearchMode.PhoneNumber.toString()) {
-            url.searchParams.append("familySearchType", familySearchType.value.value);
+        if (familySearchType.value && familySearchType.value !== FamilySearchMode.PhoneNumber.toString()) {
+            url.searchParams.append("familySearchType", familySearchType.value);
         }
 
         if (selectFamilyNumber.value !== 1) {
