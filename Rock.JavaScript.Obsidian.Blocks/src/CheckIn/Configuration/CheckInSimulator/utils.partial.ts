@@ -1,6 +1,28 @@
+import { Guid } from "@Obsidian/Types";
 import { RockDateTime } from "@Obsidian/Utility/rockDateTime";
 import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
+import { ConfigurationTemplateBag } from "@Obsidian/ViewModels/CheckIn/configurationTemplateBag";
 import { Ref, reactive, ref } from "vue";
+
+export type CheckInSimulatorOptionsBag = {
+    configurations: ConfigurationTemplateBag[] | null;
+
+    kiosks: ListItemBag[] | null;
+};
+
+export type Configuration = {
+    templateGuid?: Guid;
+
+    kioskGuid?: Guid;
+
+    primaryAreaGuids?: Guid[];
+
+    secondaryAreaGuids?: Guid[];
+
+    benchmarkIterations?: number;
+
+    benchmarkDuration?: number;
+};
 
 export const executeToHereAction: ListItemBag = { value: "executeToHere", text: "Execute" };
 export const executeThisStepAction: ListItemBag = { value: "executeThisStep", text: "Execute This Step" };
@@ -49,8 +71,11 @@ export class CheckInStep {
     /** The targer number of executions when running in bulk. */
     public readonly targetExecutionCount: Ref<number | undefined>;
 
-    /** The funciton that will execute the step. */
+    /** The function that will execute the step. */
     private executor: () => Promise<unknown>;
+
+    /** The function that will help decide if the step is ready. */
+    private additionalIsReady?: () => boolean;
 
     /** The previous step to use when chaining steps. */
     private previousStep?: CheckInStep;
@@ -66,14 +91,16 @@ export class CheckInStep {
      *
      * @param executor The function to call to execute the step logic.
      * @param previousStep The previous step when chaining is enabled.
+     * @param isReady A function to be called to help determine if this step can be executed.
      */
-    public constructor(executor: () => Promise<unknown>, previousStep?: CheckInStep) {
+    public constructor(executor: () => Promise<unknown>, previousStep?: CheckInStep, isReady?: () => boolean) {
         this.state = ref("NotRun");
         this.errorMessage = ref(undefined);
         this.lastExecution = ref(undefined);
         this.executionDurations = reactive([]);
         this.targetExecutionCount = ref(undefined);
         this.executor = executor;
+        this.additionalIsReady = isReady;
         this.previousStep = previousStep;
         this.isBatchExecution = false;
     }
@@ -104,6 +131,19 @@ export class CheckInStep {
         this.previousStep?.stopBatch();
         this.state.value = !this.errorMessage.value ? "OK" : "Error";
         this.isBatchExecution = false;
+    }
+
+    /**
+     * Checks if this step is ready to execute right now.
+     *
+     * @returns true if this step is ready to execute.
+     */
+    public isReady(): boolean {
+        if (this.additionalIsReady && !this.additionalIsReady()) {
+            return false;
+        }
+
+        return true;
     }
 
     /**

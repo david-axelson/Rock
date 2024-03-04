@@ -37,7 +37,7 @@
 </template>
 
 <script setup lang="ts">
-    import { PropType, computed } from "vue";
+    import { PropType } from "vue";
     import NumberUpDown from "@Obsidian/Controls/numberUpDown.obs";
     import { useVModelPassthrough } from "@Obsidian/Utility/component";
     import { FamilyMembersResponseBag } from "@Obsidian/ViewModels/Rest/CheckIn/familyMembersResponseBag";

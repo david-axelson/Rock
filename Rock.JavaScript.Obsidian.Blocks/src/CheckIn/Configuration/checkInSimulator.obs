@@ -3,91 +3,33 @@
     <Panel title="Check-in Simulator"
            type="block"
            hasFullscreen>
-        <Panel title="Configuration"
-               :modelValue="true"
-               hasCollapse>
-            <div class="row">
-                <div class="col-md-6">
-                    <DropDownList label="Configuration"
-                                  v-model="configurationGuid"
-                                  :items="configurationItems"
-                                  rules="required" />
-                </div>
 
-                <div class="col-md-6">
-                    <DropDownList label="Kiosk"
-                                  v-model="kioskGuid"
-                                  :items="config.kiosks ?? []"
-                                  rules="required" />
-                </div>
-            </div>
-
-            <div class="row">
-                <div class="col-md-6">
-                    <CheckBoxList label="Primary Areas"
-                                  v-model="primaryAreaGuids"
-                                  :items="primaryAreas"
-                                  horizontal
-                                  :repeatColumns="4" />
-                </div>
-
-                <div class="col-md-6">
-                    <CheckBoxList label="Secondary Areas"
-                                  v-model="secondaryAreaGuids"
-                                  :items="secondaryAreas"
-                                  horizontal
-                                  :repeatColumns="4" />
-                </div>
-            </div>
-
-            <hr style="margin-left: calc(var(--panel-body-padding, 0) * -1); margin-right: calc(var(--panel-body-padding, 0) * -1);" />
-
-            <div>
-                <div class="col-md-6">
-                    <NumberBox label="Benchmark Iterations"
-                               v-model="benchmarkIterations"
-                               :minimumValue="0"
-                               help="The maximum number of iterations to run during a benchmark." />
-                </div>
-
-                <div class="col-md-6">
-                    <NumberBox label="Benchmark Duration"
-                               v-model="benchmarkDuration"
-                               :minimumValue="0"
-                               help="The maximum number of seconds to run during a benchmark." />
-                </div>
-            </div>
-        </Panel>
+        <ConfigurationPanel :blockConfig="config"
+                            v-model:config="configuration" />
 
         <StepPanel title="Family Search"
-            :step="familySearchStep"
-            :isDataReady="isFamilySearchDataReady"
-            :isBenchmarkReady="isBenchmarkReady"
-            @executeAction="executeAction($event, familySearchStep)">
-            <FamilySearchPanel
-                v-model:searchTerm="familySearchTerm"
-                v-model:searchType="familySearchType"
-                :families="familySearchData" />
+                   :step="familySearchStep"
+                   :isBenchmarkReady="isBenchmarkReady"
+                   @executeAction="executeAction($event, familySearchStep)">
+            <FamilySearchPanel v-model:searchTerm="familySearchTerm"
+                               v-model:searchType="familySearchType"
+                               :families="familySearchData" />
         </StepPanel>
 
         <StepPanel title="Select Family"
-            :step="selectFamilyStep"
-            :isDataReady="isSelectFamilyDataReady"
-            :isBenchmarkReady="isBenchmarkReady"
-            @executeAction="executeAction($event, selectFamilyStep)">
-            <SelectFamilyPanel
-                v-model:familyNumber="selectFamilyNumber"
-                :family="selectFamilyData" />
+                   :step="selectFamilyStep"
+                   :isBenchmarkReady="isBenchmarkReady"
+                   @executeAction="executeAction($event, selectFamilyStep)">
+            <SelectFamilyPanel v-model:familyNumber="selectFamilyNumber"
+                               :family="selectFamilyData" />
         </StepPanel>
 
         <StepPanel title="Select Attendee"
-            :step="selectAttendeeStep"
-            :isDataReady="isSelectAttendeeDataReady"
-            :isBenchmarkReady="isBenchmarkReady"
-            @executeAction="executeAction($event, selectAttendeeStep)">
-            <SelectAttendeePanel
-                v-model:attendeeNumber="selectAttendeeNumber"
-                :attendee="selectAttendeeData" />
+                   :step="selectAttendeeStep"
+                   :isBenchmarkReady="isBenchmarkReady"
+                   @executeAction="executeAction($event, selectAttendeeStep)">
+            <SelectAttendeePanel v-model:attendeeNumber="selectAttendeeNumber"
+                                 :attendee="selectAttendeeData" />
         </StepPanel>
     </Panel>
 </template>
@@ -95,16 +37,10 @@
 <style scoped></style>
 
 <script setup lang="ts">
-    import CheckBoxList from "@Obsidian/Controls/checkBoxList.obs";
-    import DropDownList from "@Obsidian/Controls/dropDownList.obs";
     import Panel from "@Obsidian/Controls/panel.obs";
     import { useConfigurationValues } from "@Obsidian/Utility/block";
-    import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
-    import { ConfigurationTemplateBag } from "@Obsidian/ViewModels/CheckIn/configurationTemplateBag";
     import { FamilySearchMode } from "@Obsidian/Enums/CheckIn/familySearchMode";
     import { FamilyBag } from "@Obsidian/ViewModels/CheckIn/familyBag";
-    import { ConfigurationOptionsBag } from "@Obsidian/ViewModels/Rest/CheckIn/configurationOptionsBag";
-    import { ConfigurationResponseBag } from "@Obsidian/ViewModels/Rest/CheckIn/configurationResponseBag";
     import { SearchForFamiliesOptionsBag } from "@Obsidian/ViewModels/Rest/CheckIn/searchForFamiliesOptionsBag";
     import { SearchForFamiliesResponseBag } from "@Obsidian/ViewModels/Rest/CheckIn/searchForFamiliesResponseBag";
     import { FamilyMembersOptionsBag } from "@Obsidian/ViewModels/Rest/CheckIn/familyMembersOptionsBag";
@@ -113,60 +49,21 @@
     import { AttendeeOpportunitiesResponseBag } from "@Obsidian/ViewModels/Rest/CheckIn/attendeeOpportunitiesResponseBag";
     import { computed, ref, watch } from "vue";
     import { toNumber, toNumberOrNull } from "@Obsidian/Utility/numberUtils";
-    import { CheckInStep, executeStepAction } from "./CheckInSimulator/utils.partial";
-    import NumberBox from "@Obsidian/Controls/numberBox.obs";
+    import { CheckInSimulatorOptionsBag, CheckInStep, Configuration, executeStepAction } from "./CheckInSimulator/utils.partial";
     import { useHttp } from "@Obsidian/Utility/http";
     import { Guid } from "@Obsidian/Types";
+    import ConfigurationPanel from "./CheckInSimulator/configurationPanel.partial.obs";
     import StepPanel from "./CheckInSimulator/stepPanel.partial.obs";
     import SelectAttendeePanel from "./CheckInSimulator/selectAttendeePanel.partial.obs";
     import FamilySearchPanel from "./CheckInSimulator/familySearchPanel.partial.obs";
     import SelectFamilyPanel from "./CheckInSimulator/selectFamilyPanel.partial.obs";
-
-    // #region Types
-
-    type CheckInSimulatorOptionsBag = {
-        configurations: ConfigurationTemplateBag[] | null;
-
-        kiosks: ListItemBag[] | null;
-    };
-
-    // #endregion
 
     const config = useConfigurationValues<CheckInSimulatorOptionsBag>();
     const http = useHttp();
 
     // #region Values
 
-    let disableUrlUpdate = false;
-
-    const configurationGuid = ref("");
-    const configurationItems: ListItemBag[] = config.configurations?.map(c => ({
-        value: c.guid,
-        text: c.name
-    })) ?? [];
-
-    const benchmarkIterations = ref<number>();
-    const benchmarkDuration = ref<number>();
-
-    const kioskGuid = ref("");
-
-    const primaryAreaGuids = ref<string[]>([]);
-    const secondaryAreaGuids = ref<string[]>([]);
-    const primaryAreas = ref<ListItemBag[]>([]);
-    const secondaryAreas = ref<ListItemBag[]>([]);
-
-    const familySearchTerm = ref("");
-    const familySearchType = ref("");
-    const familySearchStep = new CheckInStep(executeFamilySearchStep);
-    const familySearchData = ref<FamilyBag[]>();
-
-    const selectFamilyStep = new CheckInStep(executeSelectFamilyStep, familySearchStep);
-    const selectFamilyNumber = ref(1);
-    const selectFamilyData = ref<FamilyMembersResponseBag>();
-
-    const selectAttendeeStep = new CheckInStep(executeSelectAttendeeStep, selectFamilyStep);
-    const selectAttendeeNumber = ref(1);
-    const selectAttendeeData = ref<AttendeeOpportunitiesResponseBag>();
+    const configuration = ref<Configuration>({});
 
     // #endregion
 
@@ -177,8 +74,8 @@
      */
     const areaGuids = computed((): Guid[] => {
         return [
-            ...primaryAreaGuids.value,
-            ...secondaryAreaGuids.value
+            ...configuration.value.primaryAreaGuids ?? [],
+            ...configuration.value.secondaryAreaGuids ?? []
         ];
     });
 
@@ -187,7 +84,7 @@
      * any step to function.
      */
     const isConfigurationReady = computed((): boolean => {
-        return !!configurationGuid.value && !!kioskGuid.value;
+        return !!configuration.value.templateGuid && !!configuration.value.kioskGuid;
     });
 
     /**
@@ -195,30 +92,8 @@
      * run benchmark tests.
      */
     const isBenchmarkReady = computed((): boolean => {
-        return (benchmarkIterations.value ?? 0) > 0
-            || (benchmarkDuration.value ?? 0) > 0;
-    });
-
-    /**
-     * Determines if we have all the data required to run a family search
-     * without running any previous steps.
-     */
-    const isFamilySearchDataReady = computed((): boolean => {
-        return isConfigurationReady.value && !!familySearchTerm.value;
-    });
-
-    /**
-     * Determines if we have all the data required for the second step.
-     */
-    const isSelectFamilyDataReady = computed((): boolean => {
-        return isFamilySearchDataReady.value && !!familySearchData.value;
-    });
-
-    /**
-     * Determines if we have all the data required for the second step.
-     */
-     const isSelectAttendeeDataReady = computed((): boolean => {
-        return isSelectFamilyDataReady.value && !!selectFamilyData.value;
+        return (configuration.value.benchmarkIterations ?? 0) > 0
+            || (configuration.value.benchmarkDuration ?? 0) > 0;
     });
 
     // #endregion
@@ -226,68 +101,54 @@
     // #region Functions
 
     /**
-     * Restores the state of the UI from the URL.
+     * Saves the state of the UI to the URL.
      */
-    async function restoreState(): Promise<void> {
-        const originalUrl = new URL(location.href);
+    function saveState(): void {
+        const url = new URL(location.href);
 
-        disableUrlUpdate = true;
-
-        try {
-            configurationGuid.value = originalUrl.searchParams.get("configuration") ?? "";
-            kioskGuid.value = originalUrl.searchParams.get("kiosk") ?? "";
-
-            benchmarkIterations.value = toNumberOrNull(originalUrl.searchParams.get("benchmarkIterations")) ?? undefined;
-            benchmarkDuration.value = toNumberOrNull(originalUrl.searchParams.get("benchmarkDuration")) ?? undefined;
-
-            familySearchTerm.value = originalUrl.searchParams.get("familySearchTerm") ?? "";
-            familySearchType.value = originalUrl.searchParams.get("familySearchType") ?? "";
-
-            selectFamilyNumber.value = toNumberOrNull(originalUrl.searchParams.get("selectFamilyNumber")) ?? 1;
-
-            if (!configurationGuid.value || !kioskGuid.value) {
-                return;
-            }
-
-            await updateAreaItems();
-
-            primaryAreaGuids.value = originalUrl.searchParams.get("primaryAreas")?.split(",") ?? [];
-            secondaryAreaGuids.value = originalUrl.searchParams.get("secondaryAreas")?.split(",") ?? [];
+        if (familySearchTerm.value) {
+            url.searchParams.set("familySearchTerm", familySearchTerm.value);
         }
-        finally {
-            disableUrlUpdate = false;
+        else {
+            url.searchParams.delete("familySearchTerm");
+        }
+
+        if (familySearchType.value && familySearchType.value !== FamilySearchMode.PhoneNumber.toString()) {
+            url.searchParams.set("familySearchType", familySearchType.value);
+        }
+        else {
+            url.searchParams.delete("familySearchType");
+        }
+
+        if (selectFamilyNumber.value !== 1) {
+            url.searchParams.set("familyNumber", selectFamilyNumber.value.toString());
+        }
+        else {
+            url.searchParams.delete("familyNumber");
+        }
+
+        if (selectFamilyNumber.value !== 1) {
+            url.searchParams.set("attendeeNumber", selectAttendeeNumber.value.toString());
+        }
+        else {
+            url.searchParams.delete("attendeeNumber");
+        }
+
+        if (window.location.href != url.href) {
+            history.replaceState(undefined, "", url);
         }
     }
 
     /**
-     * Gets the area items from the server and updates the selected values
-     * to only those which are still valid.
+     * Restores the UI state from the URL.
      */
-    async function updateAreaItems(): Promise<void> {
-        if (!kioskGuid.value) {
-            primaryAreaGuids.value = [];
-            primaryAreas.value = [];
-            secondaryAreaGuids.value = [];
-            secondaryAreas.value = [];
+    function restoreState(): void {
+        const originalUrl = new URL(location.href);
 
-            return;
-        }
-
-        const request: ConfigurationOptionsBag = {
-            kioskGuid: kioskGuid.value
-        };
-
-        const response = await http.post<ConfigurationResponseBag>("/api/v2/checkin/Configuration", undefined, request);
-
-        if (response.isSuccess && response.data?.areas) {
-            primaryAreas.value = response.data.areas
-                .filter(a => (a.primaryTemplateGuids ?? []).includes(configurationGuid.value))
-                .map(a => ({ value: a.guid, text: a.name }));
-
-            secondaryAreas.value = response.data.areas
-                .filter(a => !(a.primaryTemplateGuids ?? []).includes(configurationGuid.value))
-                .map(a => ({ value: a.guid, text: a.name }));
-        }
+        familySearchTerm.value = originalUrl.searchParams.get("familySearchTerm") ?? "";
+        familySearchType.value = originalUrl.searchParams.get("familySearchType") ?? "";
+        selectFamilyNumber.value = toNumberOrNull(originalUrl.searchParams.get("familyNumber")) ?? 1;
+        selectAttendeeNumber.value = toNumberOrNull(originalUrl.searchParams.get("attendeeNumber")) ?? 1;
     }
 
     /**
@@ -297,13 +158,29 @@
      * @param step The step to execute the action on.
      */
     async function executeAction(action: string, step: CheckInStep): Promise<void> {
-        return executeStepAction(action, step, benchmarkIterations.value, benchmarkDuration.value);
+        return executeStepAction(action,
+            step,
+            configuration.value.benchmarkIterations,
+            configuration.value.benchmarkDuration);
     }
 
+    // #endregion
+
+    // #region Family Search
+
+    const familySearchTerm = ref("");
+    const familySearchType = ref("");
+    const familySearchStep = new CheckInStep(executeFamilySearchStep, undefined,
+        () => isConfigurationReady.value && !!familySearchTerm.value);
+    const familySearchData = ref<FamilyBag[]>();
+
+    /**
+     * Executes the family search process.
+     */
     async function executeFamilySearchStep(): Promise<void> {
         const request: SearchForFamiliesOptionsBag = {
-            configurationTemplateGuid: configurationGuid.value,
-            kioskGuid: kioskGuid.value,
+            configurationTemplateGuid: configuration.value.templateGuid,
+            kioskGuid: configuration.value.kioskGuid,
             prioritizeKioskCampus: false,
             searchTerm: familySearchTerm.value,
             searchType: <FamilySearchMode>toNumber(familySearchType.value)
@@ -320,14 +197,26 @@
         }
     }
 
+    // #endregion
+
+    // #region Select Family
+
+    const selectFamilyStep = new CheckInStep(executeSelectFamilyStep, familySearchStep,
+        () => !!familySearchData.value);
+    const selectFamilyNumber = ref(1);
+    const selectFamilyData = ref<FamilyMembersResponseBag>();
+
+    /**
+     * Executes the select family process.
+     */
     async function executeSelectFamilyStep(): Promise<void> {
         if (!familySearchData.value || selectFamilyNumber.value > familySearchData.value.length) {
             throw new Error("Invalid family selected.");
         }
 
         const request: FamilyMembersOptionsBag = {
-            configurationTemplateGuid: configurationGuid.value,
-            kioskGuid: kioskGuid.value,
+            configurationTemplateGuid: configuration.value.templateGuid,
+            kioskGuid: configuration.value.kioskGuid,
             areaGuids: areaGuids.value,
             familyGuid: familySearchData.value[selectFamilyNumber.value - 1].guid
         };
@@ -343,14 +232,26 @@
         }
     }
 
+    // #endregion
+
+    // #region Select Attendee
+
+    const selectAttendeeStep = new CheckInStep(executeSelectAttendeeStep, selectFamilyStep,
+        () => !!selectFamilyData.value);
+    const selectAttendeeNumber = ref(1);
+    const selectAttendeeData = ref<AttendeeOpportunitiesResponseBag>();
+
+    /**
+     * Executes the select attendee process.
+     */
     async function executeSelectAttendeeStep(): Promise<void> {
         if (!selectFamilyData.value?.people || selectAttendeeNumber.value > selectFamilyData.value.people.length) {
             throw new Error("Invalid attendee selected.");
         }
 
         const request: AttendeeOpportunitiesOptionsBag = {
-            configurationTemplateGuid: configurationGuid.value,
-            kioskGuid: kioskGuid.value,
+            configurationTemplateGuid: configuration.value.templateGuid,
+            kioskGuid: configuration.value.kioskGuid,
             areaGuids: areaGuids.value,
             familyGuid: selectFamilyData.value.familyGuid,
             personGuid: selectFamilyData.value.people[selectAttendeeNumber.value - 1].person?.guid ?? ""
@@ -369,67 +270,16 @@
 
     // #endregion
 
-    watch(kioskGuid, () => updateAreaItems());
-
+    // Watch for changes to values that require a URL update.
     const urlUpdateWatchees = [
-        configurationGuid,
-        kioskGuid,
-        benchmarkIterations,
-        benchmarkDuration,
-        primaryAreaGuids,
-        secondaryAreaGuids,
         familySearchTerm,
         familySearchType,
-        selectFamilyNumber
+        selectFamilyNumber,
+        selectAttendeeNumber
     ];
 
-    // Watch for changes to values that require a URL update.
     watch(urlUpdateWatchees, () => {
-        if (disableUrlUpdate) {
-            return;
-        }
-
-        const url = new URL(location.href);
-
-        url.search = "";
-
-        if (configurationGuid.value) {
-            url.searchParams.append("configuration", configurationGuid.value);
-        }
-
-        if (kioskGuid.value) {
-            url.searchParams.append("kiosk", kioskGuid.value);
-        }
-
-        if (primaryAreaGuids.value.length > 0) {
-            url.searchParams.append("primaryAreas", primaryAreaGuids.value.join(","));
-        }
-
-        if (secondaryAreaGuids.value.length > 0) {
-            url.searchParams.append("secondaryAreas", secondaryAreaGuids.value.join(","));
-        }
-
-        if (benchmarkIterations.value) {
-            url.searchParams.append("benchmarkIterations", benchmarkIterations.value.toString());
-        }
-
-        if (benchmarkDuration.value) {
-            url.searchParams.append("benchmarkDuration", benchmarkDuration.value.toString());
-        }
-
-        if (familySearchTerm.value) {
-            url.searchParams.append("familySearchTerm", familySearchTerm.value);
-        }
-
-        if (familySearchType.value && familySearchType.value !== FamilySearchMode.PhoneNumber.toString()) {
-            url.searchParams.append("familySearchType", familySearchType.value);
-        }
-
-        if (selectFamilyNumber.value !== 1) {
-            url.searchParams.append("selectFamilyNumber", selectFamilyNumber.value.toString());
-        }
-
-        history.replaceState(undefined, "", url);
+        saveState();
     });
 
     restoreState();

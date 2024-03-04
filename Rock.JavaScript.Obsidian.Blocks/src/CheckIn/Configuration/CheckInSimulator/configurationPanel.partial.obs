@@ -1,0 +1,270 @@
+<!-- Copyright by the Spark Development Network; Licensed under the Rock Community License -->
+<template>
+    <Panel title="Configuration"
+           :modelValue="true"
+           hasCollapse>
+        <div class="row">
+            <div class="col-md-6">
+                <DropDownList label="Template"
+                              v-model="templateGuid"
+                              :disabled="disableUpdates"
+                              :items="templateItems"
+
+                              rules="required" />
+            </div>
+
+            <div class="col-md-6">
+                <DropDownList label="Kiosk"
+                              v-model="kioskGuid"
+                              :disabled="disableUpdates"
+                              :items="blockConfig.kiosks ?? []"
+                              rules="required" />
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <CheckBoxList label="Primary Areas"
+                              v-model="primaryAreaGuids"
+                              :items="primaryAreas"
+                              :disabled="disableUpdates"
+                              horizontal
+                              :repeatColumns="4" />
+            </div>
+
+            <div class="col-md-6">
+                <CheckBoxList label="Secondary Areas"
+                              v-model="secondaryAreaGuids"
+                              :items="secondaryAreas"
+                              :disabled="disableUpdates"
+                              horizontal
+                              :repeatColumns="4" />
+            </div>
+        </div>
+
+        <hr style="margin-left: calc(var(--panel-body-padding, 0) * -1); margin-right: calc(var(--panel-body-padding, 0) * -1);" />
+
+        <div>
+            <div class="col-md-6">
+                <NumberBox label="Benchmark Iterations"
+                           v-model="benchmarkIterations"
+                           :minimumValue="0"
+                           :disabled="disableUpdates"
+                           help="The maximum number of iterations to run during a benchmark." />
+            </div>
+
+            <div class="col-md-6">
+                <NumberBox label="Benchmark Duration"
+                           v-model="benchmarkDuration"
+                           :minimumValue="0"
+                           help="The maximum number of seconds to run during a benchmark." />
+            </div>
+        </div>
+    </Panel>
+</template>
+
+<script setup lang="ts">
+    import DropDownList from "@Obsidian/Controls/dropDownList.obs";
+    import CheckBoxList from "@Obsidian/Controls/checkBoxList.obs";
+    import NumberBox from "@Obsidian/Controls/numberBox.obs";
+    import { CheckInSimulatorOptionsBag, Configuration } from "./utils.partial";
+    import { ConfigurationOptionsBag } from "@Obsidian/ViewModels/Rest/CheckIn/configurationOptionsBag";
+    import { ConfigurationResponseBag } from "@Obsidian/ViewModels/Rest/CheckIn/configurationResponseBag";
+    import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
+    import { PropType, ref, watch } from "vue";
+    import { toNumberOrNull } from "@Obsidian/Utility/numberUtils";
+    import { toGuidOrNull } from "@Obsidian/Utility/guid";
+    import { useHttp } from "@Obsidian/Utility/http";
+
+    const props = defineProps({
+        blockConfig: {
+            type: Object as PropType<CheckInSimulatorOptionsBag>,
+            required: true
+        },
+
+        config: {
+            type: Object as PropType<Configuration>,
+            required: true
+        }
+    });
+
+    const emit = defineEmits<{
+        (event: "update:config", value: Configuration): void;
+    }>();
+
+    const http = useHttp();
+
+    const templateItems: ListItemBag[] = props.blockConfig.configurations?.map(c => ({
+        value: c.guid,
+        text: c.name
+    })) ?? [];
+
+    let disableUpdates = false;
+
+    const templateGuid = ref(props.config.templateGuid ?? "");
+    const kioskGuid = ref(props.config.kioskGuid ?? "");
+    const primaryAreaGuids = ref(props.config.primaryAreaGuids ?? []);
+    const secondaryAreaGuids = ref(props.config.secondaryAreaGuids ?? []);
+    const benchmarkIterations = ref(props.config.benchmarkIterations);
+    const benchmarkDuration = ref(props.config.benchmarkDuration);
+
+    const primaryAreas = ref<ListItemBag[]>([]);
+    const secondaryAreas = ref<ListItemBag[]>([]);
+
+    /**
+     * Gets the area items from the server and updates the selected values
+     * to only those which are still valid.
+     */
+    async function updateAreaItems(): Promise<void> {
+        if (!kioskGuid.value) {
+            primaryAreaGuids.value = [];
+            primaryAreas.value = [];
+            secondaryAreaGuids.value = [];
+            secondaryAreas.value = [];
+
+            return;
+        }
+
+        const request: ConfigurationOptionsBag = {
+            kioskGuid: kioskGuid.value
+        };
+
+        const response = await http.post<ConfigurationResponseBag>("/api/v2/checkin/Configuration", undefined, request);
+
+        if (response.isSuccess && response.data?.areas) {
+            primaryAreas.value = response.data.areas
+                .filter(a => (a.primaryTemplateGuids ?? []).includes(props.config.templateGuid ?? ""))
+                .map(a => ({ value: a.guid, text: a.name }));
+
+            secondaryAreas.value = response.data.areas
+                .filter(a => !(a.primaryTemplateGuids ?? []).includes(props.config.templateGuid ?? ""))
+                .map(a => ({ value: a.guid, text: a.name }));
+        }
+    }
+
+    /**
+     * Emits a new config value that contains all the information on the UI.
+     */
+    function emitConfig(): void {
+        emit("update:config", {
+            templateGuid: toGuidOrNull(templateGuid.value) ?? undefined,
+            kioskGuid: toGuidOrNull(kioskGuid.value) ?? undefined,
+            primaryAreaGuids: primaryAreaGuids.value,
+            secondaryAreaGuids: secondaryAreaGuids.value,
+            benchmarkIterations: benchmarkIterations.value,
+            benchmarkDuration: benchmarkDuration.value
+        });
+    }
+
+    /**
+     * Restores the state of the UI from the URL.
+     */
+    async function restoreState(): Promise<void> {
+        const originalUrl = new URL(location.href);
+
+        disableUpdates = true;
+
+        try {
+            templateGuid.value = originalUrl.searchParams.get("template") ?? "";
+            kioskGuid.value = originalUrl.searchParams.get("kiosk") ?? "";
+
+            benchmarkIterations.value = toNumberOrNull(originalUrl.searchParams.get("benchmarkIterations")) ?? undefined;
+            benchmarkDuration.value = toNumberOrNull(originalUrl.searchParams.get("benchmarkDuration")) ?? undefined;
+
+            if (!templateGuid.value || !kioskGuid.value) {
+                return;
+            }
+
+            // Update the list of allowed items, otherwise setting the area
+            // guids will be overwritten.
+            await updateAreaItems();
+
+            primaryAreaGuids.value = originalUrl.searchParams.get("primaryAreas")?.split(",") ?? [];
+            secondaryAreaGuids.value = originalUrl.searchParams.get("secondaryAreas")?.split(",") ?? [];
+        }
+        finally {
+            disableUpdates = false;
+        }
+
+        emitConfig();
+    }
+
+    /**
+     * Save the configuration state to the URL.
+     */
+    function saveState(): void {
+        const url = new URL(location.href);
+
+        if (templateGuid.value) {
+            url.searchParams.set("template", templateGuid.value);
+        }
+        else {
+            url.searchParams.delete("template");
+        }
+
+        if (kioskGuid.value) {
+            url.searchParams.set("kiosk", kioskGuid.value);
+        }
+        else {
+            url.searchParams.delete("kiosk");
+        }
+
+        if (primaryAreaGuids.value && primaryAreaGuids.value.length > 0) {
+            url.searchParams.set("primaryAreas", primaryAreaGuids.value.join(","));
+        }
+        else {
+            url.searchParams.delete("primaryAreas");
+        }
+
+        if (secondaryAreaGuids.value && secondaryAreaGuids.value.length > 0) {
+            url.searchParams.set("secondaryAreas", secondaryAreaGuids.value.join(","));
+        }
+        else {
+            url.searchParams.delete("secondaryAreas");
+        }
+
+        if (benchmarkIterations.value) {
+            url.searchParams.set("benchmarkIterations", benchmarkIterations.value.toString());
+        }
+        else {
+            url.searchParams.delete("benchmarkIterations");
+        }
+
+        if (benchmarkDuration.value) {
+            url.searchParams.set("benchmarkDuration", benchmarkDuration.value.toString());
+        }
+        else {
+            url.searchParams.delete("benchmarkDuration");
+        }
+
+        if (window.location.href != url.href) {
+            history.replaceState(undefined, "", url);
+        }
+    }
+
+    watch(() => props.config, () => {
+        templateGuid.value = props.config.templateGuid ?? "";
+        kioskGuid.value = props.config.kioskGuid ?? "";
+        primaryAreaGuids.value = props.config.primaryAreaGuids ?? [];
+        secondaryAreaGuids.value = props.config.secondaryAreaGuids ?? [];
+        benchmarkIterations.value = props.config.benchmarkIterations;
+        benchmarkDuration.value = props.config.benchmarkDuration;
+    });
+
+    watch([templateGuid, kioskGuid, primaryAreaGuids, secondaryAreaGuids, benchmarkIterations, benchmarkDuration], () => {
+        if (disableUpdates) {
+            return;
+        }
+
+        saveState();
+        emitConfig();
+    });
+
+    watch(kioskGuid, () => updateAreaItems());
+
+    if (props.config.kioskGuid) {
+        updateAreaItems();
+    }
+
+    restoreState();
+</script>
