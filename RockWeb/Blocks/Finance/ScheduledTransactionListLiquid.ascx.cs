@@ -275,6 +275,7 @@ namespace RockWeb.Blocks.Finance
                     Dictionary<string, object> detailSummary = new Dictionary<string, object>();
                     detailSummary.Add( "AccountId", detail.Account.Id );
                     detailSummary.Add( "AccountName", detail.Account.Name );
+                    detailSummary.Add( "AccountPublicName", detail.Account.PublicName );
                     detailSummary.Add( "Amount", detail.Amount );
                     detailSummary.Add( "Summary", detail.Summary );
 
